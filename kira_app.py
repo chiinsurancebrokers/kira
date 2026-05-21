@@ -5,12 +5,10 @@ Standalone Streamlit app · Real data only · No placeholders.
 """
 
 import streamlit as st
-import hashlib
 import json
 import urllib.request
 import urllib.parse
 from datetime import datetime, date
-import anthropic as _anthropic_sdk
 
 # ── PAGE CONFIG ───────────────────────────────────────────────────────────────
 st.set_page_config(
@@ -251,13 +249,31 @@ def gpt4o(prompt, system="", max_tokens=900):
 
 # ── CLAUDE ────────────────────────────────────────────────────────────────────
 def claude(messages, system="", max_tokens=1200):
+    """Call Claude via raw HTTP — no anthropic package needed."""
     key = get_claude_key()
-    if not key: return "⚠️ Claude API key not set."
-    client = _anthropic_sdk.Anthropic(api_key=key)
-    kwargs = dict(model="claude-sonnet-4-20250514", max_tokens=max_tokens, messages=messages)
-    if system: kwargs["system"] = system
-    r = client.messages.create(**kwargs)
-    return r.content[0].text
+    if not key:
+        return "⚠️ Claude API key not set."
+    body = json.dumps({
+        "model": "claude-sonnet-4-20250514",
+        "max_tokens": max_tokens,
+        "system": system,
+        "messages": messages,
+    }).encode()
+    req = urllib.request.Request(
+        "https://api.anthropic.com/v1/messages",
+        data=body,
+        headers={
+            "x-api-key": key,
+            "anthropic-version": "2023-06-01",
+            "content-type": "application/json",
+        },
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=30) as r:
+            data = json.loads(r.read())
+        return data["content"][0]["text"]
+    except Exception as e:
+        return f"⚠️ Claude error: {e}"
 
 # ── SESSION STATE ─────────────────────────────────────────────────────────────
 defaults = {
@@ -532,28 +548,67 @@ def render_vitals():
     st.markdown(f"## 📊 {t('vitals_title')} — {p.get('name','')}")
     st.caption(t("vitals_sub"))
 
-    # Face scan placeholder
-    st.markdown(f"""
-    <div class="card" style="border:2px dashed #C4B5FD;background:#F5F3FF;">
-        <div style="font-size:28px">📷</div>
-        <strong style="color:#7B2FE0">{t('face_scan_soon')}</strong>
-        <p style="font-size:13px;color:#6B7280;margin:8px 0 0">{t('face_scan_note')}</p>
-    </div>
-    """, unsafe_allow_html=True)
+    # ── Check for incoming face scan results via URL params ───────────────
+    try:
+        params = st.query_params
+        facescan_raw = params.get("facescan", "")
+        if facescan_raw and not st.session_state.vitals:
+            import urllib.parse as _up
+            scanned = json.loads(_up.unquote(facescan_raw))
+            if scanned:
+                st.session_state.vitals = scanned
+                st.query_params.clear()
+                st.success("✅ Τα δεδομένα από τη σάρωση προσώπου φορτώθηκαν!" if st.session_state.lang=="el"
+                           else "✅ Face scan data loaded!")
+    except Exception:
+        pass
 
-    st.markdown(f"**{t('vitals_title')} — Χειροκίνητη Εισαγωγή**")
+    # ── Face scan card ────────────────────────────────────────────────────
+    shenai_key = st.secrets.get("SHENAI_API_KEY", "")
+    facescan_url = st.secrets.get("FACESCAN_URL", "")  # URL where facescan.html is hosted
 
+    if facescan_url:
+        import urllib.parse as _up
+        kira_url = st.secrets.get("KIRA_URL", "")
+        scan_link = f"{facescan_url}?kira_url={_up.quote(kira_url)}"
+        st.markdown(f"""
+        <div style="background:linear-gradient(135deg,#2D3FE7,#7B2FE0);border-radius:16px;padding:24px;text-align:center;margin-bottom:20px;color:white">
+            <div style="font-size:36px">📷</div>
+            <div style="font-size:18px;font-weight:700;margin:8px 0">Σάρωση Προσώπου — Shen.AI</div>
+            <div style="font-size:13px;opacity:0.8;margin-bottom:16px">Μέτρηση καρδιακού ρυθμού, πίεσης, HRV, stress index σε 60 δευτερόλεπτα</div>
+            <a href="{scan_link}" target="_blank" style="background:white;color:#2D3FE7;padding:12px 24px;border-radius:8px;font-weight:700;text-decoration:none;font-size:14px">
+                Έναρξη Σάρωσης →
+            </a>
+        </div>
+        """, unsafe_allow_html=True)
+        st.caption("Μετά τη σάρωση θα επιστρέψετε αυτόματα εδώ με τα αποτελέσματα.")
+        st.divider()
+
+    else:
+        st.markdown(f"""
+        <div class="card" style="border:2px dashed #C4B5FD;background:#F5F3FF;margin-bottom:20px">
+            <div style="font-size:28px">📷</div>
+            <strong style="color:#7B2FE0">{t('face_scan_soon')}</strong>
+            <p style="font-size:13px;color:#6B7280;margin:8px 0 0">{t('face_scan_note')}<br><br>
+            <em>Για να ενεργοποιήσετε: αποκτήστε API κλειδί από <a href="https://admin.shen.ai" target="_blank">admin.shen.ai</a> και ορίστε FACESCAN_URL στα Streamlit secrets.</em></p>
+        </div>
+        """, unsafe_allow_html=True)
+
+    # ── Manual vitals input ───────────────────────────────────────────────
+    st.markdown(f"**Χειροκίνητη Εισαγωγή Μετρήσεων**" if st.session_state.lang=="el" else "**Manual Vitals Entry**")
+
+    # Pre-populate from face scan if available
     v = st.session_state.vitals
 
     c1, c2, c3 = st.columns(3)
     with c1:
-        hr    = st.number_input(t("hr"),     min_value=0, max_value=300, value=int(v.get("hr",0)) or None,  placeholder="76")
-        spo2  = st.number_input(t("spo2"),   min_value=0, max_value=100, value=int(v.get("spo2",0)) or None, placeholder="98")
-        temp  = st.number_input(t("temp"),   min_value=0.0, max_value=45.0, value=float(v.get("temp",0.0)) or None, placeholder="36.6", format="%.1f")
+        hr    = st.number_input(t("hr"),   min_value=0, max_value=300, value=int(v.get("hr",0)) or None,    placeholder="76")
+        spo2  = st.number_input(t("spo2"), min_value=0, max_value=100, value=int(v.get("spo2",0)) or None,  placeholder="98")
+        temp  = st.number_input(t("temp"), min_value=0.0, max_value=45.0, value=float(v.get("temp",0.0)) or None, placeholder="36.6", format="%.1f")
     with c2:
         bp_s  = st.number_input(t("bp_sys"), min_value=0, max_value=300, value=int(v.get("bp_sys",0)) or None, placeholder="120")
         bp_d  = st.number_input(t("bp_dia"), min_value=0, max_value=200, value=int(v.get("bp_dia",0)) or None, placeholder="80")
-        br    = st.number_input(t("br"),     min_value=0, max_value=60,  value=int(v.get("br",0)) or None,  placeholder="15")
+        br    = st.number_input(t("br"),   min_value=0, max_value=60,  value=int(v.get("br",0)) or None,    placeholder="15")
     with c3:
         weight = st.number_input(t("weight"), min_value=0.0, max_value=300.0, value=float(v.get("weight",0.0)) or None, placeholder="75", format="%.1f")
         height = st.number_input(t("height"), min_value=0, max_value=250, value=int(v.get("height",0)) or None, placeholder="175")
@@ -577,21 +632,22 @@ def render_vitals():
             if temp:   vd["temp"] = temp
             if weight: vd["weight"] = weight
             if height: vd["height"] = height
+            # Preserve Shen.AI-only fields (HRV, stress, cardio) if present
+            for extra in ["hrv","stress","cardio"]:
+                if extra in st.session_state.vitals: vd[extra] = st.session_state.vitals[extra]
             st.session_state.vitals = vd
+            classify_vitals(vd)
 
             if vd:
-                classify_vitals(vd)  # adds BMI to vd in place
-                st.session_state.vitals = vd
-                st.session_state.vitals_analysis = ""  # reset, will generate below
                 with st.spinner("Ανάλυση ζωτικών..." if st.session_state.lang=="el" else "Analysing vitals..."):
-                    vtext = "\n".join(f"- {k}: {vl}" for k, vl in vd.items())
+                    vtext = "\n".join(f"- {k}: {val}" for k, val in vd.items())
                     profile_text = f"{p.get('name')}, {p.get('age')}yo {p.get('sex')}, Hx: {p.get('history','none')}, Meds: {p.get('meds_raw','none')}"
                     prompt = f"""Patient: {profile_text}
 
 Vitals:
 {vtext}
 
-Interpret these vitals. Categorise each as normal/borderline/concerning. Note patterns (e.g. high BP + elevated BMI). Flag anything requiring urgent attention. Be direct and specific."""
+Interpret these vitals. Categorise each as normal/borderline/concerning. Note patterns. Flag anything requiring urgent attention. Be direct and specific."""
                     st.session_state.vitals_analysis = claude(
                         [{"role":"user","content": prompt}], system=kira_system(), max_tokens=800
                     )
