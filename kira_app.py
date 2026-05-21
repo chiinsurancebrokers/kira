@@ -10,6 +10,7 @@ import json
 import urllib.request
 import urllib.parse
 from datetime import datetime, date
+import anthropic as _anthropic_sdk
 
 # ── PAGE CONFIG ───────────────────────────────────────────────────────────────
 st.set_page_config(
@@ -250,10 +251,9 @@ def gpt4o(prompt, system="", max_tokens=900):
 
 # ── CLAUDE ────────────────────────────────────────────────────────────────────
 def claude(messages, system="", max_tokens=1200):
-    import anthropic
     key = get_claude_key()
     if not key: return "⚠️ Claude API key not set."
-    client = anthropic.Anthropic(api_key=key)
+    client = _anthropic_sdk.Anthropic(api_key=key)
     kwargs = dict(model="claude-sonnet-4-20250514", max_tokens=max_tokens, messages=messages)
     if system: kwargs["system"] = system
     r = client.messages.create(**kwargs)
