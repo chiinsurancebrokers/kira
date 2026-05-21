@@ -868,8 +868,33 @@ Be direct, clinical, specific. End with disclaimer that this is AI-generated and
         )
 
 
+# ── FACESCAN PARAM INTERCEPTION ──────────────────────────────────────────────
+# Fires on every load. Catches ?facescan=... even on a fresh session.
+try:
+    _raw = st.query_params.get("facescan", "")
+    if _raw:
+        _scanned = json.loads(urllib.parse.unquote(_raw))
+        if _scanned and isinstance(_scanned, dict):
+            st.session_state.vitals = _scanned
+            if st.session_state.profile.get("name"):
+                st.session_state.screen = "vitals"
+            else:
+                st.session_state.screen = "intake"
+                st.session_state["_fs_banner"] = True
+            st.query_params.clear()
+            st.rerun()
+except Exception:
+    pass
+
 # ── ROUTER ────────────────────────────────────────────────────────────────────
 screen = st.session_state.screen
+
+if st.session_state.pop("_fs_banner", False):
+    st.success(
+        "✅ Δεδομένα σάρωσης φορτώθηκαν! Συμπληρώστε το προφίλ σας για να συνεχίσετε."
+        if st.session_state.lang == "el" else
+        "✅ Face scan data loaded! Complete your profile to continue."
+    )
 
 if   screen == "home":   render_home()
 elif screen == "intake": render_intake()
