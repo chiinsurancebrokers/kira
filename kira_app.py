@@ -537,7 +537,11 @@ def render_intake():
                     {"name": m.strip(), "freq": "", "notes": ""}
                     for m in meds_raw.split(",") if m.strip()
                 ] if meds_raw else []
-                st.session_state.screen = "vitals"
+                # If returning from face scan, vitals already loaded — skip to triage
+                if st.session_state.get("_from_facescan") and st.session_state.vitals:
+                    st.session_state.screen = "triage"
+                else:
+                    st.session_state.screen = "vitals"
                 st.rerun()
             else:
                 st.warning("Παρακαλώ εισάγετε το όνομά σας." if st.session_state.lang=="el" else "Please enter your name.")
@@ -876,9 +880,12 @@ try:
         _scanned = json.loads(urllib.parse.unquote(_raw))
         if _scanned and isinstance(_scanned, dict):
             st.session_state.vitals = _scanned
+            st.session_state["_from_facescan"] = True
             if st.session_state.profile.get("name"):
-                st.session_state.screen = "vitals"
+                # Profile exists — skip straight to triage with vitals ready
+                st.session_state.screen = "triage"
             else:
+                # Fresh session — need name/age first, then straight to triage
                 st.session_state.screen = "intake"
                 st.session_state["_fs_banner"] = True
             st.query_params.clear()
