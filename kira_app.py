@@ -248,7 +248,7 @@ def gpt4o(prompt, system="", max_tokens=900):
         return f"GPT-4o unavailable: {e}"
 
 # ── CLAUDE ────────────────────────────────────────────────────────────────────
-def claude(messages, system="", max_tokens=1200):
+def claude(messages, system="", max_tokens=1200, timeout=60):
     """Call Claude via raw HTTP — no anthropic package needed."""
     key = get_claude_key()
     if not key:
@@ -269,9 +269,13 @@ def claude(messages, system="", max_tokens=1200):
         },
     )
     try:
-        with urllib.request.urlopen(req, timeout=30) as r:
+        with urllib.request.urlopen(req, timeout=timeout) as r:
             data = json.loads(r.read())
         return data["content"][0]["text"]
+    except urllib.error.URLError as e:
+        if "timed out" in str(e).lower() or "timeout" in str(e).lower():
+            return "⚠️ Claude error: Request timed out — the report was too long. Try again or reduce the conversation length."
+        return f"⚠️ Claude error: {e}"
     except Exception as e:
         return f"⚠️ Claude error: {e}"
 
@@ -537,11 +541,7 @@ def render_intake():
                     {"name": m.strip(), "freq": "", "notes": ""}
                     for m in meds_raw.split(",") if m.strip()
                 ] if meds_raw else []
-                # If returning from face scan, vitals already loaded — skip to triage
-                if st.session_state.get("_from_facescan") and st.session_state.vitals:
-                    st.session_state.screen = "triage"
-                else:
-                    st.session_state.screen = "vitals"
+                st.session_state.screen = "vitals"
                 st.rerun()
             else:
                 st.warning("Παρακαλώ εισάγετε το όνομά σας." if st.session_state.lang=="el" else "Please enter your name.")
@@ -569,11 +569,12 @@ def render_vitals():
 
     # ── Face scan card ────────────────────────────────────────────────────
     shenai_key = st.secrets.get("SHENAI_API_KEY", "")
-    facescan_url = st.secrets.get("FACESCAN_URL", "")  # URL where facescan.html is hosted
+    facescan_url = st.secrets.get("FACESCAN_URL", "https://kiraainurse.netlify.app")
+    kira_url_default = "https://kiraainurse.streamlit.app"
 
     if facescan_url:
         import urllib.parse as _up
-        kira_url = st.secrets.get("KIRA_URL", "")
+        kira_url = st.secrets.get("KIRA_URL", kira_url_default)
         scan_link = f"{facescan_url}?kira_url={_up.quote(kira_url)}"
         st.markdown(f"""
         <div style="background:linear-gradient(135deg,#2D3FE7,#7B2FE0);border-radius:16px;padding:24px;text-align:center;margin-bottom:20px;color:white">
@@ -588,15 +589,7 @@ def render_vitals():
         st.caption("Μετά τη σάρωση θα επιστρέψετε αυτόματα εδώ με τα αποτελέσματα.")
         st.divider()
 
-    else:
-        st.markdown(f"""
-        <div class="card" style="border:2px dashed #C4B5FD;background:#F5F3FF;margin-bottom:20px">
-            <div style="font-size:28px">📷</div>
-            <strong style="color:#7B2FE0">{t('face_scan_soon')}</strong>
-            <p style="font-size:13px;color:#6B7280;margin:8px 0 0">{t('face_scan_note')}<br><br>
-            <em>Για να ενεργοποιήσετε: αποκτήστε API κλειδί από <a href="https://admin.shen.ai" target="_blank">admin.shen.ai</a> και ορίστε FACESCAN_URL στα Streamlit secrets.</em></p>
-        </div>
-        """, unsafe_allow_html=True)
+
 
     # ── Manual vitals input ───────────────────────────────────────────────
     st.markdown(f"**Χειροκίνητη Εισαγωγή Μετρήσεων**" if st.session_state.lang=="el" else "**Manual Vitals Entry**")
@@ -778,13 +771,13 @@ def render_report():
         # PubMed search — extract key symptom from conversation
         last_user = next((m["content"] for m in reversed(st.session_state.triage_chat) if m["role"]=="user"), "")
         search_query = last_user[:80] + " diagnosis management" if last_user else "symptom assessment management"
-        with st.spinner("Αναζήτηση PubMed..." if lang=="el" else "Searching PubMed..."):
-            refs = pubmed_search(search_query, n=4)
+        with st.spinner("🔬 Αναζήτηση PubMed..." if lang=="el" else "🔬 Searching PubMed evidence..."):
+            refs = pubmed_search(search_query, n=3)   # n=3 → faster
             st.session_state.report_pubmed = refs
 
         pubmed_ctx = "\n".join(f"- {a['title']} ({a['journal']}, {a['date']}) {a['url']}" for a in refs) if refs else "None found."
 
-        report_prompt = f"""Generate a comprehensive clinical assessment report for:
+        report_prompt = f"""Generate a concise clinical assessment report for:
 
 PATIENT: {p.get('name')}, {p.get('age')}yo {p.get('sex')}
 MEDICAL HISTORY: {p.get('history','none')}
@@ -799,27 +792,42 @@ VITALS INTERPRETATION: {vitals_analysis}
 CLINICAL CONSULTATION:
 {conversation}
 
-PUBMED REFERENCES AVAILABLE:
+PUBMED REFERENCES:
 {pubmed_ctx}
 
-Generate a structured report with:
+Write a structured report with these sections (keep each section concise):
 1. CHIEF COMPLAINT
 2. HISTORY OF PRESENT ILLNESS
-3. ASSESSMENT — Primary diagnosis with reasoning + Differential diagnoses with % probability
-4. TREATMENT PLAN — Immediate actions, suggested medications (to discuss with doctor), lifestyle recommendations, follow-up timeline
-5. RED FLAGS — specific symptoms requiring emergency care
-6. PUBMED CITATIONS — cite 2-3 of the provided references where clinically relevant
+3. ASSESSMENT — Primary diagnosis with reasoning + top 2-3 differentials with % probability
+4. TREATMENT PLAN — Immediate actions, medications to discuss with doctor, lifestyle, follow-up
+5. RED FLAGS — symptoms requiring emergency care
+6. PUBMED CITATIONS — cite 1-2 references
 
 Language: {"Greek (Ελληνικά)" if lang=="el" else "English"}
-Be direct, clinical, specific. End with disclaimer that this is AI-generated and not a substitute for professional medical care."""
+Be direct and clinical. End with AI disclaimer."""
 
-        with st.spinner("Δημιουργία κλινικής αναφοράς..." if lang=="el" else "Generating clinical report..."):
-            st.session_state.report = claude(
+        with st.spinner("🩺 Δημιουργία κλινικής αναφοράς — παρακαλώ περιμένετε (30-60\")..." if lang=="el"
+                        else "🩺 Generating clinical report — please wait (30-60s)..."):
+            result = claude(
                 [{"role":"user","content":report_prompt}],
-                system=kira_system(), max_tokens=2000,
+                system=kira_system(),
+                max_tokens=1500,   # down from 2000 → faster, avoids timeout
+                timeout=120,       # 2 minutes for the report call
             )
+            if result.startswith("⚠️"):
+                st.error(result)
+                st.info("Tip: Try clicking 'Generate Full Report' again — network timeouts are usually transient." if lang=="en"
+                        else "Συμβουλή: Κάντε κλικ ξανά στο 'Δημιουργία Αναφοράς' — τα timeouts είναι συνήθως προσωρινά.")
+            else:
+                st.session_state.report = result
 
     # ── Display report ────────────────────────────────────────────────────────
+    if not st.session_state.report:
+        st.warning("Η αναφορά δεν δημιουργήθηκε ακόμα. Πατήστε 'Δημιουργία Αναφοράς' ξανά." if lang=="el"
+                   else "Report not generated yet. Click 'Generate Full Report' again.")
+        if st.button("🔄 " + ("Δοκιμή ξανά" if lang=="el" else "Retry"), type="primary"):
+            st.rerun()
+        return
     st.markdown('<div class="card">', unsafe_allow_html=True)
     st.markdown(st.session_state.report)
     st.markdown('</div>', unsafe_allow_html=True)
@@ -872,36 +880,8 @@ Be direct, clinical, specific. End with disclaimer that this is AI-generated and
         )
 
 
-# ── FACESCAN PARAM INTERCEPTION ──────────────────────────────────────────────
-# Fires on every load. Catches ?facescan=... even on a fresh session.
-try:
-    _raw = st.query_params.get("facescan", "")
-    if _raw:
-        _scanned = json.loads(urllib.parse.unquote(_raw))
-        if _scanned and isinstance(_scanned, dict):
-            st.session_state.vitals = _scanned
-            st.session_state["_from_facescan"] = True
-            if st.session_state.profile.get("name"):
-                # Profile exists — skip straight to triage with vitals ready
-                st.session_state.screen = "triage"
-            else:
-                # Fresh session — need name/age first, then straight to triage
-                st.session_state.screen = "intake"
-                st.session_state["_fs_banner"] = True
-            st.query_params.clear()
-            st.rerun()
-except Exception:
-    pass
-
 # ── ROUTER ────────────────────────────────────────────────────────────────────
 screen = st.session_state.screen
-
-if st.session_state.pop("_fs_banner", False):
-    st.success(
-        "✅ Δεδομένα σάρωσης φορτώθηκαν! Συμπληρώστε το προφίλ σας για να συνεχίσετε."
-        if st.session_state.lang == "el" else
-        "✅ Face scan data loaded! Complete your profile to continue."
-    )
 
 if   screen == "home":   render_home()
 elif screen == "intake": render_intake()
