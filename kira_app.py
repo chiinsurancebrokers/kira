@@ -319,7 +319,7 @@ def claude(messages, system="", max_tokens=1200, timeout=60):
     if not key:
         return "⚠️ Claude API key not set."
     body = json.dumps({
-        "model": "claude-sonnet-4-20250514",
+        "model": "claude-sonnet-4-6",
         "max_tokens": max_tokens,
         "system": system,
         "messages": messages,
