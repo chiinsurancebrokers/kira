@@ -6,6 +6,7 @@ Standalone Streamlit app · Real data only · No placeholders.
 
 import streamlit as st
 import json
+import io
 import urllib.request
 import urllib.parse
 from datetime import datetime, date
@@ -164,6 +165,70 @@ st.markdown("""
 
 /* Lang toggle */
 .lang-toggle { text-align: right; margin-bottom: -8px; }
+
+/* Progress stepper */
+.kira-stepper {
+    display: flex; align-items: center; justify-content: center;
+    gap: 0; margin: 0 0 28px; padding: 16px 0 0;
+}
+.kira-step {
+    display: flex; flex-direction: column; align-items: center; gap: 6px;
+    flex: 1; max-width: 120px;
+}
+.kira-step-circle {
+    width: 32px; height: 32px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 13px; font-weight: 700; border: 2px solid #E0E5FF;
+    background: white; color: #CBD5E1; position: relative; z-index: 1;
+}
+.kira-step.done   .kira-step-circle { background: #7B2FE0; border-color: #7B2FE0; color: white; }
+.kira-step.active .kira-step-circle { background: #2D3FE7; border-color: #2D3FE7; color: white; box-shadow: 0 0 0 4px rgba(45,63,231,.15); }
+.kira-step-label { font-size: 10px; color: #94A3B8; text-align: center; letter-spacing: .02em; }
+.kira-step.done   .kira-step-label  { color: #7B2FE0; }
+.kira-step.active .kira-step-label  { color: #2D3FE7; font-weight: 600; }
+.kira-step-line {
+    flex: 1; height: 2px; background: #E0E5FF; margin-bottom: 18px;
+}
+.kira-step-line.done { background: #7B2FE0; }
+
+/* Symptom chips */
+.chip-row { display: flex; flex-wrap: wrap; gap: 8px; margin: 10px 0 16px; }
+.chip {
+    padding: 6px 14px; border-radius: 20px; font-size: 13px; cursor: pointer;
+    border: 1.5px solid #C4B5FD; color: #5B21B6; background: #F5F3FF;
+    transition: all .15s; user-select: none;
+}
+.chip:hover { background: #EDE9FE; }
+.chip.selected { background: #7B2FE0; border-color: #7B2FE0; color: white; }
+
+/* Wellness ring */
+.wellness-wrap {
+    display: flex; align-items: center; gap: 20px;
+    background: linear-gradient(135deg,#2D3FE7,#7B2FE0);
+    border-radius: 16px; padding: 20px 24px; margin-bottom: 20px; color: white;
+}
+.wellness-score { font-size: 48px; font-weight: 800; letter-spacing: -2px; }
+.wellness-label { font-size: 12px; opacity: .7; text-transform: uppercase; letter-spacing: 1.5px; }
+.wellness-desc  { font-size: 15px; opacity: .9; margin-top: 4px; }
+
+/* Share bar */
+.share-bar { display: flex; gap: 8px; margin: 12px 0; flex-wrap: wrap; }
+.share-btn {
+    padding: 8px 16px; border-radius: 8px; font-size: 13px; font-weight: 600;
+    border: none; cursor: pointer; text-decoration: none; display: inline-flex;
+    align-items: center; gap: 6px;
+}
+.share-wa  { background: #25D366; color: white; }
+.share-cp  { background: #F1F5F9; color: #334155; border: 1px solid #E2E8F0; }
+
+/* Red flags urgent */
+.red-flags-urgent {
+    background: linear-gradient(90deg,#DC2626,#B91C1C);
+    color: white; border-radius: 12px; padding: 16px 20px; margin: 12px 0;
+    animation: pulse-bg 2s ease-in-out infinite;
+}
+@keyframes pulse-bg { 0%,100%{opacity:1} 50%{opacity:.85} }
+
 </style>
 """, unsafe_allow_html=True)
 
@@ -292,6 +357,8 @@ defaults = {
     "report_pubmed": [],    # pubmed refs used
     "report_gpt": "",       # GPT-4o second opinion
     "medications": [],      # [{name, freq, notes}]
+    "med_inputs": [],       # dynamic med input list
+    "symptom_chips": [],    # selected symptom chips
 }
 for k, v in defaults.items():
     if k not in st.session_state:
@@ -381,6 +448,31 @@ T = {
 
 def t(key): return T[st.session_state.lang].get(key, key)
 
+
+# ── PROGRESS STEPPER ──────────────────────────────────────────────────────────
+def render_stepper(current):
+    """current: 'intake'|'vitals'|'triage'|'report'"""
+    steps_el = ["1 Στοιχεία", "2 Ζωτικές", "3 Συμπτώματα", "4 Αναφορά"]
+    steps_en = ["1 Profile",  "2 Vitals",  "3 Symptoms",    "4 Report"]
+    steps = steps_el if st.session_state.lang == "el" else steps_en
+    order = ["intake","vitals","triage","report"]
+    cur_i = order.index(current) if current in order else 0
+
+    html = '<div class="kira-stepper">'
+    for i, label in enumerate(steps):
+        cls = "done" if i < cur_i else ("active" if i == cur_i else "")
+        icon = "✓" if i < cur_i else str(i+1)
+        html += f'''
+        <div class="kira-step {cls}">
+            <div class="kira-step-circle">{icon}</div>
+            <div class="kira-step-label">{label}</div>
+        </div>'''
+        if i < len(steps)-1:
+            line_cls = "done" if i < cur_i else ""
+            html += f'<div class="kira-step-line {line_cls}"></div>'
+    html += "</div>"
+    st.markdown(html, unsafe_allow_html=True)
+
 # ── VITAL INTERPRETATION ──────────────────────────────────────────────────────
 def classify_vitals(v):
     """Returns {metric: 'green'|'yellow'|'red'} for known vitals."""
@@ -454,6 +546,176 @@ Rules:
 
 def kira_system(): return KIRA_SYSTEM_EL if st.session_state.lang == "el" else KIRA_SYSTEM_EN
 
+
+# ── PDF EXPORT ────────────────────────────────────────────────────────────────
+def generate_pdf(profile, vitals, report_text, pubmed_refs, lang="el"):
+    """Build a branded Kira clinical report PDF. Returns bytes."""
+    from reportlab.lib.pagesizes import A4
+    from reportlab.lib import colors
+    from reportlab.lib.styles import ParagraphStyle
+    from reportlab.lib.units import mm
+    from reportlab.platypus import (SimpleDocTemplate, Paragraph, Spacer,
+                                    Table, TableStyle, HRFlowable)
+    from reportlab.lib.enums import TA_LEFT, TA_CENTER, TA_RIGHT
+
+    buf = io.BytesIO()
+    doc = SimpleDocTemplate(buf, pagesize=A4,
+                            leftMargin=18*mm, rightMargin=18*mm,
+                            topMargin=16*mm, bottomMargin=16*mm)
+
+    PURPLE = colors.HexColor("#2D3FE7")
+    DPURPLE= colors.HexColor("#7B2FE0")
+    LGRAY  = colors.HexColor("#F8FAFC")
+    MGRAY  = colors.HexColor("#94A3B8")
+    RED    = colors.HexColor("#DC2626")
+    BLACK  = colors.HexColor("#1A1A2E")
+
+    def sty(name,**kw): return ParagraphStyle(name,**kw)
+    s_h1    = sty("h1",    fontName="Helvetica-Bold",   fontSize=22, textColor=PURPLE,  spaceAfter=2)
+    s_sub   = sty("sub",   fontName="Helvetica",        fontSize=10, textColor=MGRAY,   spaceAfter=12)
+    s_sec   = sty("sec",   fontName="Helvetica-Bold",   fontSize=11, textColor=DPURPLE, spaceBefore=14, spaceAfter=4, borderPadding=(0,0,3,0))
+    s_body  = sty("body",  fontName="Helvetica",        fontSize=10, textColor=BLACK,   leading=15, spaceAfter=4)
+    s_bold  = sty("bold",  fontName="Helvetica-Bold",   fontSize=10, textColor=BLACK,   leading=15)
+    s_disc  = sty("disc",  fontName="Helvetica-Oblique",fontSize=8,  textColor=MGRAY,   spaceAfter=4)
+    s_ref   = sty("ref",   fontName="Helvetica",        fontSize=8,  textColor=MGRAY,   leading=12)
+    s_warn  = sty("warn",  fontName="Helvetica-Bold",   fontSize=9,  textColor=RED)
+
+    story = []
+
+    # ── Header bar ──────────────────────────────────────────────────────────
+    hdr_data = [[
+        Paragraph("<font color='#2D3FE7' size='18'><b>🩺 Kira</b></font>", s_body),
+        Paragraph(f"<font color='#94A3B8' size='8'>AI Nurse · {datetime.now().strftime('%d %b %Y  %H:%M')}</font>", s_body),
+    ]]
+    hdr_tbl = Table(hdr_data, colWidths=["60%","40%"])
+    hdr_tbl.setStyle(TableStyle([
+        ("ALIGN",    (1,0),(1,0),"RIGHT"),
+        ("VALIGN",   (0,0),(-1,-1),"MIDDLE"),
+        ("BOTTOMPADDING",(0,0),(-1,-1),6),
+    ]))
+    story.append(hdr_tbl)
+    story.append(HRFlowable(width="100%", thickness=1.5, color=PURPLE, spaceAfter=10))
+
+    # ── Patient banner ───────────────────────────────────────────────────────
+    name  = profile.get("name","—")
+    age   = profile.get("age","—")
+    sex   = profile.get("sex","—")
+    hx    = profile.get("history","") or "—"
+    allg  = profile.get("allergies","") or "—"
+    meds  = profile.get("meds_raw","") or "—"
+    story.append(Paragraph(name, s_h1))
+    story.append(Paragraph(f"{age}y · {sex}  |  {datetime.now().strftime('%A %d %B %Y')}", s_sub))
+
+    pt_data = [
+        ["Ιστορικό / History", hx],
+        ["Αλλεργίες / Allergies", allg],
+        ["Φάρμακα / Medications", meds],
+    ]
+    pt_tbl = Table(pt_data, colWidths=["32%","68%"])
+    pt_tbl.setStyle(TableStyle([
+        ("FONTNAME",  (0,0),(0,-1),"Helvetica-Bold"),
+        ("FONTNAME",  (1,0),(1,-1),"Helvetica"),
+        ("FONTSIZE",  (0,0),(-1,-1),9),
+        ("TEXTCOLOR", (0,0),(0,-1), colors.HexColor("#6B7280")),
+        ("TEXTCOLOR", (1,0),(1,-1), BLACK),
+        ("BACKGROUND",(0,0),(-1,-1), LGRAY),
+        ("ROWBACKGROUNDS",(0,0),(-1,-1),[colors.white, LGRAY]),
+        ("GRID",      (0,0),(-1,-1),0.3,colors.HexColor("#E2E8F0")),
+        ("PADDING",   (0,0),(-1,-1),5),
+        ("VALIGN",    (0,0),(-1,-1),"TOP"),
+    ]))
+    story.append(pt_tbl)
+    story.append(Spacer(1, 8))
+
+    # ── Vitals table ─────────────────────────────────────────────────────────
+    if vitals:
+        story.append(Paragraph("ΖΩΤΙΚΕΣ ΕΝΔΕΙΞΕΙΣ / VITALS", s_sec))
+        story.append(HRFlowable(width="100%", thickness=0.5, color=DPURPLE, spaceAfter=6))
+        vrows = [["Παράμετρος","Τιμή","Μονάδα"]]
+        label_map = {
+            "hr":("Καρδιακός Ρυθμός","bpm"),
+            "bp_sys":("Αρτ. Πίεση Συστολική","mmHg"),
+            "bp_dia":("Αρτ. Πίεση Διαστολική","mmHg"),
+            "br":("Αναπνευστικός Ρυθμός","/min"),
+            "spo2":("SpO2","%"),
+            "temp":("Θερμοκρασία","°C"),
+            "weight":("Βάρος","kg"),
+            "height":("Ύψος","cm"),
+            "bmi":("ΔΜΣ / BMI","kg/m²"),
+            "hrv":("HRV","ms"),
+            "stress":("Δείκτης Στρες","/100"),
+            "cardio":("Καρδ. Φορτίο",""),
+        }
+        for k,v in vitals.items():
+            lbl, unit = label_map.get(k,(k,""))
+            vrows.append([lbl, str(v), unit])
+        vt = Table(vrows, colWidths=["50%","30%","20%"])
+        vt.setStyle(TableStyle([
+            ("FONTNAME",  (0,0),(-1,0),"Helvetica-Bold"),
+            ("FONTSIZE",  (0,0),(-1,-1),9),
+            ("BACKGROUND",(0,0),(-1,0),PURPLE),
+            ("TEXTCOLOR", (0,0),(-1,0),colors.white),
+            ("ROWBACKGROUNDS",(0,1),(-1,-1),[colors.white, LGRAY]),
+            ("GRID",      (0,0),(-1,-1),0.3,colors.HexColor("#E2E8F0")),
+            ("PADDING",   (0,0),(-1,-1),5),
+        ]))
+        story.append(vt)
+        story.append(Spacer(1,8))
+
+    # ── Report body ───────────────────────────────────────────────────────────
+    story.append(Paragraph("ΚΛΙΝΙΚΗ ΑΞΙΟΛΟΓΗΣΗ / CLINICAL ASSESSMENT", s_sec))
+    story.append(HRFlowable(width="100%", thickness=0.5, color=DPURPLE, spaceAfter=6))
+
+    current_section = None
+    for line in report_text.splitlines():
+        line = line.strip()
+        if not line:
+            story.append(Spacer(1,4)); continue
+        # Section headers (## or bold ##)
+        if line.startswith("## ") or line.startswith("# "):
+            txt = line.lstrip("#").strip()
+            story.append(Spacer(1,6))
+            story.append(Paragraph(txt.upper(), s_sec))
+            story.append(HRFlowable(width="100%", thickness=0.3, color=MGRAY, spaceAfter=4))
+        elif line.startswith("**") and line.endswith("**"):
+            story.append(Paragraph(line.strip("*"), s_bold))
+        elif line.startswith("- ") or line.startswith("* "):
+            txt = line[2:]
+            # Bold inline
+            txt = re.sub(r"\*\*(.*?)\*\*", r"<b>\1</b>", txt)
+            story.append(Paragraph(f"• {txt}", s_body))
+        else:
+            txt = re.sub(r"\*\*(.*?)\*\*", r"<b>\1</b>", line)
+            story.append(Paragraph(txt, s_body))
+
+    # ── PubMed refs ───────────────────────────────────────────────────────────
+    if pubmed_refs:
+        story.append(Spacer(1,10))
+        story.append(Paragraph("ΒΙΒΛΙΟΓΡΑΦΙΑ / REFERENCES", s_sec))
+        story.append(HRFlowable(width="100%", thickness=0.5, color=DPURPLE, spaceAfter=6))
+        for i, a in enumerate(pubmed_refs, 1):
+            story.append(Paragraph(
+                f"{i}. {a.get('title','—')} — {a.get('authors','')}. "
+                f"<i>{a.get('journal','')}</i>, {a.get('date','')}. "
+                f"<a href='{a.get('url','')}' color='#2D3FE7'>{a.get('url','')}</a>",
+                s_ref
+            ))
+
+    # ── Footer disclaimer ─────────────────────────────────────────────────────
+    story.append(Spacer(1,14))
+    story.append(HRFlowable(width="100%", thickness=0.5, color=MGRAY, spaceAfter=6))
+    story.append(Paragraph(
+        "Η παρούσα αναφορά δημιουργήθηκε από το Kira AI Nurse και δεν αποτελεί ιατρική διάγνωση. "
+        "Συμβουλεύεστε πάντα ιατρό για διάγνωση και θεραπεία. "
+        "This report is AI-generated and does not constitute medical advice.",
+        s_disc
+    ))
+    story.append(Paragraph("🚨 ΕΠΕΙΓΟΝ: 166 (ΕΚΑΒ) · 112", s_warn))
+
+    doc.build(story)
+    buf.seek(0)
+    return buf.read()
+
 # ─────────────────────────────────────────────────────────────────────────────
 # SCREENS
 # ─────────────────────────────────────────────────────────────────────────────
@@ -508,8 +770,8 @@ def render_home():
 
 
 def render_intake():
+    render_stepper("intake")
     st.markdown(f"## 👤 {t('name')} & Ιστορικό")
-    st.caption("Βήμα 1 από 3 — Προσωπικά στοιχεία")
 
     c1, c2, c3 = st.columns([2,1,1])
     with c1:
@@ -523,7 +785,26 @@ def render_intake():
 
     history   = st.text_area(t("history"),   value=st.session_state.profile.get("history",""),   height=90, placeholder="Π.χ. Υπέρταση, Τ2 Διαβήτης, Χολοκυστεκτομή 2019")
     allergies = st.text_input(t("allergies"), value=st.session_state.profile.get("allergies",""), placeholder="Π.χ. Πενικιλλίνη")
-    meds_raw  = st.text_area(t("meds"),       value=st.session_state.profile.get("meds_raw",""),  height=70, placeholder="Π.χ. Metformin 500mg 2x/day, Creatine 5g/day")
+
+    # ── Dynamic medications list ──────────────────────────────────
+    st.markdown("**" + t("meds") + "**")
+    if not st.session_state.med_inputs:
+        prev = st.session_state.profile.get("meds_raw","")
+        st.session_state.med_inputs = [m.strip() for m in prev.split(",") if m.strip()] or [""]
+    for mi, med_val in enumerate(st.session_state.med_inputs):
+        mc1, mc2 = st.columns([5,1])
+        with mc1:
+            st.session_state.med_inputs[mi] = st.text_input(
+                f"Φάρμακο {mi+1}" if st.session_state.lang=="el" else f"Medication {mi+1}",
+                value=med_val, key=f"med_field_{mi}", label_visibility="collapsed",
+                placeholder="Π.χ. Metformin 500mg 2x/ημέρα" if mi==0 else ""
+            )
+        with mc2:
+            if st.button("✕", key=f"del_med_{mi}", help="Remove"):
+                st.session_state.med_inputs.pop(mi); st.rerun()
+    if st.button("＋ " + ("Προσθήκη φαρμάκου" if st.session_state.lang=="el" else "Add medication"), key="add_med"):
+        st.session_state.med_inputs.append(""); st.rerun()
+    meds_raw = ", ".join(m for m in st.session_state.med_inputs if m.strip())
 
     col_b, col_n = st.columns([1,3])
     with col_b:
@@ -548,9 +829,9 @@ def render_intake():
 
 
 def render_vitals():
+    render_stepper("vitals")
     p = st.session_state.profile
     st.markdown(f"## 📊 {t('vitals_title')} — {p.get('name','')}")
-    st.caption(t("vitals_sub"))
 
     # ── Check for incoming face scan results via URL params ───────────────
     try:
@@ -693,13 +974,65 @@ def render_vitals_summary():
 
 
 def render_triage():
+    render_stepper("triage")
     p = st.session_state.profile
     st.markdown(f"## 🩺 {t('triage_title')} — {p.get('name','')}")
-    st.caption(t("triage_sub"))
 
     render_vitals_summary()
 
     st.markdown(f'<div class="disclaimer">{t("disclaimer_main")}</div>', unsafe_allow_html=True)
+
+    # ── Symptom quick-select chips ────────────────────────────────────────────
+    CHIPS_EL = ["Πονοκέφαλος","Πυρετός","Βήχας","Δύσπνοια","Ναυτία","Πόνος στήθους",
+                "Κοιλιακός πόνος","Ζάλη","Κόπωση","Πόνος πλάτης","Διάρροια","Αιματοχεσία","Άλλο"]
+    CHIPS_EN = ["Headache","Fever","Cough","Shortness of breath","Nausea","Chest pain",
+                "Abdominal pain","Dizziness","Fatigue","Back pain","Diarrhoea","Blood in stool","Other"]
+    chips = CHIPS_EL if st.session_state.lang=="el" else CHIPS_EN
+    lbl_chips = "Γρήγορη επιλογή συμπτωμάτων:" if st.session_state.lang=="el" else "Quick symptom selection:"
+    st.caption(lbl_chips)
+    chip_html = '<div class="chip-row">'
+    for chip in chips:
+        sel = "selected" if chip in st.session_state.symptom_chips else ""
+        chip_html += f'<span class="chip {sel}" onclick="void(0)">{chip}</span>'
+    chip_html += "</div>"
+    # Render chips as clickable buttons
+    chip_cols = st.columns(len(chips[:7]))
+    for ci, chip in enumerate(chips):
+        col_idx = ci % 7
+        col_obj = st.columns(7)[col_idx] if ci < 7 else st.columns(7)[ci % 7]
+    # Use a simpler approach: buttons in wrapped rows
+    chip_row1 = chips[:7]; chip_row2 = chips[7:]
+    cr1 = st.columns(len(chip_row1))
+    for ci, chip in enumerate(chip_row1):
+        with cr1[ci]:
+            sel = chip in st.session_state.symptom_chips
+            label = ("✓ " if sel else "") + chip
+            btn_type = "primary" if sel else "secondary"
+            if st.button(label, key=f"chip_{ci}", use_container_width=True):
+                if chip in st.session_state.symptom_chips:
+                    st.session_state.symptom_chips.remove(chip)
+                else:
+                    st.session_state.symptom_chips.append(chip)
+                st.rerun()
+    cr2 = st.columns(len(chip_row2))
+    for ci, chip in enumerate(chip_row2):
+        with cr2[ci]:
+            sel = chip in st.session_state.symptom_chips
+            label = ("✓ " if sel else "") + chip
+            if st.button(label, key=f"chip2_{ci}", use_container_width=True):
+                if chip in st.session_state.symptom_chips:
+                    st.session_state.symptom_chips.remove(chip)
+                else:
+                    st.session_state.symptom_chips.append(chip)
+                st.rerun()
+    if st.session_state.symptom_chips:
+        chip_summary = ", ".join(st.session_state.symptom_chips)
+        if st.button("➤ " + ("Αποστολή επιλεγμένων" if st.session_state.lang=="el" else "Send selected symptoms"), type="primary"):
+            msg = ("Τα κύρια συμπτώματά μου: " if st.session_state.lang=="el" else "My main symptoms: ") + chip_summary
+            st.session_state.triage_chat.append({"role":"user","content":msg})
+            st.session_state.symptom_chips = []
+            st.rerun()
+    st.divider()
 
     # Chat display
     for msg in st.session_state.triage_chat:
@@ -751,6 +1084,7 @@ def render_triage():
 
 
 def render_report():
+    render_stepper("report")
     p = st.session_state.profile
     lang = st.session_state.lang
 
@@ -859,25 +1193,88 @@ Be direct and clinical. End with AI disclaimer."""
                 rxr = rxnorm_interactions([m["name"] for m in st.session_state.medications])
             if rxr: st.markdown(rxr)
 
-    # ── Emergency banner always ───────────────────────────────────────────────
-    st.markdown(f'<div class="emergency">{t("emergency")}</div>', unsafe_allow_html=True)
+    # ── Wellness score ring ───────────────────────────────────────────────────
+    v = st.session_state.vitals
+    if v.get("hr") or v.get("bp_sys"):
+        status_map = classify_vitals(dict(v))
+        reds   = sum(1 for s in status_map.values() if s=="red")
+        yellows= sum(1 for s in status_map.values() if s=="yellow")
+        wellness = max(20, 100 - reds*20 - yellows*8)
+        wcolor = "#10B981" if wellness>=75 else "#F59E0B" if wellness>=50 else "#EF4444"
+        wlabel = ("Εξαιρετικό" if wellness>=85 else "Καλό" if wellness>=70 else
+                  "Μέτριο" if wellness>=50 else "Χρήζει Προσοχής") if lang=="el" else                  ("Excellent" if wellness>=85 else "Good" if wellness>=70 else
+                  "Moderate" if wellness>=50 else "Needs Attention")
+        st.markdown(f"""
+        <div class="wellness-wrap">
+            <div>
+                <div class="wellness-score" style="color:{wcolor}">{wellness}</div>
+                <div class="wellness-label">Wellness Score</div>
+            </div>
+            <div style="flex:1">
+                <div class="wellness-desc">{wlabel}</div>
+                <div style="background:rgba(255,255,255,.2);border-radius:99px;height:8px;margin-top:10px">
+                    <div style="background:{wcolor};width:{wellness}%;height:8px;border-radius:99px;transition:width 1s"></div>
+                </div>
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
+
+    # ── Red flags auto-detect ─────────────────────────────────────────────────
+    urgent_kw = ["chest pain","πόνος στήθους","stroke","εγκεφαλικό","anaphylaxis",
+                 "αναφυλαξία","166","112","ambulance","ασθενοφόρο","emergency","επείγον",
+                 "unconscious","αναίσθητος","severe bleeding","σοβαρή αιμορραγία"]
+    report_lower = st.session_state.report.lower()
+    has_urgent = any(kw in report_lower for kw in urgent_kw)
+    if has_urgent:
+        st.markdown('<div class="red-flags-urgent">🚨 Η αναφορά περιέχει <b>επείγουσες ενδείξεις</b>. Αν αντιμετωπίζετε οποιοδήποτε από τα αναφερόμενα συμπτώματα — καλέστε <b>166 (ΕΚΑΒ)</b> ή <b>112</b> αμέσως.</div>', unsafe_allow_html=True)
+    else:
+        st.markdown(f'<div class="emergency">{t("emergency")}</div>', unsafe_allow_html=True)
     st.markdown(f'<div class="disclaimer-red">AI-generated report. Η Kira δεν παρέχει ιατρική διάγνωση. Πάντα να συμβουλεύεστε επαγγελματία υγείας.</div>', unsafe_allow_html=True)
 
-    # ── Actions ───────────────────────────────────────────────────────────────
-    col1, col2 = st.columns(2)
-    with col1:
-        if st.button("← Νέα Αξιολόγηση" if lang=="el" else "← New Assessment"):
-            for k, v in defaults.items():
-                st.session_state[k] = v
+    # ── Actions bar ───────────────────────────────────────────────────────────
+    fname = f"kira_report_{p.get('name','patient')}_{datetime.now().strftime('%Y%m%d')}"
+    c1, c2, c3, c4 = st.columns(4)
+
+    with c1:
+        if st.button("← " + ("Νέα Αξιολόγηση" if lang=="el" else "New Assessment"), use_container_width=True):
+            for k, vv in defaults.items():
+                st.session_state[k] = vv
             st.rerun()
-    with col2:
+    with c2:
         st.download_button(
-            "📥 Λήψη Αναφοράς (.txt)" if lang=="el" else "📥 Download Report (.txt)",
+            "📄 TXT",
             data=st.session_state.report,
-            file_name=f"kira_report_{p.get('name','patient')}_{datetime.now().strftime('%Y%m%d')}.txt",
+            file_name=fname+".txt",
             mime="text/plain",
             use_container_width=True,
         )
+    with c3:
+        try:
+            pdf_bytes = generate_pdf(
+                st.session_state.profile,
+                st.session_state.vitals,
+                st.session_state.report,
+                st.session_state.report_pubmed,
+                lang=lang,
+            )
+            st.download_button(
+                "📥 PDF",
+                data=pdf_bytes,
+                file_name=fname+".pdf",
+                mime="application/pdf",
+                use_container_width=True,
+            )
+        except Exception as pdf_err:
+            st.caption(f"PDF error: {pdf_err}")
+    with c4:
+        # WhatsApp share
+        summary = f"Kira AI Nurse · {p.get('name','Patient')} · {datetime.now().strftime('%d/%m/%Y')}\n"
+        if v.get("hr"): summary += f"HR:{v['hr']}bpm "
+        if v.get("bp_sys"): summary += f"BP:{v['bp_sys']}/{v.get('bp_dia','?')}mmHg "
+        summary += "\nkiraainurse.streamlit.app"
+        wa_url = "https://wa.me/?text=" + urllib.parse.quote(summary)
+        st.markdown(f'<a href="{wa_url}" target="_blank" class="share-btn share-wa" style="display:block;text-align:center;padding:8px;border-radius:8px;text-decoration:none;font-weight:600;font-size:13px;color:white;background:#25D366">📲 WhatsApp</a>', unsafe_allow_html=True)
+    
 
 
 # ── ROUTER ────────────────────────────────────────────────────────────────────
