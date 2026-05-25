@@ -139,7 +139,7 @@ h1 em{background:linear-gradient(135deg,var(--p),var(--t));-webkit-background-cl
       <div class="mc"><div class="mi">🔋</div><div class="ml" id="T_m8">Παρασυμπ.</div></div>
     </div>
   </div>
-  <button class="btn" id="startBtn" onclick="startScan()">📷 ΕΝΑΡΞΗ ΣΑΡΩΣΗΣ</button>
+  <button class="btn" id="startBtn">📷 ΕΝΑΡΞΗ ΣΑΡΩΣΗΣ</button>
   <div class="err" id="camErr"></div>
   <p class="disc" id="T_d1">Βασίζεται σε rPPG. Δεν αντικαθιστά ιατρικά εργαλεία.</p>
 </div>
@@ -308,30 +308,44 @@ const show=id=>{
 };
 
 // ── START ─────────────────────────────────────────────────────────────────────
+let _scanning=false; // guard against double-fire
+
 async function startScan(){
+  if(_scanning) return; // prevent double-tap / double-click
+  _scanning=true;
+
   const errEl=document.getElementById("camErr");
   errEl.style.display="none";
   document.getElementById("startBtn").textContent="⏳ Σύνδεση κάμερας...";
   document.getElementById("startBtn").disabled=true;
+
+  // Stop any existing stream first
+  if(stream){ stream.getTracks().forEach(t=>t.stop()); stream=null; }
 
   try{
     stream=await navigator.mediaDevices.getUserMedia({
       video:{facingMode:"user",width:{ideal:640},height:{ideal:480},frameRate:{ideal:30}},
       audio:false
     });
+    vid.srcObject=null;          // clear first to avoid AbortError
     vid.srcObject=stream;
-    await vid.play();
+    try{ await vid.play(); }     // play() can throw AbortError on mobile — catch it
+    catch(pe){
+      if(pe.name!=="AbortError") throw pe; // re-throw real errors
+      // AbortError is benign — video will still play
+    }
     show("sc2");
     beginScan();
   }catch(e){
+    _scanning=false;
     errEl.textContent=e.name==="NotAllowedError"?tl("camDeny"):
-                      e.name==="NotFoundError"?tl("noCam"):("Error: "+e.message);
+                      e.name==="NotFoundError"?tl("noCam"):("Camera error: "+e.message);
     errEl.style.display="block";
     document.getElementById("startBtn").textContent=tl("startBtn");
     document.getElementById("startBtn").disabled=false;
   }
 }
-// Belt-and-suspenders: addEventListener + onclick already on button
+// Single event listener only — no onclick on element
 if(document.getElementById("startBtn")) {
   document.getElementById("startBtn").addEventListener("click", startScan);
 }
@@ -573,6 +587,7 @@ function calcAll(){
 
 // ── DONE ──────────────────────────────────────────────────────────────────────
 function done(){
+  _scanning=false;
   cancelAnimationFrame(raf);
   setStatus("d");setRing(1);
   setTimeout(()=>{
@@ -898,7 +913,7 @@ function sendToKira(){
   }
 }
 
-function scanAgain(){gB=[];rB=[];bB=[];R={};startScan();}
+function scanAgain(){gB=[];rB=[];bB=[];R={};_scanning=false;startScan();}
 
 // ── UI ────────────────────────────────────────────────────────────────────────
 function setRing(p){document.getElementById("rp").style.strokeDashoffset=848*(1-p);}
