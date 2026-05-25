@@ -122,9 +122,9 @@ h1 em{background:linear-gradient(135deg,var(--p),var(--t));-webkit-background-cl
   <h1 id="T_ht">Εκτίμηση Υγείας<br><em>σε 60 Δευτερόλεπτα</em></h1>
   <p class="sub" id="T_hs">Μέτρηση ζωτικών σημείων μέσω κάμερας σε 60 δευτερόλεπτα, χωρίς εξοπλισμό.</p>
   <div class="steps">
-    <div class="step"><div class="sn">1</div><div class="st" id="T_s1"><b>Φωτισμός</b> — Καλός ομοιόμορφος φωτισμός από μπροστά.</div></div>
+    <div class="step"><div class="sn">1</div><div class="st" id="T_s1"><b>Φωτισμός</b> — Άμεσο φως στο πρόσωπο (λάμπα μπροστά σας, όχι πίσω).</div></div>
     <div class="step"><div class="sn">2</div><div class="st" id="T_s2"><b>Θέση</b> — Τοποθετήστε πρόσωπο στην έλλειψη οδηγό.</div></div>
-    <div class="step"><div class="sn">3</div><div class="st" id="T_s3"><b>Ακινησία</b> — Μη μιλάτε ή κινείτε κεφάλι.</div></div>
+    <div class="step"><div class="sn">3</div><div class="st" id="T_s3"><b>Ακινησία</b> — Μη μιλάτε ή κινείτε κεφάλι. Παρακολουθήστε την μπάρα ποιότητας.</div></div>
   </div>
   <div style="width:100%">
     <div style="font-size:10px;color:var(--mu);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px">Μετρήσεις</div>
@@ -178,6 +178,18 @@ h1 em{background:linear-gradient(135deg,var(--p),var(--t));-webkit-background-cl
       <div class="hrl" id="T_hl">BPM · Καρδιακός Ρυθμός</div>
     </div>
   </div>
+
+  <!-- Real-time signal quality bar -->
+  <div style="width:100%;background:var(--s);border:1px solid var(--b);border-radius:12px;padding:12px 16px">
+    <div style="display:flex;justify-content:space-between;margin-bottom:6px">
+      <span style="font-size:11px;color:var(--mu)" id="qualLabel">📶 Ποιότητα σήματος</span>
+      <span style="font-size:11px;font-weight:700" id="qualPct" style="color:var(--mu)">—</span>
+    </div>
+    <div style="height:6px;background:rgba(255,255,255,.08);border-radius:3px;overflow:hidden">
+      <div id="qualBar" style="height:100%;width:0%;border-radius:3px;background:var(--mu);transition:width .5s,background .5s"></div>
+    </div>
+    <div style="font-size:10px;color:var(--mu);margin-top:6px" id="qualTip">Συγκεντρώνω δεδομένα...</div>
+  </div>
 </div>
 
 <!-- SCREEN 3: RESULTS -->
@@ -218,9 +230,9 @@ const L={
   el:{
     T_ht:"Εκτίμηση Υγείας<br><em>σε 60 Δευτερόλεπτα</em>",
     T_hs:"Μέτρηση ζωτικών σημείων μέσω κάμερας σε 60 δευτερόλεπτα, χωρίς εξοπλισμό.",
-    T_s1:"<b>Φωτισμός</b> — Καλός ομοιόμορφος φωτισμός από μπροστά.",
+    T_s1:"<b>Φωτισμός</b> — Άμεσο φως στο πρόσωπο (λάμπα μπροστά σας, όχι πίσω).",
     T_s2:"<b>Θέση</b> — Τοποθετήστε πρόσωπο στην έλλειψη οδηγό.",
-    T_s3:"<b>Ακινησία</b> — Μη μιλάτε ή κινείτε κεφάλι.",
+    T_s3:"<b>Ακινησία</b> — Μη μιλάτε ή κινείτε κεφάλι. Παρακολουθήστε την μπάρα ποιότητας.",
     T_m1:"Καρδιακός Ρυθμός",T_m3:"Αναπνοή",T_m4:"Δείκτης Στρες",
     T_m5:"Καρδ. Φορτίο",T_m6:"Πίεση (εκτ.)",T_m8:"Παρασυμπ.",
     startBtn:"📷 ΕΝΑΡΞΗ ΣΑΡΩΣΗΣ",
@@ -350,6 +362,30 @@ function loop(now){
           document.getElementById("hrv").textContent=Math.round(h);
           document.getElementById("hrv").style.color="var(--r)";
           document.getElementById("hri").className="hri beat";
+        }
+        // Update live quality indicator
+        if(gB.length>60){
+          const sig=chromSignal([...rB],[...gB],[...bB]);
+          const{mg,fr}=dft(sig,FPS);
+          const liveQ=snr(mg,fr,LO,HI);
+          const qBar=document.getElementById("qualBar");
+          const qPct=document.getElementById("qualPct");
+          const qTip=document.getElementById("qualTip");
+          const el=lang==="el";
+          if(qBar&&qPct&&qTip){
+            qBar.style.width=liveQ+"%";
+            qPct.textContent=liveQ+"/100";
+            if(liveQ>=50){
+              qBar.style.background="var(--g)"; qPct.style.color="var(--g)";
+              qTip.textContent=el?"✅ Καλή ποιότητα — συνεχίστε να κρατάτε ακίνητο":"✅ Good quality — keep still";
+            } else if(liveQ>=25){
+              qBar.style.background="var(--y)"; qPct.style.color="var(--y)";
+              qTip.textContent=el?"⚠️ Μέτρια — πιο κοντά σε φωτεινό σημείο":"⚠️ Moderate — move closer to light";
+            } else {
+              qBar.style.background="var(--r)"; qPct.style.color="var(--r)";
+              qTip.textContent=el?"❌ Χαμηλή — περισσότερο φως, μη κινείτε κεφάλι":"❌ Low — more light, don't move head";
+            }
+          }
         }
       }
     }
@@ -532,7 +568,7 @@ function done(){
       document.getElementById("startBtn").disabled=false;
       return;
     }
-    if((R.quality||0)<15){
+    if((R.quality||0)<12){
       show("sc1");
       const errEl=document.getElementById("camErr");
       errEl.style.display="block";
