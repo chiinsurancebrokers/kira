@@ -139,7 +139,7 @@ h1 em{background:linear-gradient(135deg,var(--p),var(--t));-webkit-background-cl
       <div class="mc"><div class="mi">🔋</div><div class="ml" id="T_m8">Παρασυμπ.</div></div>
     </div>
   </div>
-  <button class="btn" id="startBtn">📷 ΕΝΑΡΞΗ ΣΑΡΩΣΗΣ</button>
+  <button class="btn" id="startBtn" onclick="startScan()">📷 ΕΝΑΡΞΗ ΣΑΡΩΣΗΣ</button>
   <div class="err" id="camErr"></div>
   <p class="disc" id="T_d1">Βασίζεται σε rPPG. Δεν αντικαθιστά ιατρικά εργαλεία.</p>
 </div>
@@ -267,6 +267,13 @@ const tl=k=>L[lang][k]||k;
 const tls=k=>(L[lang].st||{})[k]||k;
 const tll=k=>(L[lang].lbl||{})[k]||k;
 
+// Global error handler — shows errors on screen for mobile debugging
+window.onerror = function(msg, src, line) {
+  const errEl = document.getElementById("camErr");
+  if(errEl) { errEl.style.display="block"; errEl.textContent = "JS Error: "+msg+" (line "+line+")"; }
+  return false;
+};
+
 document.getElementById("lbtn").onclick=()=>{
   lang=lang==="el"?"en":"el";
   document.getElementById("lbtn").textContent=lang==="el"?"🇬🇧 EN":"🇬🇷 ΕΛ";
@@ -314,7 +321,10 @@ async function startScan(){
     document.getElementById("startBtn").disabled=false;
   }
 }
-document.getElementById("startBtn").addEventListener("click", startScan);
+// Belt-and-suspenders: addEventListener + onclick already on button
+if(document.getElementById("startBtn")) {
+  document.getElementById("startBtn").addEventListener("click", startScan);
+}
 
 // ── SCAN LOOP ─────────────────────────────────────────────────────────────────
 function beginScan(){
