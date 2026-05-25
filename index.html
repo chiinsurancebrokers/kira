@@ -339,6 +339,7 @@ if(document.getElementById("startBtn")) {
 // ── SCAN LOOP ─────────────────────────────────────────────────────────────────
 function beginScan(){
   gB=[];rB=[];bB=[];fn=0;
+  _goodFrames=0;_totalFrames=0;
   t0=performance.now();lastT=0;
   setStatus("w"); setRing(0);
   document.getElementById("hrv").textContent="--";
@@ -375,7 +376,11 @@ function loop(now){
           if(qBar&&qPct&&qTip){
             qBar.style.width=liveQ+"%";
             qPct.textContent=liveQ+"/100";
-            if(liveQ>=50){
+            const faceOk=_totalFrames>0&&(_goodFrames/_totalFrames)>=0.4;
+            if(!faceOk){
+              qBar.style.background="var(--r)"; qPct.style.color="var(--r)";
+              qTip.textContent=el?"⛔ Τοποθετήστε το πρόσωπό σας στην έλλειψη!":"⛔ Position your face in the oval!";
+            } else if(liveQ>=50){
               qBar.style.background="var(--g)"; qPct.style.color="var(--g)";
               qTip.textContent=el?"✅ Καλή ποιότητα — συνεχίστε να κρατάτε ακίνητο":"✅ Good quality — keep still";
             } else if(liveQ>=25){
@@ -394,6 +399,9 @@ function loop(now){
   raf=requestAnimationFrame(loop);
 }
 
+// Track face detection stats
+let _goodFrames=0, _totalFrames=0;
+
 function grab(){
   const W=vid.videoWidth||640,H=vid.videoHeight||480;
   cv.width=W;cv.height=H;
@@ -404,19 +412,38 @@ function grab(){
   let sr=0,sg=0,sb=0,n=0;
   for(let i=0;i<d.length;i+=4){
     const r=d[i],g=d[i+1],b=d[i+2];
-    // Skin pixel filter (Kovac et al.) — only include likely skin pixels
     if(r>95&&g>40&&b>20&&r>g&&r>b&&Math.abs(r-g)>15&&r>128){
       sr+=r;sg+=g;sb+=b;n++;
     }
   }
-  // Fallback to all pixels if too few skin pixels detected (low light etc.)
-  if(n<50){
-    n=d.length/4;sr=0;sg=0;sb=0;
-    for(let i=0;i<d.length;i+=4){sr+=d[i];sg+=d[i+1];sb+=d[i+2];}
+  _totalFrames++;
+  const totalPixels=d.length/4;
+  const skinRatio=n/totalPixels;
+
+  // STRICT: require at least 8% skin pixels — NO fallback to all pixels
+  // If no face → skip this frame entirely (don't push garbage data)
+  if(skinRatio<0.08||n<150){
+    // Push the last good values (or zeros if none yet) to avoid FFT gaps
+    // but mark as a bad frame
+    if(gB.length>0){
+      gB.push(gB[gB.length-1]);
+      rB.push(rB[rB.length-1]);
+      bB.push(bB[bB.length-1]);
+    }else{
+      gB.push(128);rB.push(128);bB.push(128);
+    }
+    // Show real-time warning
+    const qTip=document.getElementById("qualTip");
+    if(qTip) qTip.textContent=lang==="el"
+      ?"⛔ Δεν βλέπω πρόσωπο — τοποθετήστε το μέτωπό σας στην έλλειψη"
+      :"⛔ No face detected — position your forehead in the oval";
+    return;
   }
-  // Track skin pixel ratio for face presence detection
+
+  _goodFrames++;
+  // Track skin ratio for final gate
   if(typeof window._skinRatios==='undefined') window._skinRatios=[];
-  window._skinRatios.push(n/(d.length/4));
+  window._skinRatios.push(skinRatio);
   gB.push(sg/n);rB.push(sr/n);bB.push(sb/n);
 }
 
@@ -557,13 +584,15 @@ function done(){
       ? window._skinRatios.reduce((a,b)=>a+b,0)/window._skinRatios.length : 1;
     window._skinRatios = [];
 
-    if(avgSkin < 0.08){
+    // Require at least 40% of frames to have detected a face
+    const faceRatio = _totalFrames>0 ? _goodFrames/_totalFrames : 0;
+    if(faceRatio < 0.40){
       show("sc1");
       const errEl=document.getElementById("camErr");
       errEl.style.display="block";
       errEl.textContent=lang==="el"
-        ?"Δεν ανιχνεύτηκε πρόσωπο. Τοποθετήστε το πρόσωπό σας στην έλλειψη οδηγό και δοκιμάστε ξανά."
-        :"No face detected. Position your face in the oval guide and try again.";
+        ?`Πρόσωπο ανιχνεύτηκε μόνο στο ${Math.round(faceRatio*100)}% της σάρωσης. Τοποθετήστε το πρόσωπό σας στην έλλειψη οδηγό καθ' όλη τη διάρκεια.`
+        :`Face detected in only ${Math.round(faceRatio*100)}% of scan. Keep your face in the oval guide throughout.`;
       document.getElementById("startBtn").textContent=lang==="el"?"Δοκιμή ξανά":"Try Again";
       document.getElementById("startBtn").disabled=false;
       return;
