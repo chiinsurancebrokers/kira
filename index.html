@@ -204,11 +204,9 @@ h1 em{background:linear-gradient(135deg,var(--p),var(--t));-webkit-background-cl
       <div class="wl" id="T_wl">Wellness</div>
     </div>
   </div>
+  <div id="summary-sections" style="width:100%;display:flex;flex-direction:column;gap:8px"></div>
   <div class="rg" id="rg"></div>
   <p class="disc" id="T_d2">rPPG εκτίμηση · Δεν αποτελεί ιατρική διάγνωση · Συμβουλεύεστε γιατρό</p>
-  <div id="sqBox" style="width:100%;background:rgba(16,185,129,0.1);border:1px solid rgba(16,185,129,0.3);border-radius:10px;padding:10px 14px;font-size:12px;color:#6EE7B7;display:none">
-    📶 <span id="sqTxt"></span>
-  </div>
   <div id="sqBox" style="width:100%;border-radius:10px;padding:10px 14px;font-size:12px;display:none;line-height:1.5"></div>
   <button class="btn" id="sendBtn">Αποστολή στο Kira →</button>
   <button class="btn2" onclick="scanAgain()">🔄 Νέα Σάρωση</button>
@@ -717,9 +715,6 @@ function showResults(){
   </div>`;
 
   // Honesty disclaimer about what's measured
-  const discEl=document.getElementById("rg");
-  const measuredCount=metrics.filter(c=>c.tag==="measured").length;
-  const estimateCount=metrics.filter(c=>c.tag==="estimate").length;
   const honesty_note=lang==="el"
     ?`<div style="width:100%;background:rgba(45,63,231,.08);border:1px solid rgba(45,63,231,.2);border-radius:10px;padding:10px 14px;font-size:11px;color:#93C5FD;margin-bottom:8px;line-height:1.6">
         📡 <strong>Τι μετράται απευθείας:</strong> Καρδιακός ρυθμός, αναπνοή — από το σήμα rPPG της κάμερας.<br>
