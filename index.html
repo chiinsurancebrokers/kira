@@ -851,20 +851,52 @@ function showResults(){
 }
 
 // ── SEND TO KIRA ──────────────────────────────────────────────────────────────
-document.getElementById("sendBtn").addEventListener("click",()=>{
-  const p=new URLSearchParams(window.location.search);
-  const kiraUrl=p.get("kira_url")||"";
-  const v=JSON.stringify({hr:R.hr,bp_sys:R.bp_sys,bp_dia:R.bp_dia,
-    br:R.br,hrv:R.hrv,stress:R.stress,cardio:R.cardio});
-  if(kiraUrl){
-    window.location.href=decodeURIComponent(kiraUrl)+"?facescan="+encodeURIComponent(v);
-  }else if(window.opener){
-    window.opener.postMessage({type:"kira_vitals",data:R},"*");
-    window.close();
-  }else{
-    navigator.clipboard?.writeText(v).then(()=>alert("Αντιγράφηκε! Επικολλήστε στο Kira."));
+document.getElementById("sendBtn").addEventListener("click", sendToKira);
+document.getElementById("sendBtn").onclick = sendToKira;
+
+function sendToKira(){
+  // Build clean vitals object — only include non-null, measured values
+  const vitals={};
+  if(R.hr!==null&&R.hr!==undefined)      vitals.hr=R.hr;
+  if(R.br!==null&&R.br!==undefined)      vitals.br=R.br;
+  if(R.hrv!==null&&R.hrv!==undefined)    vitals.hrv=R.hrv;
+  if(R.stress!==null&&R.stress!==undefined) vitals.stress=R.stress;
+  vitals.quality=R.quality||0;
+  vitals.wellness=R.wellness||80;
+
+  const v=JSON.stringify(vitals);
+  const encoded=encodeURIComponent(v);
+
+  const params=new URLSearchParams(window.location.search);
+  let kiraUrl=params.get("kira_url")||"";
+  if(kiraUrl) kiraUrl=decodeURIComponent(kiraUrl);
+
+  const KIRA_DEFAULT="https://kiraainurse.streamlit.app";
+  const target=(kiraUrl||KIRA_DEFAULT).replace(/\/+$/,"");
+  const redirect=target+"?facescan="+encoded;
+
+  // Show sending status
+  const btn=document.getElementById("sendBtn");
+  btn.textContent=lang==="el"?"Αποστολή...":"Sending...";
+  btn.disabled=true;
+
+  // Show manual fallback link immediately (for mobile where redirect may fail)
+  const fallbackDiv=document.createElement("div");
+  fallbackDiv.style.cssText="width:100%;background:rgba(45,63,231,.1);border:1px solid rgba(45,63,231,.3);border-radius:10px;padding:12px 14px;font-size:12px;color:#93C5FD;text-align:center;margin-top:8px";
+  fallbackDiv.innerHTML=`
+    <div style="margin-bottom:8px">${lang==="el"?"Αν δεν ανακατευθυνθείτε αυτόματα:":"If not redirected automatically:"}</div>
+    <a href="${redirect}" style="background:#2D3FE7;color:white;padding:8px 18px;border-radius:8px;text-decoration:none;font-weight:700;font-size:13px;display:inline-block">
+      ${lang==="el"?"→ Άνοιγμα Kira":"→ Open Kira"}
+    </a>`;
+  document.getElementById("sendBtn").parentNode.insertBefore(fallbackDiv, document.getElementById("sendBtn").nextSibling);
+
+  // Attempt redirect
+  try{
+    window.location.href=redirect;
+  }catch(e){
+    console.error("Redirect failed:",e);
   }
-});
+}
 
 function scanAgain(){gB=[];rB=[];bB=[];R={};startScan();}
 
