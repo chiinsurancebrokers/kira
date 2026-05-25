@@ -370,6 +370,9 @@ function grab(){
     n=d.length/4;sr=0;sg=0;sb=0;
     for(let i=0;i<d.length;i+=4){sr+=d[i];sg+=d[i+1];sb+=d[i+2];}
   }
+  // Track skin pixel ratio for face presence detection
+  if(typeof window._skinRatios==='undefined') window._skinRatios=[];
+  window._skinRatios.push(n/(d.length/4));
   gB.push(sg/n);rB.push(sr/n);bB.push(sb/n);
 }
 
@@ -444,39 +447,57 @@ function calcAll(){
   const{mg,fr}=dft(chrom,FPS);
   const{freq:hf}=peak(mg,fr,LO,HI);
   const quality=snr(mg,fr,LO,HI);
-  const hr=hf>0?Math.round(hf*60):Math.round(68+Math.random()*12);
 
-  // Breathing: green channel slow component
+  // ── DIRECTLY MEASURED: Heart Rate ────────────────────────────────────────
+  // Only report HR if signal quality is sufficient
+  const hr=hf>0&&quality>=15?Math.round(hf*60):null;
+
+  // ── DIRECTLY MEASURED: Breathing Rate ────────────────────────────────────
   const{mg:bm,fr:bf}=dft([...gB],FPS);
   const{freq:brf}=peak(bm,bf,BLO,BHI);
-  const br=brf>0?Math.round(brf*60):Math.round(14+Math.random()*4);
+  const br=brf>0&&quality>=15?Math.round(brf*60):null;
 
-  // HRV: RMSSD from peak intervals on normalised CHROM signal
+  // ── ESTIMATED: HRV (needs 2+ min for accuracy, 30s is rough) ─────────────
   const nc=chrom.map(v=>v/_std(chrom));
   const pks=detectPeaks(nc);
-  let hrv=0;
-  if(pks.length>4){
+  let hrv=null, hrvReliable=false;
+  if(pks.length>6){
     const iv=[];for(let i=1;i<pks.length;i++)iv.push((pks[i]-pks[i-1])*1000/FPS);
     const m=_mean(iv);
-    hrv=Math.round(Math.min(120,Math.max(5,Math.sqrt(iv.reduce((a,b)=>a+(b-m)**2,0)/iv.length))));
-  }else hrv=Math.round(20+Math.random()*28);
+    const rmssd=Math.sqrt(iv.reduce((a,b)=>a+(b-m)**2,0)/iv.length);
+    // Only trust HRV if peaks are consistent (low CV of intervals)
+    const cv=Math.sqrt(iv.reduce((a,b)=>a+(b-m)**2,0)/iv.length)/_mean(iv);
+    if(cv<0.3&&quality>=25){
+      hrv=Math.round(Math.min(100,Math.max(5,rmssd)));
+      hrvReliable=true;
+    }
+  }
 
-  const stress=Math.round(Math.max(1,Math.min(99,100-hrv/120*100)));
-  const bps=Math.round(110+(hr-70)*.4+(stress/100)*18);
-  const bpd=Math.round(70+(hr-70)*.2+(stress/100)*9);
-  const cardio=Math.round(hr*bps/100);
-  const parasym=Math.round(Math.min(100,Math.max(0,hrv/120*100)));
+  // ── DERIVED from HRV (only show if HRV is reliable) ──────────────────────
+  const stress=hrvReliable&&hrv?Math.round(Math.max(1,Math.min(99,100-hrv/100*100))):null;
+  const parasym=hrvReliable&&hrv?Math.round(Math.min(100,Math.max(0,hrv/100*100))):null;
 
-  let w=100;
-  if(hr>100||hr<55)w-=20;else if(hr>90||hr<60)w-=10;
-  if(bps>=140||bpd>=90)w-=20;else if(bps>=130)w-=10;
-  if(hrv<15)w-=18;else if(hrv<30)w-=9;
-  if(stress>70)w-=14;else if(stress>50)w-=7;
-  if(br<10||br>22)w-=8;
-  if(quality<20)w-=8;
-  const wellness=Math.max(20,Math.min(100,w));
+  // ── NOT MEASURABLE via rPPG — removed ────────────────────────────────────
+  // BP and cardiac workload cannot be measured from simple rPPG
+  // without individual calibration. We do NOT report them.
 
-  return{hr,br,hrv,stress,bp_sys:bps,bp_dia:bpd,cardio,parasym,wellness,quality};
+  // ── Wellness: based only on what we actually measured ────────────────────
+  let w=80; // start at 80 (not 100) to be conservative
+  if(hr!==null){
+    if(hr>=60&&hr<=100)w+=10;
+    else if(hr<50||hr>110)w-=15;
+    else w-=5;
+  }
+  if(hrv!==null&&hrvReliable){
+    if(hrv>=30)w+=5;else if(hrv<15)w-=10;
+  }
+  if(br!==null){
+    if(br>=12&&br<=20)w+=3;else if(br<10||br>24)w-=8;
+  }
+  if(quality<20)w-=15;else if(quality>=50)w+=5;
+  const wellness=Math.max(30,Math.min(95,w));
+
+  return{hr,br,hrv,hrvReliable,stress,parasym,wellness,quality};
 }
 
 // ── DONE ──────────────────────────────────────────────────────────────────────
@@ -486,6 +507,34 @@ function done(){
   setTimeout(()=>{
     R=calcAll();
     if(stream)stream.getTracks().forEach(t=>t.stop());
+    // Quality gate: if signal too poor, show retry prompt
+    // Face presence check: if avg skin pixel ratio < 15%, no face detected
+    const avgSkin = window._skinRatios && window._skinRatios.length>0
+      ? window._skinRatios.reduce((a,b)=>a+b,0)/window._skinRatios.length : 1;
+    window._skinRatios = [];
+
+    if(avgSkin < 0.08){
+      show("sc1");
+      const errEl=document.getElementById("camErr");
+      errEl.style.display="block";
+      errEl.textContent=lang==="el"
+        ?"Δεν ανιχνεύτηκε πρόσωπο. Τοποθετήστε το πρόσωπό σας στην έλλειψη οδηγό και δοκιμάστε ξανά."
+        :"No face detected. Position your face in the oval guide and try again.";
+      document.getElementById("startBtn").textContent=lang==="el"?"Δοκιμή ξανά":"Try Again";
+      document.getElementById("startBtn").disabled=false;
+      return;
+    }
+    if((R.quality||0)<15){
+      show("sc1");
+      const errEl=document.getElementById("camErr");
+      errEl.style.display="block";
+      errEl.textContent=lang==="el"
+        ?"Ποιότητα σήματος πολύ χαμηλή ("+R.quality+"/100). Βεβαιωθείτε για καλό φωτισμό στο πρόσωπό σας και δοκιμάστε ξανά."
+        :"Signal quality too low ("+R.quality+"/100). Ensure good lighting on your face and try again.";
+      document.getElementById("startBtn").textContent=lang==="el"?"Δοκιμή ξανά":"Try Again";
+      document.getElementById("startBtn").disabled=false;
+      return;
+    }
     showResults();
   },700);
 }
@@ -621,15 +670,15 @@ function showResults(){
   }
 
   // Build metric definitions
-  const metrics=[
-    {k:"hr",    icon:"❤️",  v:R.hr,      u:"bpm",  m:"hr",     raw:R.hr},
-    {k:"bp",    icon:"🩸",  v:`${R.bp_sys}/${R.bp_dia}`, u:"mmHg", m:"bp", raw:[R.bp_sys,R.bp_dia]},
-    {k:"br",    icon:"🌬️", v:R.br,      u:"/min", m:"br",     raw:R.br},
-    {k:"hrv",   icon:"📊",  v:R.hrv,     u:"ms",   m:"hrv",    raw:R.hrv},
-    {k:"stress",icon:"🧠",  v:R.stress,  u:"/100", m:"stress", raw:R.stress},
-    {k:"cardio",icon:"💓",  v:R.cardio,  u:"",     m:"cardio", raw:R.cardio},
-    {k:"parasym",icon:"🔋", v:R.parasym, u:"/100", m:"parasym",raw:R.parasym},
+  // Only include metrics we actually measured or can estimate reliably
+  // Parasympathetic removed — requires 2+ min HRV, not reliable from 30s rPPG
+  const allMetrics=[
+    {k:"hr",     icon:"❤️",  v:R.hr,      u:"bpm",  m:"hr",     raw:R.hr,     tag:"measured"},
+    {k:"br",     icon:"🌬️", v:R.br,      u:"/min", m:"br",     raw:R.br,     tag:"measured"},
+    {k:"hrv",    icon:"📊",  v:R.hrv,     u:"ms",   m:"hrv",    raw:R.hrv,    tag:"estimate"},
+    {k:"stress", icon:"🧠",  v:R.stress,  u:"/100", m:"stress", raw:R.stress, tag:"estimate"},
   ];
+  const metrics=allMetrics.filter(c=>c.v!==null&&c.v!==undefined);
 
   // Classify each
   metrics.forEach(c=>{c.status=cls(c.m,c.raw);c.color=clsColor(c.status);});
@@ -638,6 +687,9 @@ function showResults(){
   const greens=metrics.filter(c=>c.status==="normal"||c.status==="excellent");
   const yellows=metrics.filter(c=>c.status==="moderate"||c.status==="low");
   const reds=metrics.filter(c=>c.status==="high");
+  // Add data reliability note
+  const measuredCount=metrics.filter(c=>c.tag==="measured").length;
+  const estimateCount=metrics.filter(c=>c.tag==="estimate").length;
   const el=lang==="el";
   const sumEl=document.getElementById("summary-sections");
   sumEl.innerHTML="";
@@ -654,9 +706,29 @@ function showResults(){
     ${reds.map(c=>`<div class="ss-item"><span>${c.icon}</span><span><b>${tll(c.k)}</b> (${c.v}${c.u}) — ${clinicalNote(c.m,c.raw).split(".")[0]}</span></div>`).join("")}
   </div>`;
 
-  // Rich cards
+  // Honesty disclaimer about what's measured
+  const discEl=document.getElementById("rg");
+  const measuredCount=metrics.filter(c=>c.tag==="measured").length;
+  const estimateCount=metrics.filter(c=>c.tag==="estimate").length;
+  const honesty_note=lang==="el"
+    ?`<div style="width:100%;background:rgba(45,63,231,.08);border:1px solid rgba(45,63,231,.2);border-radius:10px;padding:10px 14px;font-size:11px;color:#93C5FD;margin-bottom:8px;line-height:1.6">
+        📡 <strong>Τι μετράται απευθείας:</strong> Καρδιακός ρυθμός, αναπνοή — από το σήμα rPPG της κάμερας.<br>
+        ⚠️ <strong>Εκτιμήσεις μόνο:</strong> HRV, stress, παρασυμπαθητικό — απαιτούν 2+ λεπτά για αξιόπιστα αποτελέσματα.<br>
+        ❌ <strong>Η αρτηριακή πίεση δεν μετράται</strong> από απλό rPPG χωρίς βαθμονόμηση.
+      </div>`
+    :`<div style="width:100%;background:rgba(45,63,231,.08);border:1px solid rgba(45,63,231,.2);border-radius:10px;padding:10px 14px;font-size:11px;color:#93C5FD;margin-bottom:8px;line-height:1.6">
+        📡 <strong>Directly measured:</strong> Heart rate, breathing rate — from the camera rPPG signal.<br>
+        ⚠️ <strong>Estimates only:</strong> HRV, stress, parasympathetic — require 2+ minutes for reliable results.<br>
+        ❌ <strong>Blood pressure is not measurable</strong> from simple rPPG without individual calibration.
+      </div>`;
+  sumEl.innerHTML = honesty_note + sumEl.innerHTML;
+
+  // Rich cards — only for non-null metrics
   const rgEl=document.getElementById("rg");
   rgEl.innerHTML=metrics.map((c,i)=>{
+    const tagHtml=c.tag==="measured"
+      ?'<span style="font-size:9px;background:rgba(16,185,129,.15);color:#6EE7B7;padding:2px 6px;border-radius:8px;margin-left:6px">MEASURED</span>'
+      :'<span style="font-size:9px;background:rgba(245,158,11,.15);color:#FCD34D;padding:2px 6px;border-radius:8px;margin-left:6px">ESTIMATE</span>';
     const rc=rangeConfig(c.m);
     let rangeHtml="";
     if(rc&&c.m!=="bp"){
@@ -691,7 +763,7 @@ function showResults(){
     const pillCls={"normal":"pill-g","excellent":"pill-g","moderate":"pill-y","low":"pill-y","high":"pill-r"}[c.status]||"pill-g";
     return`<div class="vcard" id="vc${i}">
       <div class="vcard-top">
-        <div class="vcard-label">${c.icon} ${tll(c.k)}</div>
+        <div class="vcard-label">${c.icon} ${tll(c.k)}${tagHtml}</div>
         <div class="vcard-pill ${pillCls}">${clsText(c.status)}</div>
       </div>
       <div class="vcard-value">${c.v}<span class="vcard-unit">${c.u}</span></div>
