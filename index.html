@@ -119,8 +119,8 @@ h1 em{background:linear-gradient(135deg,var(--p),var(--t));-webkit-background-cl
 
 <!-- SCREEN 1: INTRO -->
 <div class="scr on" id="sc1">
-  <h1 id="T_ht">Εκτίμηση Υγείας<br><em>σε 30 Δευτερόλεπτα</em></h1>
-  <p class="sub" id="T_hs">Μέτρηση ζωτικών σημείων μέσω κάμερας, χωρίς εξοπλισμό.</p>
+  <h1 id="T_ht">Εκτίμηση Υγείας<br><em>σε 60 Δευτερόλεπτα</em></h1>
+  <p class="sub" id="T_hs">Μέτρηση ζωτικών σημείων μέσω κάμερας σε 60 δευτερόλεπτα, χωρίς εξοπλισμό.</p>
   <div class="steps">
     <div class="step"><div class="sn">1</div><div class="st" id="T_s1"><b>Φωτισμός</b> — Καλός ομοιόμορφος φωτισμός από μπροστά.</div></div>
     <div class="step"><div class="sn">2</div><div class="st" id="T_s2"><b>Θέση</b> — Τοποθετήστε πρόσωπο στην έλλειψη οδηγό.</div></div>
@@ -216,8 +216,8 @@ h1 em{background:linear-gradient(135deg,var(--p),var(--t));-webkit-background-cl
 // ── LANG ─────────────────────────────────────────────────────────────────────
 const L={
   el:{
-    T_ht:"Εκτίμηση Υγείας<br><em>σε 30 Δευτερόλεπτα</em>",
-    T_hs:"Μέτρηση ζωτικών σημείων μέσω κάμερας, χωρίς εξοπλισμό.",
+    T_ht:"Εκτίμηση Υγείας<br><em>σε 60 Δευτερόλεπτα</em>",
+    T_hs:"Μέτρηση ζωτικών σημείων μέσω κάμερας σε 60 δευτερόλεπτα, χωρίς εξοπλισμό.",
     T_s1:"<b>Φωτισμός</b> — Καλός ομοιόμορφος φωτισμός από μπροστά.",
     T_s2:"<b>Θέση</b> — Τοποθετήστε πρόσωπο στην έλλειψη οδηγό.",
     T_s3:"<b>Ακινησία</b> — Μη μιλάτε ή κινείτε κεφάλι.",
@@ -238,8 +238,8 @@ const L={
     st:{normal:"Φυσιολογικό",excellent:"Εξαιρετικό",moderate:"Μέτριο",high:"Υψηλό",low:"Χαμηλό"}
   },
   en:{
-    T_ht:"Health Assessment<br><em>in 30 Seconds</em>",
-    T_hs:"Measure vital signs via camera — no equipment needed.",
+    T_ht:"Health Assessment<br><em>in 60 Seconds</em>",
+    T_hs:"Measure vital signs via camera in 60 seconds — no equipment needed.",
     T_s1:"<b>Lighting</b> — Even light from the front.",
     T_s2:"<b>Position</b> — Place face inside the oval guide.",
     T_s3:"<b>Stay still</b> — Don't talk or move your head.",
@@ -282,7 +282,7 @@ document.getElementById("lbtn").onclick=()=>{
 };
 
 // ── STATE ─────────────────────────────────────────────────────────────────────
-const DUR=30,FPS=30,WARMUP=3,LO=0.75,HI=3.5,BLO=0.1,BHI=0.55;
+const DUR=60,FPS=30,WARMUP=5,LO=0.75,HI=3.5,BLO=0.1,BHI=0.55;
 let stream=null,raf=null,t0=null,lastT=0;
 let gB=[],rB=[],bB=[],fn=0,R={};
 const vid=document.getElementById("vid");
@@ -469,7 +469,7 @@ function calcAll(){
   const nc=chrom.map(v=>v/_std(chrom));
   const pks=detectPeaks(nc);
   let hrv=null, hrvReliable=false;
-  if(pks.length>6){
+  if(pks.length>5){
     const iv=[];for(let i=1;i<pks.length;i++)iv.push((pks[i]-pks[i-1])*1000/FPS);
     const m=_mean(iv);
     const rmssd=Math.sqrt(iv.reduce((a,b)=>a+(b-m)**2,0)/iv.length);
