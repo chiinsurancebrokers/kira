@@ -421,6 +421,57 @@ def classify_vitals(v):
         else: status["bmi"]="red"
     return status
 
+def demographic_bp_risk(age, bmi, hr, weight=None, height=None):
+    """
+    Evidence-based BP risk classification using demographic features.
+    Based on: Chowdhury et al. (2020) - top ReliefF features for BP estimation.
+    Returns: dict with risk_level, sbp_range, dbp_range, explanation
+    """
+    score = 0
+    factors = []
+
+    # Age — strongest demographic predictor (Feature #105 in paper)
+    if age >= 70:   score += 4; factors.append("age ≥70" if True else "")
+    elif age >= 60: score += 3; factors.append("age 60-69")
+    elif age >= 50: score += 2; factors.append("age 50-59")
+    elif age >= 40: score += 1; factors.append("age 40-49")
+
+    # BMI — second strongest (Feature #107)
+    if bmi:
+        if bmi >= 35:   score += 3; factors.append("BMI ≥35 (obese II)")
+        elif bmi >= 30: score += 2; factors.append("BMI 30-34 (obese I)")
+        elif bmi >= 25: score += 1; factors.append("BMI 25-29 (overweight)")
+
+    # Heart Rate — Feature #106
+    if hr:
+        if hr > 90:   score += 2; factors.append("elevated HR")
+        elif hr > 80: score += 1; factors.append("high-normal HR")
+        elif hr < 55: score -= 1; factors.append("low HR (fit/athletic)")
+
+    # Weight/Height ratio proxy if BMI not computed yet
+    if weight and height and not bmi:
+        bmi_calc = weight / ((height/100)**2)
+        if bmi_calc >= 30: score += 2
+        elif bmi_calc >= 25: score += 1
+
+    # Map score to risk level + estimated range
+    if score <= 0:
+        return {"level":"optimal","color":"#10B981","label_el":"Βέλτιστη","label_en":"Optimal",
+                "sbp":"<115","dbp":"<75","note_el":"Εξαιρετικό καρδιαγγειακό προφίλ.","note_en":"Excellent cardiovascular profile.","score":score}
+    elif score <= 2:
+        return {"level":"normal","color":"#10B981","label_el":"Φυσιολογική","label_en":"Normal",
+                "sbp":"115-129","dbp":"75-84","note_el":"Φυσιολογικά επίπεδα για το προφίλ σας.","note_en":"Normal levels for your profile.","score":score}
+    elif score <= 4:
+        return {"level":"elevated","color":"#F59E0B","label_el":"Ελαφρά Αυξημένη","label_en":"Elevated Risk",
+                "sbp":"130-144","dbp":"85-89","note_el":"Σχετικά αυξημένος κίνδυνος. Μέτρηση πίεσης συνιστάται.","note_en":"Moderately elevated risk. BP measurement advised.","score":score}
+    elif score <= 6:
+        return {"level":"high","color":"#EF4444","label_el":"Υψηλός Κίνδυνος","label_en":"High Risk",
+                "sbp":"140-159","dbp":"90-99","note_el":"Αυξημένος κίνδυνος υπέρτασης. Επισκεφθείτε γιατρό.","note_en":"Elevated hypertension risk. See a doctor.","score":score}
+    else:
+        return {"level":"very_high","color":"#DC2626","label_el":"Πολύ Υψηλός Κίνδυνος","label_en":"Very High Risk",
+                "sbp":"≥160","dbp":"≥100","note_el":"Πολύ υψηλός κίνδυνος. Απαιτείται ιατρική αξιολόγηση.","note_en":"Very high risk. Medical evaluation required.","score":score}
+
+
 KIRA_SYSTEM_EL = """Είσαι η Kira — AI νοσηλευτής για Έλληνες χρήστες. Είσαι κλινικά ακριβής, άμεση και υποστηρικτική.
 Ρόλος: Τριάζ συμπτωμάτων (μία ερώτηση κάθε φορά), ερμηνεία ζωτικών, φάρμακα, ελληνικό σύστημα υγείας (ΕΟΠΥΥ, ΕΟΔΥ, ΕΟΦ).
 Κανόνες: Πάντα συστήνεις επαγγελματία. Κόκκινες σημαίες → 166/112. Όταν έχεις αρκετά: "Έχω αρκετά στοιχεία — μπορούμε να δημιουργήσουμε πλήρη αναφορά." Μία ερώτηση κάθε φορά."""
@@ -534,37 +585,122 @@ def render_intake():
 def render_vitals():
     render_stepper("vitals")
     p=st.session_state.profile
+    lang=st.session_state.lang
     st.markdown(f"## 📊 {t('vitals_title')} — {p.get('name','')}")
-    facescan_url=st.secrets.get("FACESCAN_URL","https://kiraainurse.netlify.app")
-    kira_url=st.secrets.get("KIRA_URL","https://kiraainurse.streamlit.app")
-    if facescan_url:
+
+    # ── Tab layout: Face Scan | Device Import | Manual ───────────────────────
+    tab_scan, tab_device, tab_manual = st.tabs([
+        "📷 " + ("Σάρωση Προσώπου" if lang=="el" else "Face Scan"),
+        "⌚ " + ("Εισαγωγή από Συσκευή" if lang=="el" else "Import from Device"),
+        "✏️ " + ("Χειροκίνητη Εισαγωγή" if lang=="el" else "Manual Entry"),
+    ])
+
+    with tab_scan:
+        facescan_url=st.secrets.get("FACESCAN_URL","https://kiraainurse.netlify.app")
+        kira_url=st.secrets.get("KIRA_URL","https://kiraainurse.streamlit.app")
         scan_link=f"{facescan_url}?kira_url={urllib.parse.quote(kira_url)}"
-        st.markdown(f'''<div style="background:linear-gradient(135deg,#2D3FE7,#7B2FE0);border-radius:16px;padding:24px;text-align:center;margin-bottom:20px;color:white">
-            <div style="font-size:36px">📷</div><div style="font-size:18px;font-weight:700;margin:8px 0">Σάρωση Προσώπου</div>
-            <div style="font-size:13px;opacity:0.8;margin-bottom:16px">Μέτρηση HR, BP, HRV, stress σε 30 δευτερόλεπτα</div>
-            <a href="{scan_link}" target="_blank" style="background:white;color:#2D3FE7;padding:12px 24px;border-radius:8px;font-weight:700;text-decoration:none;font-size:14px">Έναρξη Σάρωσης →</a></div>''',unsafe_allow_html=True)
-        st.divider()
-    st.markdown("**Χειροκίνητη Εισαγωγή**" if st.session_state.lang=="el" else "**Manual Entry**")
-    v=st.session_state.vitals
-    c1,c2,c3=st.columns(3)
-    with c1:
-        hr=st.number_input(t("hr"),min_value=0,max_value=300,value=int(v.get("hr",0)) or None,placeholder="76")
-        spo2=st.number_input(t("spo2"),min_value=0,max_value=100,value=int(v.get("spo2",0)) or None,placeholder="98")
-        temp=st.number_input(t("temp"),min_value=0.0,max_value=45.0,value=float(v.get("temp",0.0)) or None,placeholder="36.6",format="%.1f")
-    with c2:
-        bp_s=st.number_input(t("bp_sys"),min_value=0,max_value=300,value=int(v.get("bp_sys",0)) or None,placeholder="120")
-        bp_d=st.number_input(t("bp_dia"),min_value=0,max_value=200,value=int(v.get("bp_dia",0)) or None,placeholder="80")
-        br=st.number_input(t("br"),min_value=0,max_value=60,value=int(v.get("br",0)) or None,placeholder="15")
-    with c3:
-        weight=st.number_input(t("weight"),min_value=0.0,max_value=300.0,value=float(v.get("weight",0.0)) or None,placeholder="75",format="%.1f")
-        height=st.number_input(t("height"),min_value=0,max_value=250,value=int(v.get("height",0)) or None,placeholder="175")
-    col_b,col_s,col_n=st.columns([1,1,2])
-    with col_b:
-        if st.button(t("back")): st.session_state.screen="intake"; st.rerun()
-    with col_s:
-        if st.button(t("skip_vitals")): st.session_state.vitals={}; st.session_state.screen="triage"; st.rerun()
-    with col_n:
-        if st.button(t("analyse_vitals"),type="primary",use_container_width=True):
+        st.markdown(f'''<div style="background:linear-gradient(135deg,#2D3FE7,#7B2FE0);border-radius:16px;padding:28px;text-align:center;color:white;margin:8px 0">
+            <div style="font-size:40px;margin-bottom:8px">📷</div>
+            <div style="font-size:18px;font-weight:700;margin-bottom:8px">{"Σάρωση Προσώπου rPPG" if lang=="el" else "rPPG Face Scan"}</div>
+            <div style="font-size:13px;opacity:0.8;margin-bottom:16px">{"Μέτρηση καρδιακού ρυθμού & αναπνοής σε 30 δευτερόλεπτα μέσω κάμερας" if lang=="el" else "Measure heart rate & breathing in 30 seconds via camera"}</div>
+            <a href="{scan_link}" target="_blank" style="background:white;color:#2D3FE7;padding:12px 28px;border-radius:8px;font-weight:700;text-decoration:none;font-size:14px">
+                {"Έναρξη Σάρωσης →" if lang=="el" else "Start Scan →"}
+            </a>
+        </div>''', unsafe_allow_html=True)
+        st.caption("✅ Μετράει: Καρδιακός ρυθμός, αναπνοή  |  ⚠️ Εκτίμηση: HRV, stress  |  ❌ Δεν μετράει: Αρτηριακή πίεση" if lang=="el"
+                   else "✅ Measures: Heart rate, breathing  |  ⚠️ Estimate: HRV, stress  |  ❌ Does not measure: Blood pressure")
+
+    with tab_device:
+        st.markdown(f"### {'Εισαγωγή από Smartwatch / Οξύμετρο' if lang=='el' else 'Import from Smartwatch / Oximeter'}")
+        st.caption("Apple Watch · Fitbit · Garmin · Polar · Finger oximeter" if lang=="el" else "Apple Watch · Fitbit · Garmin · Polar · Finger oximeter")
+
+        d1, d2 = st.columns(2)
+        with d1:
+            st.markdown(f"**{'Apple Watch / Smartwatch' if lang=='el' else 'Apple Watch / Smartwatch'}**")
+            dev_hr   = st.number_input("Heart Rate (bpm)", min_value=0, max_value=300, value=None, placeholder="76", key="dev_hr")
+            dev_hrv  = st.number_input("HRV (ms)", min_value=0, max_value=300, value=None, placeholder="45", key="dev_hrv")
+            dev_spo2 = st.number_input("SpO2 (%)", min_value=0, max_value=100, value=None, placeholder="98", key="dev_spo2")
+            dev_br   = st.number_input("Breathing Rate (/min)", min_value=0, max_value=60, value=None, placeholder="15", key="dev_br")
+        with d2:
+            st.markdown(f"**{'Πιεσόμετρο / Άλλη Συσκευή' if lang=='el' else 'Blood Pressure Monitor / Other'}**")
+            dev_bps  = st.number_input("BP Systolic (mmHg)", min_value=0, max_value=300, value=None, placeholder="120", key="dev_bps")
+            dev_bpd  = st.number_input("BP Diastolic (mmHg)", min_value=0, max_value=200, value=None, placeholder="80", key="dev_bpd")
+            dev_temp = st.number_input("Temperature (°C)", min_value=0.0, max_value=45.0, value=None, placeholder="36.6", key="dev_temp", format="%.1f")
+            dev_wt   = st.number_input("Weight (kg)", min_value=0.0, max_value=300.0, value=None, placeholder="75", key="dev_wt", format="%.1f")
+
+        st.markdown(f"**{'Ύψος (για ΔΜΣ)' if lang=='el' else 'Height (for BMI)'}**")
+        dev_ht = st.number_input("Height (cm)", min_value=0, max_value=250, value=None, placeholder="175", key="dev_ht")
+
+        if st.button(f"{'Φόρτωση δεδομένων συσκευής' if lang=='el' else 'Load device data'}", type="primary", key="load_device", use_container_width=True):
+            vd = {}
+            if dev_hr:   vd["hr"]     = int(dev_hr)
+            if dev_hrv:  vd["hrv"]    = int(dev_hrv)
+            if dev_spo2: vd["spo2"]   = int(dev_spo2)
+            if dev_br:   vd["br"]     = int(dev_br)
+            if dev_bps:  vd["bp_sys"] = int(dev_bps)
+            if dev_bpd:  vd["bp_dia"] = int(dev_bpd)
+            if dev_temp: vd["temp"]   = float(dev_temp)
+            if dev_wt:   vd["weight"] = float(dev_wt)
+            if dev_ht:   vd["height"] = int(dev_ht)
+            if vd:
+                classify_vitals(vd)
+                st.session_state.vitals = vd
+                st.session_state["_device_loaded"] = True
+            else:
+                st.warning("Εισάγετε τουλάχιστον έναν δείκτη." if lang=="el" else "Enter at least one metric.")
+
+        # Show confirmation + vitals + proceed button (no rerun needed)
+        if st.session_state.get("_device_loaded") and st.session_state.vitals:
+            v_loaded = st.session_state.vitals
+            st.success(f"{'✅ Δεδομένα φορτώθηκαν:' if lang=='el' else '✅ Data loaded:'} " +
+                       " | ".join(f"{k}={v}" for k,v in v_loaded.items()))
+            if st.button(f"{'Συνέχεια στην Εκτίμηση →' if lang=='el' else 'Continue to Assessment →'}",
+                         type="primary", key="dev_continue", use_container_width=True):
+                st.session_state["_device_loaded"] = False
+                with st.spinner("Ανάλυση..."):
+                    vtext = "\n".join(f"- {k}: {val}" for k,val in v_loaded.items())
+                    pp = p.get
+                    st.session_state.vitals_analysis = claude(
+                        [{"role":"user","content":f"Patient: {pp('name')}, {pp('age')}yo {pp('sex')}, Hx: {pp('history','none')}, Meds: {pp('meds_raw','none')}\n\nVitals:\n{vtext}\n\nInterpret. Categorise each. Flag urgent findings. Be direct."}],
+                        system=kira_system(), max_tokens=1200
+                    )
+                st.session_state.screen = "triage"
+                st.rerun()
+
+        # How-to guide
+        with st.expander(f"{'Πώς να εξαγάγετε δεδομένα από τη συσκευή σας' if lang=='el' else 'How to export data from your device'}"):
+            st.markdown("""
+**Apple Watch / iPhone:**
+Health app → Browse → Heart → Heart Rate → export or note the value
+
+**Fitbit:**
+Fitbit app → Today → Heart Rate tile
+
+**Garmin / Polar:**
+Garmin Connect / Polar Flow app → Dashboard → Heart Rate
+
+**Finger oximeter:**
+Read SpO2 and HR directly from the device display
+
+**Blood pressure monitor:**
+Use a certified upper-arm cuff device, note systolic/diastolic values
+            """)
+    with tab_manual:
+        v=st.session_state.vitals
+        c1,c2,c3=st.columns(3)
+        with c1:
+            hr=st.number_input(t("hr"),min_value=0,max_value=300,value=int(v.get("hr",0)) or None,placeholder="76")
+            spo2=st.number_input(t("spo2"),min_value=0,max_value=100,value=int(v.get("spo2",0)) or None,placeholder="98")
+            temp=st.number_input(t("temp"),min_value=0.0,max_value=45.0,value=float(v.get("temp",0.0)) or None,placeholder="36.6",format="%.1f")
+        with c2:
+            bp_s=st.number_input(t("bp_sys"),min_value=0,max_value=300,value=int(v.get("bp_sys",0)) or None,placeholder="120")
+            bp_d=st.number_input(t("bp_dia"),min_value=0,max_value=200,value=int(v.get("bp_dia",0)) or None,placeholder="80")
+            br=st.number_input(t("br"),min_value=0,max_value=60,value=int(v.get("br",0)) or None,placeholder="15")
+        with c3:
+            weight=st.number_input(t("weight"),min_value=0.0,max_value=300.0,value=float(v.get("weight",0.0)) or None,placeholder="75",format="%.1f")
+            height=st.number_input(t("height"),min_value=0,max_value=250,value=int(v.get("height",0)) or None,placeholder="175")
+
+        if st.button(t("analyse_vitals"),type="primary",use_container_width=True,key="analyse_manual"):
             vd={}
             if hr: vd["hr"]=hr
             if bp_s: vd["bp_sys"]=bp_s
@@ -583,6 +719,101 @@ def render_vitals():
                     pp=p.get
                     st.session_state.vitals_analysis=claude([{"role":"user","content":f"Patient: {pp('name')}, {pp('age')}yo {pp('sex')}, Hx: {pp('history','none')}, Meds: {pp('meds_raw','none')}\n\nVitals:\n{vtext}\n\nInterpret. Categorise each. Flag urgent findings. Be direct."}],system=kira_system(),max_tokens=1200)
             st.session_state.screen="triage"; st.rerun()
+
+    # ── BP Estimation — Railway GPR API + Demographic fallback ───────────────
+    st.divider()
+    pr = st.session_state.profile
+    age_val  = pr.get("age", 0)
+    v_now    = st.session_state.vitals
+    hr_val   = v_now.get("hr")
+    wt_val   = v_now.get("weight") or pr.get("weight")
+    ht_val   = v_now.get("height") or pr.get("height")
+    bmi_val  = v_now.get("bmi")
+    if not bmi_val and wt_val and ht_val:
+        bmi_val = round(wt_val / ((ht_val/100)**2), 1)
+    sex_val  = pr.get("sex","")
+    gender_n = 1 if sex_val in ["Άνδρας","Male"] else 0
+
+    bp_api_url = st.secrets.get("BP_API_URL","")
+    api_result = None
+
+    # Try Railway GPR model first (real ML prediction)
+    if bp_api_url and age_val > 0 and wt_val and ht_val and hr_val:
+        try:
+            payload = json.dumps({
+                "age": int(age_val), "height": float(ht_val),
+                "weight": float(wt_val), "hr": int(hr_val),
+                "gender": gender_n
+            }).encode()
+            req = urllib.request.Request(
+                f"{bp_api_url.rstrip('/')}/predict",
+                data=payload,
+                headers={"Content-Type":"application/json"},
+            )
+            with urllib.request.urlopen(req, timeout=8) as r:
+                api_result = json.loads(r.read())
+        except Exception:
+            api_result = None
+
+    if age_val > 0:
+        risk = demographic_bp_risk(age_val, bmi_val, hr_val, wt_val, ht_val)
+        label = risk["label_el"] if lang=="el" else risk["label_en"]
+        note  = risk["note_el"]  if lang=="el" else risk["note_en"]
+        color = risk["color"]
+
+        if api_result:
+            # ── ML model result (precise estimate with confidence interval) ──
+            sbp     = api_result.get("sbp", "—")
+            dbp     = api_result.get("dbp", "—")
+            sbp_ci  = api_result.get("sbp_ci95", "")
+            dbp_ci  = api_result.get("dbp_ci95", "")
+            bmi_api = api_result.get("bmi", bmi_val or "—")
+            title   = "Εκτίμηση Αρτηριακής Πίεσης — GPR Model" if lang=="el" else "Blood Pressure Estimate — GPR Model"
+            subtitle= "Gaussian Process Regression · Chowdhury et al. (2020) · Railway API" if lang=="el" else "Gaussian Process Regression · Chowdhury et al. (2020) · Railway API"
+            sbp_disp= f"{sbp} <span style='font-size:11px;color:#6B7280'>± {sbp_ci}</span>"
+            dbp_disp= f"{dbp} <span style='font-size:11px;color:#6B7280'>± {dbp_ci}</span>"
+            unit    = "mmHg"
+            badge   = f"<div style='background:{color};color:white;padding:6px 14px;border-radius:20px;font-size:13px;font-weight:700'>{label}</div><div style='font-size:9px;color:#6B7280;text-align:right;margin-top:4px'>GPR Model ✓</div>"
+        else:
+            # ── Demographic fallback (range estimate) ──
+            sbp_disp= risk["sbp"]
+            dbp_disp= risk["dbp"]
+            unit    = "mmHg"
+            title   = "Εκτίμηση Κινδύνου Αρτηριακής Πίεσης" if lang=="el" else "Blood Pressure Risk Estimate"
+            subtitle= "Βάσει: ηλικία, ΔΜΣ, HR — Chowdhury et al. (2020)" if lang=="el" else "Based on: age, BMI, HR — Chowdhury et al. (2020)"
+            badge   = f"<div style='background:{color};color:white;padding:6px 14px;border-radius:20px;font-size:13px;font-weight:700'>{label}</div>"
+
+        st.markdown(f"""
+<div style="background:rgba(45,63,231,0.06);border:1px solid rgba(45,63,231,0.15);border-radius:14px;padding:18px 20px;">
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+    <div>
+      <div style="font-size:13px;font-weight:700;color:#1A1A2E">🩺 {title}</div>
+      <div style="font-size:11px;color:#6B7280;margin-top:2px">{subtitle}</div>
+    </div>
+    {badge}
+  </div>
+  <div style="display:flex;gap:16px;margin-bottom:10px">
+    <div style="background:white;border:1px solid #E0E5FF;border-radius:10px;padding:10px 16px;flex:1;text-align:center">
+      <div style="font-size:11px;color:#6B7280">{"Εκτιμ. Συστολική" if lang=="el" else "Est. Systolic"}</div>
+      <div style="font-size:20px;font-weight:700;color:{color}">{sbp_disp} <span style="font-size:12px;font-weight:400">{unit}</span></div>
+    </div>
+    <div style="background:white;border:1px solid #E0E5FF;border-radius:10px;padding:10px 16px;flex:1;text-align:center">
+      <div style="font-size:11px;color:#6B7280">{"Εκτιμ. Διαστολική" if lang=="el" else "Est. Diastolic"}</div>
+      <div style="font-size:20px;font-weight:700;color:{color}">{dbp_disp} <span style="font-size:12px;font-weight:400">{unit}</span></div>
+    </div>
+  </div>
+  <div style="font-size:12px;color:#374151">{note}</div>
+  <div style="font-size:10px;color:#9CA3AF;margin-top:6px">⚠️ {"Εκτίμηση μόνο — όχι αντικατάσταση πιεσομέτρου. Χρησιμοποιείστε πιστοποιημένο πιεσόμετρο για ακριβή μέτρηση." if lang=="el" else "Estimate only — not a substitute for a blood pressure monitor. Use a certified BP cuff for accurate measurement."}</div>
+</div>
+        """, unsafe_allow_html=True)
+
+    # Navigation buttons
+    col_b, col_s = st.columns([1, 3])
+    with col_b:
+        if st.button(t("back")): st.session_state.screen="intake"; st.rerun()
+    with col_s:
+        if st.button(t("skip_vitals"), use_container_width=True):
+            st.session_state.vitals={}; st.session_state.screen="triage"; st.rerun()
 
 def render_vitals_summary():
     v=st.session_state.vitals
