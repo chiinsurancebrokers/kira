@@ -985,21 +985,41 @@ Language: {"Greek" if lang=="el" else "English"}. Be direct. End with AI disclai
 
 # ── FACESCAN INTERCEPTION ─────────────────────────────────────────────────────
 try:
-    _raw=st.query_params.get("facescan","")
+    _raw = st.query_params.get("facescan","")
     if _raw:
-        _scanned=json.loads(urllib.parse.unquote(_raw))
-        if _scanned and isinstance(_scanned,dict):
-            st.session_state.vitals=_scanned
-            st.session_state["_from_facescan"]=True
-            if st.session_state.profile.get("name"): st.session_state.screen="triage"
-            else: st.session_state.screen="intake"; st.session_state["_fs_banner"]=True
-            st.query_params.clear(); st.rerun()
-except Exception: pass
+        _scanned = json.loads(urllib.parse.unquote(_raw))
+        if _scanned and isinstance(_scanned, dict):
+            # Filter out null values — only keep actual measurements
+            _clean = {k: v for k, v in _scanned.items()
+                      if v is not None and v != 0 and k not in ("quality","wellness")}
+            # Keep quality and wellness as-is even if 0
+            if "quality"  in _scanned: _clean["quality"]  = _scanned["quality"]
+            if "wellness" in _scanned: _clean["wellness"] = _scanned["wellness"]
+            if _clean:
+                st.session_state.vitals = _clean
+                st.session_state["_from_facescan"] = True
+                st.session_state["_fs_banner"] = True
+                if st.session_state.profile.get("name"):
+                    st.session_state.screen = "triage"
+                else:
+                    st.session_state.screen = "intake"
+            st.query_params.clear()
+            st.rerun()
+except Exception:
+    pass
 
 # ── ROUTER ────────────────────────────────────────────────────────────────────
 screen=st.session_state.screen
-if st.session_state.pop("_fs_banner",False):
-    st.success("✅ Δεδομένα σάρωσης φορτώθηκαν!" if st.session_state.lang=="el" else "✅ Face scan data loaded!")
+if st.session_state.pop("_fs_banner", False):
+    v_loaded = st.session_state.vitals
+    metrics  = [f"HR:{v_loaded['hr']}bpm" if "hr" in v_loaded else "",
+                f"BR:{v_loaded['br']}/min" if "br" in v_loaded else "",
+                f"HRV:{v_loaded['hrv']}ms" if "hrv" in v_loaded else ""]
+    metrics_str = " · ".join(m for m in metrics if m)
+    lang = st.session_state.lang
+    msg = (f"✅ Σάρωση φορτώθηκε! {metrics_str}" if lang=="el"
+           else f"✅ Face scan loaded! {metrics_str}")
+    st.success(msg)
 if   screen=="home":   render_home()
 elif screen=="intake": render_intake()
 elif screen=="vitals": render_vitals()
