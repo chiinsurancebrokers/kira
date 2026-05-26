@@ -9,7 +9,73 @@ import json
 import io
 import urllib.request
 import urllib.parse
-from datetime import datetime, date
+from datetime import datetime
+import io as _io, base64 as _b64
+
+# HEIC support for iPhone photos
+try:
+    import pillow_heif as _heif
+    from PIL import Image as _Image
+    _heif.register_heif_opener()
+    HEIC_OK = True
+except ImportError:
+    HEIC_OK = False
+
+# ── PHOTO SCANNER FUNCTIONS ───────────────────────────────────────────────────
+HUMAN_SCAN_PROMPTS = {
+    "eye":    "Examine the eye carefully. Describe: sclera colour (white/red/yellow), pupil symmetry, conjunctiva, any discharge (colour, quantity), eyelid swelling, corneal clarity, third eyelid. Flag any urgent findings.",
+    "skin":   "Examine the skin lesion or rash. Describe: colour, size (estimate), borders (regular/irregular), texture (flat/raised/scaly), distribution pattern, any ulceration, satellite lesions. Note ABCDE criteria if applicable (Asymmetry, Border, Colour, Diameter, Evolution).",
+    "wound":  "Examine the wound. Describe: type (laceration/abrasion/puncture/burn), dimensions (estimate), depth, wound edges, signs of infection (redness/swelling/warmth/pus/odour), presence of foreign bodies, tissue viability.",
+    "throat": "Examine the mouth and throat. Describe: tonsil size and appearance, pharyngeal wall, any exudate or white patches, uvula position, tongue coating, gum condition, mucosal lesions, petechiae on palate.",
+    "nails":  "Examine the nails. Describe: colour (pale/yellow/blue/brown/white), shape (clubbing/koilonychia/normal), surface (ridges/pitting/onycholysis), subungual changes, surrounding skin.",
+    "body":   "Describe the visible body area. Note: skin colour, visible swelling, asymmetry, rashes, bruising, oedema, muscle wasting, posture, any visible masses or lesions.",
+}
+
+def convert_heic_human(img_bytes):
+    if not HEIC_OK: raise RuntimeError("pillow-heif not installed")
+    img = _Image.open(_io.BytesIO(img_bytes))
+    buf = _io.BytesIO()
+    img.convert("RGB").save(buf, format="JPEG", quality=92)
+    return buf.getvalue(), "image/jpeg"
+
+def florence2_human(image_b64, scan_type, api_key):
+    workspace = st.secrets.get("ROBOFLOW_WORKSPACE","chriss-workspace-zk0ng")
+    workflow  = st.secrets.get("ROBOFLOW_WORKFLOW","florence2-base-demo")
+    url = f"https://serverless.roboflow.com/{workspace}/workflows/{workflow}"
+    task_prompt = HUMAN_SCAN_PROMPTS.get(scan_type, HUMAN_SCAN_PROMPTS["skin"])
+    body = json.dumps({
+        "api_key": api_key,
+        "inputs": {"image":{"type":"base64","value":image_b64},"task_prompt":task_prompt}
+    }).encode()
+    req = urllib.request.Request(url, data=body, headers={"Content-Type":"application/json"})
+    try:
+        with urllib.request.urlopen(req, timeout=30) as r:
+            result = json.loads(r.read())
+        outputs = result.get("outputs",[])
+        if outputs:
+            for key in ["output","caption","text","result","description"]:
+                if key in outputs[0] and outputs[0][key]:
+                    return {"ok":True,"description":str(outputs[0][key])}
+        return {"ok":True,"description":str(result)}
+    except Exception as e:
+        return {"ok":False,"error":str(e)}
+
+def claude_vision_human(image_b64, image_type, prompt, system=""):
+    key = get_claude_key()
+    if not key: return "⚠️ API key not set."
+    body = json.dumps({
+        "model":"claude-sonnet-4-6","max_tokens":3000,"system":system,
+        "messages":[{"role":"user","content":[
+            {"type":"image","source":{"type":"base64","media_type":image_type,"data":image_b64}},
+            {"type":"text","text":prompt}
+        ]}]
+    }).encode()
+    req = urllib.request.Request("https://api.anthropic.com/v1/messages",data=body,
+        headers={"x-api-key":key,"anthropic-version":"2023-06-01","content-type":"application/json"})
+    try:
+        with urllib.request.urlopen(req,timeout=60) as r:
+            return json.loads(r.read())["content"][0]["text"]
+    except Exception as e: return f"⚠️ {e}"
 
 # ── PAGE CONFIG ───────────────────────────────────────────────────────────────
 st.set_page_config(
@@ -589,8 +655,9 @@ def render_vitals():
     st.markdown(f"## 📊 {t('vitals_title')} — {p.get('name','')}")
 
     # ── Tab layout: Face Scan | Device Import | Manual ───────────────────────
-    tab_scan, tab_device, tab_manual = st.tabs([
+    tab_scan, tab_photo, tab_device, tab_manual = st.tabs([
         "📷 " + ("Σάρωση Προσώπου" if lang=="el" else "Face Scan"),
+        "🔬 " + ("Σάρωση Φωτογραφίας" if lang=="el" else "Photo Scan"),
         "⌚ " + ("Εισαγωγή από Συσκευή" if lang=="el" else "Import from Device"),
         "✏️ " + ("Χειροκίνητη Εισαγωγή" if lang=="el" else "Manual Entry"),
     ])
@@ -609,6 +676,126 @@ def render_vitals():
         </div>''', unsafe_allow_html=True)
         st.caption("✅ Μετράει: Καρδιακός ρυθμός, αναπνοή  |  ⚠️ Εκτίμηση: HRV, stress  |  ❌ Δεν μετράει: Αρτηριακή πίεση" if lang=="el"
                    else "✅ Measures: Heart rate, breathing  |  ⚠️ Estimate: HRV, stress  |  ❌ Does not measure: Blood pressure")
+
+    with tab_photo:
+        rf_key = st.secrets.get("ROBOFLOW_API_KEY","")
+        st.markdown(f"### {'🔬 Ανάλυση Φωτογραφίας' if lang=='el' else '🔬 Photo Health Analysis'}")
+        st.caption("Florence-2 (Microsoft) + Claude Vision · " +
+                   ("Ανεβάστε φωτογραφία για κλινική εκτίμηση" if lang=="el"
+                    else "Upload photo for clinical assessment"))
+
+        SCAN_OPTS = {
+            "el":[("eye","👁️ Μάτι"),("skin","🔬 Δέρμα/Εξάνθημα"),
+                  ("wound","🤕 Τραύμα/Πληγή"),("throat","🦷 Στόμα/Λαιμός"),
+                  ("nails","💅 Νύχια"),("body","🩹 Γενική Εμφάνιση")],
+            "en":[("eye","👁️ Eye"),("skin","🔬 Skin/Rash"),
+                  ("wound","🤕 Wound"),("throat","🦷 Mouth/Throat"),
+                  ("nails","💅 Nails"),("body","🩹 Body/Lesion")],
+        }
+        opts   = SCAN_OPTS[lang]
+        labels = [o[1] for o in opts]
+        keys_  = [o[0] for o in opts]
+        sel    = st.radio("", labels, horizontal=True, key="h_scan_type",
+                          label_visibility="collapsed")
+        scan_k = keys_[labels.index(sel)] if sel in labels else "skin"
+
+        # Photo tips per scan type
+        tips = {
+            "eye":   {"el":"📸 Κοντά (10-15cm), καλό φωτισμό, ανοιχτό μάτι","en":"📸 Close-up (10-15cm), good light, eye open"},
+            "skin":  {"el":"📸 Καθαρή εικόνα αλλοίωσης, φυσικό φωτισμό","en":"📸 Clear image of lesion, natural lighting"},
+            "wound": {"el":"📸 Καλός φωτισμός, χωρίς αίμα να καλύπτει την πληγή","en":"📸 Good lighting, wound visible and clean"},
+            "throat":{"el":"📸 Ανοιχτό στόμα, λαμπάκι αν υπάρχει","en":"📸 Open mouth, torch if available"},
+            "nails": {"el":"📸 Κοντινή λήψη νυχιών σε λευκό φόντο","en":"📸 Close-up of nails on white background"},
+            "body":  {"el":"📸 Ολόκληρη η πάσχουσα περιοχή στο κάδρο","en":"📸 Full affected area in frame"},
+        }
+        st.caption(tips.get(scan_k, tips["skin"])[lang])
+
+        st.markdown(f'<div class="disclaimer">{"⚠️ Εργαλείο AI screening. Δεν αντικαθιστά κλινική εξέταση." if lang=="el" else "⚠️ AI screening tool. Does not replace clinical examination."}</div>', unsafe_allow_html=True)
+
+        uploaded_photo = st.file_uploader(
+            ("Φωτογραφία" if lang=="el" else "Upload photo"),
+            type=["jpg","jpeg","png","webp","heic","heif"],
+            key="human_photo_upload"
+        )
+
+        if uploaded_photo:
+            c_img, c_info = st.columns([1,1])
+            with c_img: st.image(uploaded_photo, use_column_width=True)
+            with c_info:
+                st.markdown(f"**{p.get('name','')}** · {sel}")
+                if st.button("🔬 " + ("Ανάλυση" if lang=="el" else "Analyse"),
+                             type="primary", use_container_width=True, key="analyse_human"):
+                    img_bytes = uploaded_photo.read()
+                    fname = uploaded_photo.name.lower()
+
+                    # HEIC conversion
+                    if fname.endswith((".heic",".heif")):
+                        if HEIC_OK:
+                            try: img_bytes, img_type = convert_heic_human(img_bytes)
+                            except Exception as e: st.error(f"HEIC: {e}"); st.stop()
+                        else:
+                            st.error("Add pillow-heif to requirements.txt"); st.stop()
+                    else:
+                        img_type = "image/jpeg"
+                        if fname.endswith(".png"):  img_type = "image/png"
+                        if fname.endswith(".webp"): img_type = "image/webp"
+
+                    img_b64 = _b64.b64encode(img_bytes).decode()
+
+                    with st.spinner("Florence-2 + Claude analysing..."):
+                        # Step 1: Florence-2 visual description
+                        f2_desc = ""
+                        if rf_key:
+                            f2 = florence2_human(img_b64, scan_k, rf_key)
+                            if f2.get("ok"): f2_desc = f2.get("description","")
+
+                        # Step 2: Claude Vision clinical interpretation
+                        base_prompt = HUMAN_SCAN_PROMPTS.get(scan_k, HUMAN_SCAN_PROMPTS["skin"])
+                        rf_context  = f"\n\nFLORENCE-2 DESCRIPTION: {f2_desc}" if f2_desc else ""
+                        suffix_el   = "\n\nΔώσε: **ΕΥΡΗΜΑΤΑ** | **ΚΛΙΝΙΚΗ ΑΞΙΟΛΟΓΗΣΗ** (Φυσιολογικό/Παρακολούθηση/Άμεσος ιατρός) | **ΠΙΘΑΝΕΣ ΑΙΤΙΕΣ** (με % πιθανότητα) | **ΕΠΕΙΓΟΝ;** | **ΣΥΣΤΑΣΗ**"
+                        suffix_en   = "\n\nProvide: **FINDINGS** | **ASSESSMENT** (Normal/Monitor/See doctor urgently) | **POSSIBLE CAUSES** (with % probability) | **URGENT?** | **RECOMMENDATION**"
+                        full_prompt = base_prompt + rf_context + (suffix_el if lang=="el" else suffix_en)
+                        sys_prompt  = ("Είσαι κλινικός αναλυτής φωτογραφιών για την Kira AI. Είσαι ακριβής, δομημένος και προσεκτικός." if lang=="el"
+                                       else "You are a clinical photo analyst for Kira AI. Accurate, structured, cautious.")
+                        analysis = claude_vision_human(img_b64, img_type, full_prompt, sys_prompt)
+
+                    # Display Florence-2 result
+                    if f2_desc:
+                        st.markdown(f'''<div style="background:#F0F4FF;border:1px solid #C7D2FE;border-radius:10px;
+                            padding:10px 14px;margin-bottom:10px">
+                            <div style="font-size:11px;color:#6366F1;margin-bottom:4px;font-weight:600">
+                            🔬 Florence-2 visual description</div>
+                            <div style="font-size:13px">{f2_desc}</div>
+                        </div>''', unsafe_allow_html=True)
+
+                    # Display Claude analysis
+                    st.markdown('<div class="card">', unsafe_allow_html=True)
+                    st.markdown(analysis)
+                    st.markdown('</div>', unsafe_allow_html=True)
+
+                    # Check for urgent keywords
+                    urgent_kw = ["urgent","immediate","επείγον","άμεσα","ιατρό αμέσως","emergency","melanoma","cancer","carcinoma","καρκίν"]
+                    if any(k.lower() in analysis.lower() for k in urgent_kw):
+                        st.error("🚨 " + ("Επείγοντα ευρήματα — επικοινωνήστε με ιατρό ΑΜΕΣΑ" if lang=="el"
+                                          else "Urgent findings — contact a doctor IMMEDIATELY"))
+
+                    # Store findings → inject into triage
+                    st.session_state["photo_findings"] = {
+                        "scan_type": scan_k, "scan_label": sel,
+                        "florence_desc": f2_desc, "analysis": analysis,
+                    }
+                    if st.button("➤ " + ("Συνέχεια στην Εκτίμηση →" if lang=="el" else "Continue to Assessment →"),
+                                 type="primary", use_container_width=True, key="photo_to_triage_h"):
+                        msg = (f"Αποτέλεσμα φωτογραφικής ανάλυσης ({sel}):\n\n{analysis}"
+                               if lang=="el" else
+                               f"Photo analysis result ({sel}):\n\n{analysis}")
+                        if not st.session_state.triage_chat:
+                            st.session_state.triage_chat = [{"role":"user","content":msg}]
+                        st.session_state.screen = "triage"
+                        st.rerun()
+        elif not uploaded_photo:
+            st.info("👆 " + ("Ανεβάστε φωτογραφία για να ξεκινήσει η ανάλυση" if lang=="el"
+                            else "Upload a photo to begin analysis"))
 
     with tab_device:
         st.markdown(f"### {'Εισαγωγή από Smartwatch / Οξύμετρο' if lang=='el' else 'Import from Smartwatch / Oximeter'}")
