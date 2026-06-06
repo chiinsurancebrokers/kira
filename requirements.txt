@@ -3,3 +3,4 @@ anthropic>=0.25.0
 pillow-heif
 Pillow
 pandas
+supabase
