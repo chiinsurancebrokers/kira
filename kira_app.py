@@ -798,7 +798,8 @@ def render_vitals():
         opts   = SCAN_OPTS[lang]
         labels = [o[1] for o in opts]
         keys_  = [o[0] for o in opts]
-        sel    = st.radio("", labels, horizontal=True, key="h_scan_type",
+        sel    = st.radio(("Τύπος σάρωσης" if lang=="el" else "Scan type"),
+                          labels, horizontal=True, key="h_scan_type",
                           label_visibility="collapsed")
         scan_k = keys_[labels.index(sel)] if sel in labels else "skin"
 
