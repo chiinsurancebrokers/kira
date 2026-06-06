@@ -1,5 +1,5 @@
 """
-KIRA — AI Nurse
+ASKLEPIOS — AI Nurse
 Bilingual AI health assistant for the Greek market.
 Standalone Streamlit app · Real data only · No placeholders.
 """
@@ -94,7 +94,7 @@ def claude_vision_human(image_b64, image_type, prompt, system=""):
 
 # ── PAGE CONFIG ───────────────────────────────────────────────────────────────
 st.set_page_config(
-    page_title="Kira · AI Nurse",
+    page_title="Asklepios · AI Nurse",
     page_icon="🩺",
     layout="wide",
     initial_sidebar_state="collapsed",
@@ -377,11 +377,11 @@ for k, v in defaults.items():
 # ── TRANSLATIONS ──────────────────────────────────────────────────────────────
 T = {
     "el": {
-        "title": "Kira",
+        "title": "Asklepios",
         "subtitle": "\u039f AI \u039d\u03bf\u03c3\u03b7\u03bb\u03b5\u03c5\u03c4\u03ae\u03c2 \u03c3\u03bf\u03c5",
         "tagline": "\u0388\u03b3\u03ba\u03c5\u03c1\u03b7 \u03b9\u03b1\u03c4\u03c1\u03b9\u03ba\u03ae \u03c0\u03bb\u03b7\u03c1\u03bf\u03c6\u03cc\u03c1\u03b7\u03c3\u03b7 \u00b7 \u03a0\u03ac\u03bd\u03c4\u03b1 \u03b4\u03af\u03c0\u03bb\u03b1 \u03c3\u03bf\u03c5",
         "start": "\u039e\u03b5\u03ba\u03af\u03bd\u03b1 \u0395\u03ba\u03c4\u03af\u03bc\u03b7\u03c3\u03b7",
-        "disclaimer_main": "\u26a0\ufe0f \u0397 Kira \u03c0\u03b1\u03c1\u03ad\u03c7\u03b5\u03b9 \u03c0\u03bb\u03b7\u03c1\u03bf\u03c6\u03bf\u03c1\u03af\u03b5\u03c2 \u03c5\u03b3\u03b5\u03af\u03b1\u03c2 \u03b1\u03c0\u03bf\u03ba\u03bb\u03b5\u03b9\u03c3\u03c4\u03b9\u03ba\u03ac \u03b3\u03b9\u03b1 \u03b5\u03bd\u03b7\u03bc\u03b5\u03c1\u03c9\u03c4\u03b9\u03ba\u03bf\u03cd\u03c2 \u03c3\u03ba\u03bf\u03c0\u03bf\u03cd\u03c2. \u0394\u03b5\u03bd \u03b1\u03bd\u03c4\u03b9\u03ba\u03b1\u03b8\u03b9\u03c3\u03c4\u03ac \u03b9\u03b1\u03c4\u03c1\u03b9\u03ba\u03ae \u03b4\u03b9\u03ac\u03b3\u03bd\u03c9\u03c3\u03b7 \u03ae \u03b8\u03b5\u03c1\u03b1\u03c0\u03b5\u03af\u03b1. \u03a3\u03b5 \u03b5\u03c0\u03b5\u03af\u03b3\u03bf\u03c5\u03c3\u03b1 \u03b1\u03bd\u03ac\u03b3\u03ba\u03b7 \u03ba\u03b1\u03bb\u03ad\u03c3\u03c4\u03b5 **166** (\u0395\u039a\u0391\u0392) \u03ae **112**.",
+        "disclaimer_main": "\u26a0\ufe0f \u039f Asklepios \u03c0\u03b1\u03c1\u03ad\u03c7\u03b5\u03b9 \u03c0\u03bb\u03b7\u03c1\u03bf\u03c6\u03bf\u03c1\u03af\u03b5\u03c2 \u03c5\u03b3\u03b5\u03af\u03b1\u03c2 \u03b1\u03c0\u03bf\u03ba\u03bb\u03b5\u03b9\u03c3\u03c4\u03b9\u03ba\u03ac \u03b3\u03b9\u03b1 \u03b5\u03bd\u03b7\u03bc\u03b5\u03c1\u03c9\u03c4\u03b9\u03ba\u03bf\u03cd\u03c2 \u03c3\u03ba\u03bf\u03c0\u03bf\u03cd\u03c2. \u0394\u03b5\u03bd \u03b1\u03bd\u03c4\u03b9\u03ba\u03b1\u03b8\u03b9\u03c3\u03c4\u03ac \u03b9\u03b1\u03c4\u03c1\u03b9\u03ba\u03ae \u03b4\u03b9\u03ac\u03b3\u03bd\u03c9\u03c3\u03b7 \u03ae \u03b8\u03b5\u03c1\u03b1\u03c0\u03b5\u03af\u03b1. \u03a3\u03b5 \u03b5\u03c0\u03b5\u03af\u03b3\u03bf\u03c5\u03c3\u03b1 \u03b1\u03bd\u03ac\u03b3\u03ba\u03b7 \u03ba\u03b1\u03bb\u03ad\u03c3\u03c4\u03b5 **166** (\u0395\u039a\u0391\u0392) \u03ae **112**.",
         "emergency": "\U0001f6a8 \u03a3\u0395 \u0395\u03a0\u0395\u0399\u0393\u039f\u03a5\u03a3\u0391 \u0391\u039d\u0391\u0393\u039a\u0397: \u039a\u0391\u039b\u0395\u03a3\u03a4\u0395 166 (\u0395\u039a\u0391\u0392) \u03ae 112",
         "name": "\u038c\u03bd\u03bf\u03bc\u03b1", "age": "\u0397\u03bb\u03b9\u03ba\u03af\u03b1", "sex": "\u03a6\u03cd\u03bb\u03bf",
         "male": "\u0386\u03bd\u03b4\u03c1\u03b1\u03c2", "female": "\u0393\u03c5\u03bd\u03b1\u03af\u03ba\u03b1", "other": "\u0386\u03bb\u03bb\u03bf",
@@ -402,7 +402,7 @@ T = {
         "height": "\u038e\u03c8\u03bf\u03c2 (cm)",
         "analyse_vitals": "\u0391\u03bd\u03ac\u03bb\u03c5\u03c3\u03b7 \u0396\u03c9\u03c4\u03b9\u03ba\u03ce\u03bd",
         "triage_title": "\u0395\u03ba\u03c4\u03af\u03bc\u03b7\u03c3\u03b7 \u03a3\u03c5\u03bc\u03c0\u03c4\u03c9\u03bc\u03ac\u03c4\u03c9\u03bd",
-        "triage_sub": "\u03a0\u03b5\u03c1\u03b9\u03b3\u03c1\u03ac\u03c8\u03c4\u03b5 \u03c4\u03b1 \u03c3\u03c5\u03bc\u03c0\u03c4\u03ce\u03bc\u03b1\u03c4\u03ac \u03c3\u03b1\u03c2. \u0397 Kira \u03b8\u03b1 \u03c3\u03b1\u03c2 \u03ba\u03ac\u03bd\u03b5\u03b9 \u03ba\u03b1\u03c4\u03b5\u03c5\u03b8\u03c5\u03bd\u03cc\u03bc\u03b5\u03bd\u03b5\u03c2 \u03b5\u03c1\u03c9\u03c4\u03ae\u03c3\u03b5\u03b9\u03c2.",
+        "triage_sub": "\u03a0\u03b5\u03c1\u03b9\u03b3\u03c1\u03ac\u03c8\u03c4\u03b5 \u03c4\u03b1 \u03c3\u03c5\u03bc\u03c0\u03c4\u03ce\u03bc\u03b1\u03c4\u03ac \u03c3\u03b1\u03c2. \u039f Asklepios \u03b8\u03b1 \u03c3\u03b1\u03c2 \u03ba\u03ac\u03bd\u03b5\u03b9 \u03ba\u03b1\u03c4\u03b5\u03c5\u03b8\u03c5\u03bd\u03cc\u03bc\u03b5\u03bd\u03b5\u03c2 \u03b5\u03c1\u03c9\u03c4\u03ae\u03c3\u03b5\u03b9\u03c2.",
         "triage_placeholder": "\u03a0.\u03c7. \u0388\u03c7\u03c9 \u03c0\u03bf\u03bd\u03bf\u03ba\u03ad\u03c6\u03b1\u03bb\u03bf \u03c4\u03c1\u03b9\u03ce\u03bd \u03b7\u03bc\u03b5\u03c1\u03ce\u03bd \u03bc\u03b5 \u03bd\u03b1\u03c5\u03c4\u03af\u03b1...",
         "generate_report": "\u0394\u03b7\u03bc\u03b9\u03bf\u03c5\u03c1\u03b3\u03af\u03b1 \u03a0\u03bb\u03ae\u03c1\u03bf\u03c5\u03c2 \u0391\u03bd\u03b1\u03c6\u03bf\u03c1\u03ac\u03c2",
         "report_title": "\u039b\u03b5\u03c0\u03c4\u03bf\u03bc\u03b5\u03c1\u03ae\u03c2 \u0395\u03ba\u03c4\u03af\u03bc\u03b7\u03c3\u03b7 \u03a5\u03b3\u03b5\u03af\u03b1\u03c2",
@@ -411,11 +411,11 @@ T = {
         "skip_vitals": "\u03a0\u03b1\u03c1\u03ac\u03bb\u03b5\u03b9\u03c8\u03b7 (\u03c7\u03c9\u03c1\u03af\u03c2 \u03bc\u03b5\u03c4\u03c1\u03ae\u03c3\u03b5\u03b9\u03c2)",
     },
     "en": {
-        "title": "Kira",
+        "title": "Asklepios",
         "subtitle": "Your AI Nurse",
         "tagline": "Evidence-based health guidance · Always by your side",
         "start": "Start Assessment",
-        "disclaimer_main": "\u26a0\ufe0f Kira provides health information for informational purposes only. It does not replace medical diagnosis or treatment. In an emergency call **166** (EKAB) or **112**.",
+        "disclaimer_main": "\u26a0\ufe0f Asklepios provides health information for informational purposes only. It does not replace medical diagnosis or treatment. In an emergency call **166** (EKAB) or **112**.",
         "emergency": "\U0001f6a8 EMERGENCY: CALL 166 (EKAB) or 112",
         "name": "Name", "age": "Age", "sex": "Biological Sex",
         "male": "Male", "female": "Female", "other": "Other",
@@ -436,7 +436,7 @@ T = {
         "height": "Height (cm)",
         "analyse_vitals": "Analyse Vitals",
         "triage_title": "Symptom Assessment",
-        "triage_sub": "Describe your symptoms. Kira will ask targeted follow-up questions.",
+        "triage_sub": "Describe your symptoms. Asklepios will ask targeted follow-up questions.",
         "triage_placeholder": "E.g. I have had a headache for three days with nausea...",
         "generate_report": "Generate Full Clinical Report",
         "report_title": "Detailed Health Assessment",
@@ -553,11 +553,11 @@ def demographic_bp_risk(age, bmi, hr, weight=None, height=None):
                 "sbp":"≥160","dbp":"≥100","note_el":"Πολύ υψηλός κίνδυνος. Απαιτείται ιατρική αξιολόγηση.","note_en":"Very high risk. Medical evaluation required.","score":score}
 
 
-KIRA_SYSTEM_EL = """Είσαι η Kira — AI νοσηλευτής για Έλληνες χρήστες. Είσαι κλινικά ακριβής, άμεση και υποστηρικτική.
+KIRA_SYSTEM_EL = """Είσαι ο Asklepios — AI νοσηλευτής για Έλληνες χρήστες. Είσαι κλινικά ακριβής, άμεσος και υποστηρικτικός.
 Ρόλος: Τριάζ συμπτωμάτων (μία ερώτηση κάθε φορά), ερμηνεία ζωτικών, φάρμακα, ελληνικό σύστημα υγείας (ΕΟΠΥΥ, ΕΟΔΥ, ΕΟΦ).
 Κανόνες: Πάντα συστήνεις επαγγελματία. Κόκκινες σημαίες → 166/112. Όταν έχεις αρκετά: "Έχω αρκετά στοιχεία — μπορούμε να δημιουργήσουμε πλήρη αναφορά." Μία ερώτηση κάθε φορά."""
 
-KIRA_SYSTEM_EN = """You are Kira — an AI nurse for users in Greece. Clinically accurate, direct, supportive.
+KIRA_SYSTEM_EN = """You are Asklepios — an AI nurse for users in Greece. Clinically accurate, direct, supportive.
 Role: Symptom triage (one question at a time), vitals interpretation, medications, Greek health system (EOPYY, EODY, EOF).
 Rules: Always recommend a professional. Red flags → 166/112. When ready: "I have enough information — we can generate a full clinical report." One question at a time."""
 
@@ -585,7 +585,7 @@ def generate_html_report(profile, vitals, report_text, pubmed_refs, lang="el"):
     refs_html=""
     if pubmed_refs:
         refs_html="<h2>Βιβλιογραφία</h2><ol>"+"".join(f'<li>{_html.escape(a.get("title","—"))} — {_html.escape(a.get("authors",""))}. <em>{_html.escape(a.get("journal",""))}</em>, {_html.escape(a.get("date",""))}. <a href="{_html.escape(a.get("url",""))}">{_html.escape(a.get("url",""))}</a></li>' for a in pubmed_refs)+"</ol>"
-    html_out=f"""<!DOCTYPE html><html lang="{lang}"><head><meta charset="UTF-8"><title>Kira Report — {name}</title>
+    html_out=f"""<!DOCTYPE html><html lang="{lang}"><head><meta charset="UTF-8"><title>Asklepios Report — {name}</title>
 <style>*{{box-sizing:border-box;margin:0;padding:0}}body{{font-family:'Inter',sans-serif;font-size:13px;color:#1A1A2E;max-width:820px;margin:0 auto;padding:32px 40px}}
 .hdr{{display:flex;justify-content:space-between;align-items:center;border-bottom:3px solid #2D3FE7;padding-bottom:14px;margin-bottom:20px}}
 .hdr-logo{{font-size:22px;font-weight:800;color:#2D3FE7}}.hdr-date{{font-size:11px;color:#6B7280;text-align:right}}
@@ -600,7 +600,7 @@ table.vitals tbody tr:nth-child(even){{background:#F8FAFF}}
 .disclaimer{{background:#FFFBEB;border:1px solid #FCD34D;border-radius:8px;padding:10px 14px;font-size:11px;color:#92400E;margin:12px 0}}
 .hint{{text-align:center;margin:24px 0 0;font-size:12px;color:#94A3B8;border-top:1px dashed #E0E5FF;padding-top:14px}}
 @media print{{body{{padding:16px}}.patient,.emergency{{-webkit-print-color-adjust:exact;print-color-adjust:exact}}@page{{margin:15mm}}}}</style></head><body>
-<div class="hdr"><div class="hdr-logo">🩺 Kira AI Nurse</div><div class="hdr-date">Κλινική Εκτίμηση<br>{ts}</div></div>
+<div class="hdr"><div class="hdr-logo">🩺 Asklepios AI Nurse</div><div class="hdr-date">Κλινική Εκτίμηση<br>{ts}</div></div>
 <div class="patient"><div class="patient-name">{name}</div><div class="patient-meta">{age} ετών · {sex}</div>
 <div class="patient-detail"><strong>Ιστορικό:</strong> {hx}<br><strong>Αλλεργίες:</strong> {allg}<br><strong>Φάρμακα:</strong> {meds}</div></div>
 {vitals_sec}<h2>Κλινική Αξιολόγηση</h2>{md2h(report_text or "")}{refs_html}
@@ -678,8 +678,8 @@ def render_vitals():
     ])
 
     with tab_scan:
-        facescan_url=_secret("FACESCAN_URL","https://kiraainurse.netlify.app")
-        kira_url=_secret("KIRA_URL","https://kiraainurse.streamlit.app")
+        facescan_url=_secret("FACESCAN_URL","https://asklepiosnurse.netlify.app")
+        kira_url=_secret("ASKLEPIOS_URL","https://asklepiosnurse.streamlit.app")
         scan_link=f"{facescan_url}?kira_url={urllib.parse.quote(kira_url)}"
         st.markdown(f'''<div style="background:linear-gradient(135deg,#2D3FE7,#7B2FE0);border-radius:16px;padding:28px;text-align:center;color:white;margin:8px 0">
             <div style="font-size:40px;margin-bottom:8px">📷</div>
@@ -770,8 +770,8 @@ def render_vitals():
                         suffix_el   = "\n\nΔώσε: **ΕΥΡΗΜΑΤΑ** | **ΚΛΙΝΙΚΗ ΑΞΙΟΛΟΓΗΣΗ** (Φυσιολογικό/Παρακολούθηση/Άμεσος ιατρός) | **ΠΙΘΑΝΕΣ ΑΙΤΙΕΣ** (με % πιθανότητα) | **ΕΠΕΙΓΟΝ;** | **ΣΥΣΤΑΣΗ**"
                         suffix_en   = "\n\nProvide: **FINDINGS** | **ASSESSMENT** (Normal/Monitor/See doctor urgently) | **POSSIBLE CAUSES** (with % probability) | **URGENT?** | **RECOMMENDATION**"
                         full_prompt = base_prompt + rf_context + (suffix_el if lang=="el" else suffix_en)
-                        sys_prompt  = ("Είσαι κλινικός αναλυτής φωτογραφιών για την Kira AI. Είσαι ακριβής, δομημένος και προσεκτικός." if lang=="el"
-                                       else "You are a clinical photo analyst for Kira AI. Accurate, structured, cautious.")
+                        sys_prompt  = ("Είσαι κλινικός αναλυτής φωτογραφιών για τον Asklepios AI. Είσαι ακριβής, δομημένος και προσεκτικός." if lang=="el"
+                                       else "You are a clinical photo analyst for Asklepios AI. Accurate, structured, cautious.")
                         analysis = claude_vision_human(img_b64, img_type, full_prompt, sys_prompt)
 
                     # Display Florence-2 result
@@ -1082,7 +1082,7 @@ def render_triage():
     user_input=st.chat_input(t("triage_placeholder"),key="triage_input")
     if user_input:
         st.session_state.triage_chat.append({"role":"user","content":user_input})
-        with st.spinner("Kira..."):
+        with st.spinner("Asklepios..."):
             pp=p.get
             profile_ctx=f"Patient: {pp('name')}, {pp('age')}yo {pp('sex')}, Hx: {pp('history','none')}, Allergies: {pp('allergies','none')}, Meds: {pp('meds_raw','none')}"
             vitals_ctx="Vitals: "+", ".join(f"{k}={val}" for k,val in st.session_state.vitals.items()) if st.session_state.vitals else "Vitals: not provided"
@@ -1098,7 +1098,7 @@ def render_triage():
         if st.button(t("generate_report"),type="primary",use_container_width=True,disabled=not enabled):
             st.session_state.screen="report"; st.rerun()
     if not enabled:
-        st.caption("Συνεχίστε — η Kira θα σας ειδοποιήσει όταν έχει αρκετά." if st.session_state.lang=="el" else "Continue — Kira will let you know when she has enough.")
+        st.caption("Συνεχίστε — ο Asklepios θα σας ειδοποιήσει όταν έχει αρκετά." if st.session_state.lang=="el" else "Continue — Asklepios will let you know when it has enough.")
 
 def render_report():
     render_stepper("report")
@@ -1106,7 +1106,7 @@ def render_report():
     st.markdown(f"## 📋 {t('report_title')}"); st.caption(f"{p.get('name','')}, {p.get('age')}y · {datetime.now().strftime('%d %b %Y %H:%M')}")
     render_vitals_summary()
     if not st.session_state.report:
-        conversation="\n".join(f"{'Patient' if m['role']=='user' else 'Kira'}: {m['content']}" for m in st.session_state.triage_chat)
+        conversation="\n".join(f"{'Patient' if m['role']=='user' else 'Asklepios'}: {m['content']}" for m in st.session_state.triage_chat)
         vitals_text="\n".join(f"- {k}: {v}" for k,v in st.session_state.vitals.items()) if st.session_state.vitals else "Not provided"
         vitals_analysis=st.session_state.vitals_analysis or "Not available"
         last_user=next((m["content"] for m in reversed(st.session_state.triage_chat) if m["role"]=="user"),"")
@@ -1167,7 +1167,7 @@ Language: {"Greek" if lang=="el" else "English"}. Be direct. End with AI disclai
     else:
         st.markdown(f'<div class="emergency">{t("emergency")}</div>',unsafe_allow_html=True)
     st.markdown('<div class="disclaimer-red">AI-generated. Δεν αντικαθιστά ιατρική γνώμη.</div>',unsafe_allow_html=True)
-    fname=f"kira_report_{p.get('name','patient')}_{datetime.now().strftime('%Y%m%d')}"
+    fname=f"asklepios_report_{p.get('name','patient')}_{datetime.now().strftime('%Y%m%d')}"
     c1,c2,c3,c4=st.columns(4)
     with c1:
         if st.button("← "+("Νέα Αξιολόγηση" if lang=="el" else "New Assessment"),use_container_width=True):
@@ -1179,7 +1179,7 @@ Language: {"Greek" if lang=="el" else "English"}. Be direct. End with AI disclai
         st.download_button("📄 PDF/HTML",data=generate_html_report(st.session_state.profile,st.session_state.vitals,st.session_state.report,st.session_state.report_pubmed,lang=lang),file_name=fname+".html",mime="text/html",use_container_width=True,help="Open in browser → Ctrl+P → Save as PDF")
     with c4:
         import re as _re_wa
-        wa_lines=[f"🩺 Kira AI Nurse",
+        wa_lines=[f"🩺 Asklepios AI Nurse",
                   f"Ασθενής: {p.get('name','')} {p.get('age','')}y · {p.get('sex','')}"]
         vbits=[]
         if v.get("hr"):     vbits.append(f"HR {v['hr']}bpm")
@@ -1197,7 +1197,7 @@ Language: {"Greek" if lang=="el" else "English"}. Be direct. End with AI disclai
             rep=rep[:1500].rsplit("\n",1)[0].rstrip()+"\n…(πλήρης αναφορά στο PDF)"
         if rep:
             wa_lines+=["", rep]
-        wa_lines+=["", "---", "⚠️ AI-generated. kiraainurse.streamlit.app"]
+        wa_lines+=["", "---", "⚠️ AI-generated. asklepiosnurse.streamlit.app"]
         msg="\n".join(wa_lines)
         wa_url="https://wa.me/?text="+urllib.parse.quote(msg)
         st.markdown(f'<a href="{wa_url}" target="_blank" style="display:block;text-align:center;padding:8px;border-radius:8px;text-decoration:none;font-weight:600;font-size:13px;color:white;background:#25D366">WhatsApp</a>',unsafe_allow_html=True)
