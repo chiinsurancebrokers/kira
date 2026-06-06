@@ -1125,7 +1125,7 @@ PUBMED: {pubmed_ctx}
 Write: 1.CHIEF COMPLAINT 2.HISTORY 3.ASSESSMENT (primary dx + 2-3 differentials with %) 4.TREATMENT PLAN 5.RED FLAGS 6.PUBMED CITATIONS
 Language: {"Greek" if lang=="el" else "English"}. Be direct. End with AI disclaimer."""
         with st.spinner("Δημιουργία αναφοράς..." if lang=="el" else "Generating report..."):
-            result=claude([{"role":"user","content":report_prompt}],system=kira_system(),max_tokens=2000,timeout=120)
+            result=claude([{"role":"user","content":report_prompt}],system=kira_system(),max_tokens=4000,timeout=120)
             if result.startswith("⚠️"):
                 st.error(result)
                 if st.button("🔄 Retry"): st.rerun()
@@ -1178,10 +1178,27 @@ Language: {"Greek" if lang=="el" else "English"}. Be direct. End with AI disclai
     with c3:
         st.download_button("📄 PDF/HTML",data=generate_html_report(st.session_state.profile,st.session_state.vitals,st.session_state.report,st.session_state.report_pubmed,lang=lang),file_name=fname+".html",mime="text/html",use_container_width=True,help="Open in browser → Ctrl+P → Save as PDF")
     with c4:
-        msg=f"Kira AI Nurse\nΑσθενής: {p.get('name','')} {p.get('age','')}y\n\n"
-        if v.get("hr"): msg+=f"HR:{v['hr']}bpm "
-        if v.get("bp_sys"): msg+=f"BP:{v['bp_sys']}/{v.get('bp_dia','?')}mmHg\n"
-        msg+="\n---\nAI-generated. kiraainurse.streamlit.app"
+        import re as _re_wa
+        wa_lines=[f"🩺 Kira AI Nurse",
+                  f"Ασθενής: {p.get('name','')} {p.get('age','')}y · {p.get('sex','')}"]
+        vbits=[]
+        if v.get("hr"):     vbits.append(f"HR {v['hr']}bpm")
+        if v.get("bp_sys"): vbits.append(f"BP {v['bp_sys']}/{v.get('bp_dia','?')}mmHg")
+        if v.get("br"):     vbits.append(f"BR {v['br']}/min")
+        if v.get("spo2"):   vbits.append(f"SpO2 {v['spo2']}%")
+        if v.get("temp"):   vbits.append(f"T {v['temp']}°C")
+        if v.get("bmi"):    vbits.append(f"ΔΜΣ {v['bmi']}")
+        if vbits: wa_lines.append("Ζωτικά: "+", ".join(vbits))
+        # Clean markdown from report so it reads well in WhatsApp
+        rep=_re_wa.sub(r"[#*>`|]", "", st.session_state.report or "").strip()
+        rep=_re_wa.sub(r"\n{3,}", "\n\n", rep)
+        # Cap length — wa.me pre-fill fails on very long URLs
+        if len(rep)>1500:
+            rep=rep[:1500].rsplit("\n",1)[0].rstrip()+"\n…(πλήρης αναφορά στο PDF)"
+        if rep:
+            wa_lines+=["", rep]
+        wa_lines+=["", "---", "⚠️ AI-generated. kiraainurse.streamlit.app"]
+        msg="\n".join(wa_lines)
         wa_url="https://wa.me/?text="+urllib.parse.quote(msg)
         st.markdown(f'<a href="{wa_url}" target="_blank" style="display:block;text-align:center;padding:8px;border-radius:8px;text-decoration:none;font-weight:600;font-size:13px;color:white;background:#25D366">WhatsApp</a>',unsafe_allow_html=True)
 
