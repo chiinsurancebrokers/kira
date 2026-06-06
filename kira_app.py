@@ -22,6 +22,20 @@ try:
 except ImportError:
     HEIC_OK = False
 
+# ── SAFE SECRETS / ENV ACCESS ─────────────────────────────────────────────────
+def _secret(name, default=""):
+    """Read a config value from st.secrets, falling back to os.environ, then default.
+    Safe on platforms (e.g. Railway) where no secrets.toml exists — accessing
+    st.secrets there raises StreamlitSecretNotFoundError even with a default."""
+    try:
+        v = st.secrets.get(name, None)
+        if v not in (None, ""):
+            return v
+    except Exception:
+        pass
+    v = os.environ.get(name, "")
+    return v if v != "" else default
+
 # ── PHOTO SCANNER FUNCTIONS ───────────────────────────────────────────────────
 HUMAN_SCAN_PROMPTS = {
     "eye":    "Examine the eye carefully. Describe: sclera colour (white/red/yellow), pupil symmetry, conjunctiva, any discharge (colour, quantity), eyelid swelling, corneal clarity, third eyelid. Flag any urgent findings.",
@@ -40,8 +54,8 @@ def convert_heic_human(img_bytes):
     return buf.getvalue(), "image/jpeg"
 
 def florence2_human(image_b64, scan_type, api_key):
-    workspace = st.secrets.get("ROBOFLOW_WORKSPACE","chriss-workspace-zk0ng")
-    workflow  = st.secrets.get("ROBOFLOW_WORKFLOW","florence2-base-demo")
+    workspace = _secret("ROBOFLOW_WORKSPACE","chriss-workspace-zk0ng")
+    workflow  = _secret("ROBOFLOW_WORKFLOW","florence2-base-demo")
     url = f"https://serverless.roboflow.com/{workspace}/workflows/{workflow}"
     task_prompt = HUMAN_SCAN_PROMPTS.get(scan_type, HUMAN_SCAN_PROMPTS["skin"])
     body = json.dumps({
@@ -231,10 +245,7 @@ st.markdown("""
 # ── KEYS ──────────────────────────────────────────────────────────────────────
 def _key(name, fallback=""):
     for k in [name, name.lower(), name.upper()]:
-        v = st.secrets.get(k, "")
-        if v:
-            return v
-        v = os.environ.get(k, "")   # fallback στα Railway Variables
+        v = _secret(k, "")
         if v:
             return v
     return fallback
@@ -667,8 +678,8 @@ def render_vitals():
     ])
 
     with tab_scan:
-        facescan_url=st.secrets.get("FACESCAN_URL","https://kiraainurse.netlify.app")
-        kira_url=st.secrets.get("KIRA_URL","https://kiraainurse.streamlit.app")
+        facescan_url=_secret("FACESCAN_URL","https://kiraainurse.netlify.app")
+        kira_url=_secret("KIRA_URL","https://kiraainurse.streamlit.app")
         scan_link=f"{facescan_url}?kira_url={urllib.parse.quote(kira_url)}"
         st.markdown(f'''<div style="background:linear-gradient(135deg,#2D3FE7,#7B2FE0);border-radius:16px;padding:28px;text-align:center;color:white;margin:8px 0">
             <div style="font-size:40px;margin-bottom:8px">📷</div>
@@ -682,7 +693,7 @@ def render_vitals():
                    else "✅ Measures: Heart rate, breathing  |  ⚠️ Estimate: HRV, stress  |  ❌ Does not measure: Blood pressure")
 
     with tab_photo:
-        rf_key = st.secrets.get("ROBOFLOW_API_KEY","")
+        rf_key = _secret("ROBOFLOW_API_KEY","")
         st.markdown(f"### {'🔬 Ανάλυση Φωτογραφίας' if lang=='el' else '🔬 Photo Health Analysis'}")
         st.caption("Florence-2 (Microsoft) + Claude Vision · " +
                    ("Ανεβάστε φωτογραφία για κλινική εκτίμηση" if lang=="el"
@@ -925,7 +936,7 @@ Use a certified upper-arm cuff device, note systolic/diastolic values
     sex_val  = pr.get("sex","")
     gender_n = 1 if sex_val in ["Άνδρας","Male"] else 0
 
-    bp_api_url = st.secrets.get("BP_API_URL","")
+    bp_api_url = _secret("BP_API_URL","")
     api_result = None
 
     # Try Railway GPR model first (real ML prediction)
