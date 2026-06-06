@@ -254,6 +254,94 @@ def get_claude_key():  return _key("Claude_API_Key")
 def get_openai_key():  return _key("OPENAI_API_KEY")
 def get_ncbi_key():    return _key("NCBI_API_KEY")
 
+# ── AUTH (Supabase email-OTP — gates the premium report) ──────────────────────
+# Graceful degradation: if SUPABASE_URL / SUPABASE_ANON_KEY are not set (or the
+# supabase package is missing), auth stays OFF and the whole app is open — so the
+# demo keeps working. Set the secrets to switch the gate on automatically.
+def _supabase_client():
+    url = _secret("SUPABASE_URL", "")
+    key = _secret("SUPABASE_ANON_KEY", "")
+    if not url or not key:
+        return None
+    try:
+        from supabase import create_client
+        return create_client(url, key)
+    except Exception:
+        return None
+
+def auth_enabled():
+    return _supabase_client() is not None
+
+def is_logged_in():
+    return bool(st.session_state.get("auth_user"))
+
+def send_otp(email):
+    sb = _supabase_client()
+    if not sb: return False, "Auth not configured."
+    try:
+        sb.auth.sign_in_with_otp({"email": email})
+        return True, ""
+    except Exception as e:
+        return False, str(e)
+
+def verify_otp(email, token):
+    sb = _supabase_client()
+    if not sb: return False, "Auth not configured."
+    try:
+        res = sb.auth.verify_otp({"email": email, "token": str(token).strip(), "type": "email"})
+        if getattr(res, "user", None):
+            st.session_state["auth_user"] = email
+            return True, ""
+        return False, "invalid"
+    except Exception as e:
+        return False, str(e)
+
+def logout():
+    sb = _supabase_client()
+    if sb:
+        try: sb.auth.sign_out()
+        except Exception: pass
+    st.session_state.pop("auth_user", None)
+    st.session_state.pop("otp_sent_to", None)
+
+def render_login_gate():
+    """Inline email->OTP login. Returns True once the user is logged in."""
+    lang = st.session_state.lang
+    if is_logged_in():
+        return True
+    st.markdown(f'''<div style="background:rgba(45,63,231,0.06);border:1px solid rgba(45,63,231,0.15);border-radius:14px;padding:20px 22px;text-align:center;margin:10px 0">
+        <div style="font-size:34px;margin-bottom:6px">🔒</div>
+        <div style="font-size:16px;font-weight:700;color:#1A1A2E">{"Σύνδεση για την πλήρη αναφορά" if lang=="el" else "Sign in for the full report"}</div>
+        <div style="font-size:13px;color:#6B7280;margin-top:4px">{"Το triage είναι δωρεάν. Για την αναφορά, βάλε το email σου και τον 6ψήφιο κωδικό που θα λάβεις." if lang=="el" else "Triage is free. For the report, enter your email and the 6-digit code we send you."}</div>
+    </div>''', unsafe_allow_html=True)
+    sent_to = st.session_state.get("otp_sent_to")
+    if not sent_to:
+        email = st.text_input("Email", key="otp_email", placeholder="you@example.com")
+        if st.button(("Στείλε κωδικό" if lang=="el" else "Send code"), type="primary", use_container_width=True, key="otp_send"):
+            if email and "@" in email:
+                ok, err = send_otp(email)
+                if ok:
+                    st.session_state["otp_sent_to"] = email; st.rerun()
+                else:
+                    st.error(("Σφάλμα αποστολής: " if lang=="el" else "Send error: ") + err)
+            else:
+                st.warning("Έγκυρο email, παρακαλώ." if lang=="el" else "Please enter a valid email.")
+    else:
+        st.caption((f"Στείλαμε 6ψήφιο κωδικό στο {sent_to}" if lang=="el" else f"We sent a 6-digit code to {sent_to}"))
+        code = st.text_input(("Κωδικός" if lang=="el" else "Code"), key="otp_code", placeholder="123456")
+        c1, c2 = st.columns([2,1])
+        with c1:
+            if st.button(("Επιβεβαίωση" if lang=="el" else "Verify"), type="primary", use_container_width=True, key="otp_verify"):
+                ok, err = verify_otp(sent_to, code)
+                if ok:
+                    st.session_state.pop("otp_sent_to", None); st.rerun()
+                else:
+                    st.error("Λάθος ή ληγμένος κωδικός." if lang=="el" else "Wrong or expired code.")
+        with c2:
+            if st.button(("Άλλο email" if lang=="el" else "Change email"), use_container_width=True, key="otp_reset"):
+                st.session_state.pop("otp_sent_to", None); st.rerun()
+    return is_logged_in()
+
 # ── NCBI HELPERS ──────────────────────────────────────────────────────────────
 def pubmed_search(query, n=3):
     try:
@@ -1103,7 +1191,18 @@ def render_triage():
 def render_report():
     render_stepper("report")
     p=st.session_state.profile; lang=st.session_state.lang
+    # ── Premium gate: require login only when Supabase auth is configured ──
+    if auth_enabled() and not is_logged_in():
+        st.markdown(f"## 📋 {t('report_title')}")
+        render_login_gate()
+        if st.button(t("back")): st.session_state.screen="triage"; st.rerun()
+        return
     st.markdown(f"## 📋 {t('report_title')}"); st.caption(f"{p.get('name','')}, {p.get('age')}y · {datetime.now().strftime('%d %b %Y %H:%M')}")
+    if is_logged_in():
+        lo1,lo2=st.columns([5,1])
+        with lo2:
+            if st.button(("Έξοδος" if lang=="el" else "Logout"), key="logout_btn", use_container_width=True):
+                logout(); st.rerun()
     render_vitals_summary()
     if not st.session_state.report:
         conversation="\n".join(f"{'Patient' if m['role']=='user' else 'Asklepios'}: {m['content']}" for m in st.session_state.triage_chat)
