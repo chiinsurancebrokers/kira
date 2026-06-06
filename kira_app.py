@@ -5,6 +5,7 @@ Standalone Streamlit app · Real data only · No placeholders.
 """
 
 import streamlit as st
+import os
 import json
 import io
 import urllib.request
@@ -233,11 +234,14 @@ def _key(name, fallback=""):
         v = st.secrets.get(k, "")
         if v:
             return v
+        v = os.environ.get(k, "")   # fallback στα Railway Variables
+        if v:
+            return v
     return fallback
 
 def get_claude_key():  return _key("Claude_API_Key")
-def get_openai_key():  return _key("OPENAI_API_KEY", "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")
-def get_ncbi_key():    return _key("NCBI_API_KEY", "5bcced38b6d0cbb9998281811cbf56c9ac09")
+def get_openai_key():  return _key("OPENAI_API_KEY")
+def get_ncbi_key():    return _key("NCBI_API_KEY")
 
 # ── NCBI HELPERS ──────────────────────────────────────────────────────────────
 def pubmed_search(query, n=3):
