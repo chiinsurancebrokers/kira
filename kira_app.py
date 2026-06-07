@@ -12,7 +12,7 @@ import urllib.request
 import urllib.parse
 from datetime import datetime, timedelta
 import io as _io, base64 as _b64
-import hmac, hashlib, time
+import hmac, hashlib, time, unicodedata
 
 # "Stay signed in" via a browser cookie (persists login across reloads / new tabs,
 # e.g. when returning from the external face scan). Degrades gracefully if missing.
@@ -766,14 +766,48 @@ def demographic_bp_risk(age, bmi, hr, weight=None, height=None):
 KIRA_SYSTEM_EL = """Είσαι ο Asklepios — AI νοσηλευτής για Έλληνες χρήστες. Είσαι κλινικά ακριβής, άμεσος και υποστηρικτικός.
 Ρόλος: Τριάζ συμπτωμάτων (μία ερώτηση κάθε φορά), ερμηνεία ζωτικών, φάρμακα, ελληνικό σύστημα υγείας (ΕΟΠΥΥ, ΕΟΔΥ, ΕΟΦ).
 Φωτογραφία: Αν το σύμπτωμα είναι οπτικό (δέρμα/εξάνθημα, μάτι, τραύμα/πληγή, στόμα/λαιμός, νύχια, ορατή αλλοίωση), αφού κάνεις την αρχική σου εκτίμηση πρότεινε στον χρήστη να ανεβάσει φωτογραφία από την επιλογή «📷 Ανάλυση φωτογραφίας» πιο κάτω, για πιο ακριβή εκτίμηση. Για μη-οπτικά συμπτώματα (π.χ. πονοκέφαλος, ζάλη) ΜΗΝ ζητάς φωτογραφία. Η φωτογραφία είναι ΠΡΟΑΙΡΕΤΙΚΗ: αν ο χρήστης δεν ανεβάσει ή δεν θέλει, ΣΥΝΕΧΙΣΕ κανονικά την εκτίμηση χωρίς να σταματάς, να περιμένεις ή να επιμένεις.
-Κανόνες: Πάντα συστήνεις επαγγελματία. Κόκκινες σημαίες → 166/112. Όταν έχεις αρκετά: "Έχω αρκετά στοιχεία — μπορούμε να δημιουργήσουμε πλήρη αναφορά." Μία ερώτηση κάθε φορά."""
+Κανόνες: Πάντα συστήνεις επαγγελματία. Κόκκινες σημαίες → 166/112. Όταν έχεις αρκετά: "Έχω αρκετά στοιχεία — μπορούμε να δημιουργήσουμε πλήρη αναφορά." Μία ερώτηση κάθε φορά.
+Ζωτικά: Αν τα συμπτώματα είναι καρδιακά/αυτόνομα (αίσθημα παλμών, ταχυπαλμία, πόνος/σφίξιμο στο στήθος, δύσπνοια, ζάλη, λιποθυμία, κρύος ιδρώτας/εφίδρωση), πρότεινε ήπια στον χρήστη να μετρήσει ζωτικά (καρδιακός ρυθμός/πίεση) — ΠΡΟΑΙΡΕΤΙΚΟ, συνέχισε κανονικά αν δεν το κάνει."""
 
 KIRA_SYSTEM_EN = """You are Asklepios — an AI nurse for users in Greece. Clinically accurate, direct, supportive.
 Role: Symptom triage (one question at a time), vitals interpretation, medications, Greek health system (EOPYY, EODY, EOF).
 Photo: If the symptom is visual (skin/rash, eye, wound, mouth/throat, nails, any visible lesion), after giving your initial assessment, invite the user to upload a photo via the "📷 Photo analysis" option below for a more accurate assessment. For non-visual symptoms (e.g. headache, dizziness) do NOT ask for a photo. The photo is OPTIONAL: if the user doesn't upload one or declines, CONTINUE the assessment normally — do not stop, wait, or insist.
-Rules: Always recommend a professional. Red flags → 166/112. When ready: "I have enough information — we can generate a full clinical report." One question at a time."""
+Rules: Always recommend a professional. Red flags → 166/112. When ready: "I have enough information — we can generate a full clinical report." One question at a time.
+Vitals: If the symptoms are cardiac/autonomic (palpitations, racing heart, chest pain/tightness, shortness of breath, dizziness, fainting, cold sweat/sweating), gently suggest the user measure vitals (heart rate/blood pressure) — OPTIONAL, continue normally if they don't."""
 
 def kira_system(): return KIRA_SYSTEM_EL if st.session_state.lang=="el" else KIRA_SYSTEM_EN
+
+# Symptoms where measuring a specific vital genuinely adds value → surface the
+# relevant measurement contextually instead of forcing vitals on everyone.
+def _strip_accents(s):
+    return "".join(c for c in unicodedata.normalize("NFD", s.lower())
+                   if unicodedata.category(c) != "Mn")
+# Each category maps symptom roots → the vital that helps. "scan"=True only where
+# the camera face-scan can actually produce the value (heart rate → cardiac only).
+_VITAL_CATEGORIES = [
+    {"key":"cardio","scan":True,
+     "el":"καρδιακός ρυθμός / πίεση","en":"heart rate / blood pressure",
+     "roots":["παλμ","ταχυκαρδ","αρρυθμ","στηθ","θωρακ","λιποθυμ","λιγοθυμ",
+              "εφιδρ","ιδρωτ","ιδρωσ","ιδρων","ζαλ",
+              "palpit","racing heart","irregular heart","tachycard","arrhythm",
+              "chest pain","chest tightness","faint","sweat","dizz","lightheaded","light-headed"]},
+    {"key":"bp","scan":False,
+     "el":"αρτηριακή πίεση","en":"blood pressure",
+     "roots":["πιεση","υπερτασ","υποτασ","αρτηριακ",
+              "blood pressure","hypertens","hypotens"]},
+    {"key":"temp","scan":False,
+     "el":"θερμοκρασία","en":"temperature",
+     "roots":["πυρετ","θερμοκρασ","δεκατ","εμπυρετ","ριγος","ριγη","κρυαδ",
+              "fever","febrile","chills","temperature","high temp"]},
+    {"key":"resp","scan":False,
+     "el":"οξυγόνο (SpO₂) & αναπνοές","en":"oxygen (SpO₂) & breathing",
+     "roots":["δυσπν","βηχ","ασθμ","πνευμον","αναπν","λαχαν","συριγμ","βρογχ","κορον","covid",
+              "cough","wheez","asthma","pneumonia","breathless","short of breath",
+              "shortness of breath","respiratory","oxygen"]},
+]
+def _relevant_vitals():
+    txt = _strip_accents(" ".join(m["content"] for m in st.session_state.triage_chat if m["role"]=="user"))
+    return [c for c in _VITAL_CATEGORIES if any(_strip_accents(r) in txt for r in c["roots"])]
 
 def generate_html_report(profile, vitals, report_text, pubmed_refs, lang="el"):
     import re as _re, html as _html
@@ -1305,6 +1339,34 @@ def render_triage():
     for msg in st.session_state.triage_chat:
         with st.chat_message(msg["role"], avatar="🩺" if msg["role"]=="assistant" else None):
             st.markdown(msg["content"])
+    # Context-aware vitals: suggest the SPECIFIC measurement that fits the symptoms.
+    # Scan button appears only for the cardiac category (camera → heart rate only).
+    _lang = st.session_state.lang
+    _relv = _relevant_vitals()
+    if (any(m["role"]=="assistant" for m in st.session_state.triage_chat)
+            and not st.session_state.vitals
+            and _relv
+            and not st.session_state.get("_vitals_nudge_off")):
+        _names = ", ".join(dict.fromkeys(c["el" if _lang=="el" else "en"] for c in _relv))
+        _show_scan = any(c["scan"] for c in _relv)
+        st.warning("🩺 " + (f"Με βάση όσα περιγράφεις, θα βοηθούσε να μετρηθεί: {_names}. Θες να το κάνεις τώρα;"
+                            if _lang=="el" else
+                            f"Based on what you describe, it would help to measure: {_names}. Want to do it now?"))
+        _cols = st.columns(3 if _show_scan else 2)
+        with _cols[0]:
+            if st.button(("✏️ Καταχώρηση" if _lang=="el" else "✏️ Enter values"), key="nudge_manual", use_container_width=True):
+                st.session_state.screen = "vitals"; st.rerun()
+        _ci = 1
+        if _show_scan:
+            with _cols[_ci]:
+                _fs = _secret("FACESCAN_URL","https://asklepiosnurse.netlify.app")
+                _ku = _secret("ASKLEPIOS_URL","https://asklepiosainurse.up.railway.app")
+                _link = f"{_fs}?kira_url={urllib.parse.quote(_ku)}"
+                st.markdown(f'<a href="{_link}" target="_blank" style="display:block;text-align:center;padding:8px;border-radius:8px;background:#2D3FE7;color:white;text-decoration:none;font-weight:600;font-size:13px">📷 {"Σάρωση" if _lang=="el" else "Scan"}</a>', unsafe_allow_html=True)
+            _ci += 1
+        with _cols[_ci]:
+            if st.button(("Όχι τώρα" if _lang=="el" else "Not now"), key="nudge_off", use_container_width=True):
+                st.session_state["_vitals_nudge_off"] = True; st.rerun()
     # Photo analysis appears only after Asklepios has made an initial assessment
     if any(m["role"]=="assistant" for m in st.session_state.triage_chat):
         with st.expander("📷 " + ("Ανάλυση φωτογραφίας (προαιρετικό)" if st.session_state.lang=="el" else "Photo analysis (optional)")):
