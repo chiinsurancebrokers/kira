@@ -311,8 +311,8 @@ def render_login_gate():
         return True
     st.markdown(f'''<div style="background:rgba(45,63,231,0.06);border:1px solid rgba(45,63,231,0.15);border-radius:14px;padding:20px 22px;text-align:center;margin:10px 0">
         <div style="font-size:34px;margin-bottom:6px">🔒</div>
-        <div style="font-size:16px;font-weight:700;color:#1A1A2E">{"Σύνδεση για την πλήρη αναφορά" if lang=="el" else "Sign in for the full report"}</div>
-        <div style="font-size:13px;color:#6B7280;margin-top:4px">{"Το triage είναι δωρεάν. Για την αναφορά, βάλε το email σου και τον 6ψήφιο κωδικό που θα λάβεις." if lang=="el" else "Triage is free. For the report, enter your email and the 6-digit code we send you."}</div>
+        <div style="font-size:16px;font-weight:700;color:#1A1A2E">{"Σύνδεση" if lang=="el" else "Sign in"}</div>
+        <div style="font-size:13px;color:#6B7280;margin-top:4px">{"Βάλε το email σου και τον 6ψήφιο κωδικό που θα λάβεις για να συνεχίσεις." if lang=="el" else "Enter your email and the 6-digit code we send you to continue."}</div>
     </div>''', unsafe_allow_html=True)
     sent_to = st.session_state.get("otp_sent_to")
     if not sent_to:
@@ -341,6 +341,35 @@ def render_login_gate():
             if st.button(("Άλλο email" if lang=="el" else "Change email"), use_container_width=True, key="otp_reset"):
                 st.session_state.pop("otp_sent_to", None); st.rerun()
     return is_logged_in()
+
+def render_login_screen():
+    """Full-page login shown at the very start when auth is enabled."""
+    lang = st.session_state.lang
+    c1, c2 = st.columns([6,1])
+    with c2:
+        if st.button("🇬🇧 EN" if lang=="el" else "🇬🇷 ΕΛ", key="login_lang"):
+            st.session_state.lang = "en" if lang=="el" else "el"; st.rerun()
+    st.markdown(f'''<div class="kira-hero"><div style="font-size:64px;margin-bottom:8px">🩺</div><h1>{t("title")}</h1><p>{t("subtitle")}</p><div class="kira-tagline">{t("tagline")}</div></div>''', unsafe_allow_html=True)
+    col1, col2, col3 = st.columns([1,2,1])
+    with col2:
+        render_login_gate()
+    st.markdown(f'<div class="disclaimer">{t("disclaimer_main")}</div>', unsafe_allow_html=True)
+
+def save_feedback(rating, comment=""):
+    """Store a minimal, non-medical feedback row in Supabase. No report/identifiers."""
+    sb = _supabase_client()
+    if not sb:
+        return False  # demo mode: nothing stored
+    try:
+        sb.table("feedback").insert({
+            "user_email": st.session_state.get("auth_user", ""),
+            "rating": rating,
+            "comment": (comment or "")[:1000],
+            "lang": st.session_state.lang,
+        }).execute()
+        return True
+    except Exception:
+        return False
 
 # ── NCBI HELPERS ──────────────────────────────────────────────────────────────
 def pubmed_search(query, n=3):
@@ -457,6 +486,8 @@ defaults = {
     "medications": [],
     "med_inputs": [],
     "symptom_chips": [],
+    "fb_rating": "",
+    "fb_sent": False,
 }
 for k, v in defaults.items():
     if k not in st.session_state:
@@ -1192,12 +1223,6 @@ def render_triage():
 def render_report():
     render_stepper("report")
     p=st.session_state.profile; lang=st.session_state.lang
-    # ── Premium gate: require login only when Supabase auth is configured ──
-    if auth_enabled() and not is_logged_in():
-        st.markdown(f"## 📋 {t('report_title')}")
-        render_login_gate()
-        if st.button(t("back")): st.session_state.screen="triage"; st.rerun()
-        return
     st.markdown(f"## 📋 {t('report_title')}"); st.caption(f"{p.get('name','')}, {p.get('age')}y · {datetime.now().strftime('%d %b %Y %H:%M')}")
     if is_logged_in():
         lo1,lo2=st.columns([5,1])
@@ -1267,11 +1292,36 @@ Language: {"Greek" if lang=="el" else "English"}. Be direct. End with AI disclai
     else:
         st.markdown(f'<div class="emergency">{t("emergency")}</div>',unsafe_allow_html=True)
     st.markdown('<div class="disclaimer-red">AI-generated. Δεν αντικαθιστά ιατρική γνώμη.</div>',unsafe_allow_html=True)
+
+    # ── Feedback (👍/👎) — quality signal only, no medical data stored ──────────
+    st.markdown("---")
+    if st.session_state.get("fb_sent"):
+        st.success("Ευχαριστούμε για το feedback!" if lang=="el" else "Thanks for your feedback!")
+    else:
+        st.caption("Σου φάνηκε χρήσιμη η εκτίμηση; (μας βοηθάει να βελτιωνόμαστε)" if lang=="el" else "Was this assessment helpful? (helps us improve)")
+        rating = st.session_state.get("fb_rating", "")
+        fc1, fc2 = st.columns(2)
+        with fc1:
+            if st.button(("👍 Χρήσιμη" if lang=="el" else "👍 Helpful"), key="fb_up", use_container_width=True,
+                         type=("primary" if rating=="up" else "secondary")):
+                st.session_state["fb_rating"]="up"; st.rerun()
+        with fc2:
+            if st.button(("👎 Όχι χρήσιμη" if lang=="el" else "👎 Not helpful"), key="fb_down", use_container_width=True,
+                         type=("primary" if rating=="down" else "secondary")):
+                st.session_state["fb_rating"]="down"; st.rerun()
+        if rating:
+            comment = st.text_area(("Τι θα βελτίωνες; (προαιρετικό)" if lang=="el" else "What would you improve? (optional)"),
+                                   key="fb_comment", height=80)
+            if st.button(("Αποστολή" if lang=="el" else "Submit"), key="fb_submit", type="primary"):
+                save_feedback(rating, comment)
+                st.session_state["fb_sent"]=True; st.rerun()
+
     fname=f"asklepios_report_{p.get('name','patient')}_{datetime.now().strftime('%Y%m%d')}"
     c1,c2,c3,c4=st.columns(4)
     with c1:
         if st.button("← "+("Νέα Αξιολόγηση" if lang=="el" else "New Assessment"),use_container_width=True):
             for k,vv in defaults.items(): st.session_state[k]=vv
+            for fbk in ("fb_comment","fb_rating","fb_sent"): st.session_state.pop(fbk, None)
             st.rerun()
     with c2:
         st.download_button("📄 TXT",data=st.session_state.report,file_name=fname+".txt",mime="text/plain",use_container_width=True)
@@ -1328,6 +1378,12 @@ except Exception:
     pass
 
 # ── ROUTER ────────────────────────────────────────────────────────────────────
+# Login at the start: when Supabase auth is configured, require sign-in before
+# anything else. When not configured, the app stays fully open (demo mode).
+if auth_enabled() and not is_logged_in():
+    render_login_screen()
+    st.stop()
+
 screen=st.session_state.screen
 if st.session_state.pop("_fs_banner", False):
     v_loaded = st.session_state.vitals
