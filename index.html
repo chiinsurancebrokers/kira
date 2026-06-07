@@ -382,7 +382,7 @@ function loop(now){
         // Update live quality indicator
         if(gB.length>60){
           const fs=effFps();
-          const sig=chromSignal([...rB],[...gB],[...bB]);
+          const sig=posSignal([...rB],[...gB],[...bB]);
           const{mg,fr}=dft(sig,fs);
           const liveQ=snr(mg,fr,LO,HI);
           const qBar=document.getElementById("qualBar");
@@ -498,23 +498,32 @@ function dft(sig,fs){
   return{mg,fr};
 }
 function peak(mg,fr,lo,hi){
-  let bm=-1,bf=0;
-  for(let k=1;k<fr.length;k++)if(fr[k]>=lo&&fr[k]<=hi&&mg[k]>bm){bm=mg[k];bf=fr[k];}
-  return{freq:bf,mag:bm};
+  let bm=-1,bf=0,bi=-1;
+  for(let k=1;k<fr.length;k++)if(fr[k]>=lo&&fr[k]<=hi&&mg[k]>bm){bm=mg[k];bf=fr[k];bi=k;}
+  return{freq:bf,mag:bm,idx:bi};
+}
+// Parabolic interpolation around a peak bin → sub-bin frequency precision
+// (recovers resolution lost in short windows; the "parabola fitting" step).
+function parabolic(mg,fr,k){
+  if(k<=0||k>=mg.length-1) return fr[k]||0;
+  const a=mg[k-1],b=mg[k],c=mg[k+1],den=(a-2*b+c);
+  const delta=den!==0?0.5*(a-c)/den:0;
+  const df=fr[1]||(fr[2]-fr[1]);
+  return fr[k]+delta*df;
 }
 // HR with sub-harmonic correction: rPPG often shows a strong 2nd harmonic
 // (reports ~2× the true rate). If half the detected freq is in-band and strong,
 // it is the true fundamental.
 function pickHR(mg,fr,lo,hi){
-  const{freq:f,mag:m}=peak(mg,fr,lo,hi);
+  const{freq:f,mag:m,idx:ki}=peak(mg,fr,lo,hi);
   if(f<=0) return 0;
   const hf=f/2;
   if(hf>=lo){
-    let best=0;
-    for(let k=1;k<fr.length;k++) if(Math.abs(fr[k]-hf)<=0.06 && mg[k]>best) best=mg[k];
-    if(best>=m*0.6) return hf;
+    let best=0,bk=-1;
+    for(let k=1;k<fr.length;k++) if(Math.abs(fr[k]-hf)<=0.06 && mg[k]>best){best=mg[k];bk=k;}
+    if(best>=m*0.6 && bk>0) return parabolic(mg,fr,bk);
   }
-  return f;
+  return parabolic(mg,fr,ki);
 }
 // SNR: ratio of peak energy to band average — quality indicator
 function snr(mg,fr,lo,hi){
@@ -530,24 +539,51 @@ function detectPeaks(sig,fs){
     if(sig[i]>thr&&sig[i]>sig[i-1]&&sig[i]>sig[i+1]&&(!pk.length||i-pk[pk.length-1]>minD))pk.push(i);
   return pk;
 }
+// POS (Plane-Orthogonal-to-Skin, Wang et al. 2017) — benchmarks more robust than CHROM.
+function posSignal(r,g,b){
+  const mr=_mean(r),mg=_mean(g),mb=_mean(b);
+  const Rn=r.map(v=>v/mr-1), Gn=g.map(v=>v/mg-1), Bn=b.map(v=>v/mb-1);
+  const S1=Gn.map((v,i)=>v-Bn[i]);            // 0·R + 1·G − 1·B
+  const S2=Gn.map((v,i)=>v+Bn[i]-2*Rn[i]);    // −2·R + 1·G + 1·B
+  const a=_std(S1)/_std(S2);
+  return S1.map((v,i)=>v+a*S2[i]);
+}
+// Sliding-window HR with median voting: a transient head-move corrupts only a
+// few windows, not the whole estimate (cf. the sub-window/majority-vote approach).
+function hrByWindows(r,g,b,fs){
+  const win=Math.round(fs*8), step=Math.max(1,Math.round(fs*1));
+  if(g.length<win){
+    const sig=posSignal([...r],[...g],[...b]);
+    const{mg,fr}=dft(sig,fs);
+    const h=pickHR(mg,fr,LO,HI)*60;
+    return h>=45&&h<=200?h:0;
+  }
+  const cands=[];
+  for(let s=0;s+win<=g.length;s+=step){
+    const sig=posSignal(r.slice(s,s+win),g.slice(s,s+win),b.slice(s,s+win));
+    const{mg,fr}=dft(sig,fs);
+    const h=pickHR(mg,fr,LO,HI)*60;
+    if(h>=45&&h<=200) cands.push(h);
+  }
+  if(!cands.length) return 0;
+  cands.sort((a,b)=>a-b);
+  return cands[Math.floor(cands.length/2)];   // median
+}
 function calcHR(r,g,b){
   if(g.length<60)return 0;
   const fs=effFps();
-  const sig=chromSignal([...r],[...g],[...b]);
-  const{mg,fr}=dft(sig,fs);
-  const f=pickHR(mg,fr,LO,HI);
-  const h=f*60;
+  const h=hrByWindows(r,g,b,fs);
   return h>=45&&h<=200?h:0;
 }
 function calcAll(){
   const fs=effFps();
-  const chrom=chromSignal([...rB],[...gB],[...bB]);
-  const{mg,fr}=dft(chrom,fs);
-  const hf=pickHR(mg,fr,LO,HI);
+  const pos=posSignal([...rB],[...gB],[...bB]);
+  const{mg,fr}=dft(pos,fs);
   const quality=snr(mg,fr,LO,HI);
 
-  // ── PRIMARY: Heart Rate (the one rPPG can do semi-reliably) ──────────────
-  const hr=hf>0&&quality>=15?Math.round(hf*60):null;
+  // ── PRIMARY: Heart Rate — POS + sliding-window median (robust to motion) ──
+  const hWin=hrByWindows(rB,gB,bB,fs);
+  const hr=hWin>0&&quality>=15?Math.round(hWin):null;
 
   // ── EXPERIMENTAL: Breathing (camera rPPG, 60s — indicative only) ─────────
   const{mg:bm,fr:bf}=dft([...gB],fs);
@@ -555,7 +591,7 @@ function calcAll(){
   const br=brf>0&&quality>=15?Math.round(brf*60):null;
 
   // ── EXPERIMENTAL: HRV (needs 2+ min for accuracy; 30-60s is rough) ───────
-  const nc=chrom.map(v=>v/_std(chrom));
+  const nc=pos.map(v=>v/_std(pos));
   const pks=detectPeaks(nc,fs);
   let hrv=null, hrvReliable=false;
   if(pks.length>5){
