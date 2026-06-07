@@ -834,7 +834,7 @@ def render_vitals():
 
     with tab_scan:
         facescan_url=_secret("FACESCAN_URL","https://asklepiosnurse.netlify.app")
-        kira_url=_secret("ASKLEPIOS_URL","https://asklepiosnurse.streamlit.app")
+        kira_url=_secret("ASKLEPIOS_URL","https://asklepiosainurse.up.railway.app")
         scan_link=f"{facescan_url}?kira_url={urllib.parse.quote(kira_url)}"
         st.markdown(f'''<div style="background:linear-gradient(135deg,#2D3FE7,#7B2FE0);border-radius:16px;padding:28px;text-align:center;color:white;margin:8px 0">
             <div style="font-size:40px;margin-bottom:8px">📷</div>
@@ -1404,7 +1404,7 @@ Language: {"Greek" if lang=="el" else "English"}. Be direct. End with a one-line
             rep=rep[:1500].rsplit("\n",1)[0].rstrip()+"\n…(πλήρης αναφορά στο PDF)"
         if rep:
             wa_lines+=["", rep]
-        wa_lines+=["", "---", "⚠️ AI-generated. asklepiosnurse.streamlit.app"]
+        wa_lines+=["", "---", "⚠️ AI-generated. asklepiosainurse.up.railway.app"]
         msg="\n".join(wa_lines)
         wa_url="https://wa.me/?text="+urllib.parse.quote(msg)
         st.markdown(f'<a href="{wa_url}" target="_blank" style="display:block;text-align:center;padding:8px;border-radius:8px;text-decoration:none;font-weight:600;font-size:13px;color:white;background:#25D366">WhatsApp</a>',unsafe_allow_html=True)
