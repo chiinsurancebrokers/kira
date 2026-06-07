@@ -4,3 +4,4 @@ pillow-heif
 Pillow
 pandas
 supabase
+extra-streamlit-components
