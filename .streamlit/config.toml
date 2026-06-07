@@ -1,0 +1,12 @@
+[server]
+# Required for st.file_uploader to work behind Railway's reverse proxy.
+# Without these, uploads fail with "AxiosError: Network Error" (XSRF cookie
+# can't round-trip through the proxy). Trade-off: disables CSRF protection.
+enableXsrfProtection = false
+enableCORS = false
+
+# Reject oversized uploads early (phone photos are a few MB; videos can be huge).
+maxUploadSize = 25
+
+[browser]
+gatherUsageStats = false
