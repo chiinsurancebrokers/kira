@@ -239,6 +239,21 @@ st.markdown("""
     .stButton button { white-space: normal !important; min-height: 44px !important; }
 }
 [data-testid="stMarkdownContainer"] { overflow-wrap: break-word !important; word-break: break-word !important; }
+/* Markdown tables — clean column alignment on mobile (override the per-letter break above) */
+[data-testid="stMarkdownContainer"] table {
+    width: 100%; border-collapse: collapse; table-layout: fixed;
+    font-size: 12.5px; margin: 12px 0;
+}
+[data-testid="stMarkdownContainer"] thead th { background: #F4F6FF; font-weight: 600; }
+[data-testid="stMarkdownContainer"] th,
+[data-testid="stMarkdownContainer"] td {
+    border: 1px solid #E0E5FF; padding: 7px 9px;
+    text-align: left; vertical-align: top;
+    word-break: normal !important; overflow-wrap: break-word !important; hyphens: none;
+}
+/* Narrow middle column (probability/%) so Διάγνωση & Σχόλιο get the room */
+[data-testid="stMarkdownContainer"] th:nth-child(2),
+[data-testid="stMarkdownContainer"] td:nth-child(2) { width: 64px; text-align: center; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -1285,8 +1300,10 @@ VITALS: {vitals_text}
 VITALS ANALYSIS: {vitals_analysis}
 CONSULTATION: {conversation}
 PUBMED: {pubmed_ctx}
-Write: 1.CHIEF COMPLAINT 2.HISTORY 3.ASSESSMENT (primary dx + 2-3 differentials with %) 4.TREATMENT PLAN 5.RED FLAGS 6.PUBMED CITATIONS
-Language: {"Greek" if lang=="el" else "English"}. Be direct. End with AI disclaimer."""
+Write these sections IN THIS ORDER, using EXACTLY these headers as written (do not abbreviate or drop letters):
+{"1. ΚΥΡΙΟ ΠΑΡΑΠΟΝΟ  2. ΙΣΤΟΡΙΚΟ  3. ΕΚΤΙΜΗΣΗ (Πρωτεύουσα Διάγνωση + Διαφορικές Διαγνώσεις)  4. ΘΕΡΑΠΕΥΤΙΚΟ ΠΛΑΝΟ  5. ΚΟΚΚΙΝΕΣ ΣΗΜΑΙΕΣ  6. ΒΙΒΛΙΟΓΡΑΦΙΑ" if lang=="el" else "1. CHIEF COMPLAINT  2. HISTORY  3. ASSESSMENT (Primary Diagnosis + Differentials)  4. TREATMENT PLAN  5. RED FLAGS  6. REFERENCES"}
+For the differentials use a markdown table with EXACTLY 3 columns and these short headers: {"| Διάγνωση | % | Σχόλιο |" if lang=="el" else "| Diagnosis | % | Comment |"} (keep the probability header as just "%", and put values like "~8%"). Keep cell text short.
+Language: {"Greek" if lang=="el" else "English"}. Be direct. End with a one-line AI disclaimer."""
         with st.spinner("Δημιουργία αναφοράς..." if lang=="el" else "Generating report..."):
             result=claude([{"role":"user","content":report_prompt}],system=kira_system(),max_tokens=4000,timeout=120)
             if result.startswith("⚠️"):
