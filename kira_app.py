@@ -1081,8 +1081,7 @@ def render_photo_scan():
     p = st.session_state.profile
     lang = st.session_state.lang
     rf_key = _secret("ROBOFLOW_API_KEY","")
-    st.caption("Florence-2 (Microsoft) + Claude Vision · " +
-               ("Ανεβάστε φωτογραφία για κλινική εκτίμηση" if lang=="el"
+    st.caption(("Ανέβασε φωτογραφία για κλινική εκτίμηση" if lang=="el"
                 else "Upload photo for clinical assessment"))
 
     SCAN_OPTS = {
@@ -1140,7 +1139,7 @@ def render_photo_scan():
 
                 img_b64 = _b64.b64encode(img_bytes).decode()
 
-                with st.spinner("Florence-2 + Claude analysing..."):
+                with st.spinner("Ο Asklepios αναλύει τη φωτογραφία..." if lang=="el" else "Asklepios is analysing the photo..."):
                     f2_desc = ""
                     if rf_key:
                         f2 = florence2_human(img_b64, scan_k, rf_key)
@@ -1178,14 +1177,6 @@ def render_photo_scan():
                                    else "You are Asklepios AI's visual-exam assistant. You SUPPLEMENT an assessment already in progress — you do NOT start a new one. Stay faithful to the stated complaint and anatomical region, be accurate, cautious, and do not dramatise.")
                     analysis = claude_vision_human(img_b64, img_type, full_prompt, sys_prompt)
 
-                if f2_desc:
-                    st.markdown(f'''<div style="background:#F0F4FF;border:1px solid #C7D2FE;border-radius:10px;
-                        padding:10px 14px;margin-bottom:10px">
-                        <div style="font-size:11px;color:#6366F1;margin-bottom:4px;font-weight:600">
-                        🔬 Florence-2 visual description</div>
-                        <div style="font-size:13px">{f2_desc}</div>
-                    </div>''', unsafe_allow_html=True)
-
                 st.markdown('<div class="card">', unsafe_allow_html=True)
                 st.markdown(analysis)
                 st.markdown('</div>', unsafe_allow_html=True)
@@ -1205,6 +1196,7 @@ def render_photo_scan():
                            if lang=="el" else
                            f"Photo analysis result ({sel}):\n\n{analysis}")
                     st.session_state.triage_chat.append({"role":"user","content":msg})
+                    st.session_state["photo_added"] = True
                     st.rerun()
     else:
         st.info("👆 " + ("Ανεβάστε φωτογραφία για να ξεκινήσει η ανάλυση" if lang=="el"
@@ -1249,11 +1241,21 @@ def render_triage():
     if any(m["role"]=="assistant" for m in st.session_state.triage_chat):
         with st.expander("📷 " + ("Ανάλυση φωτογραφίας (προαιρετικό)" if st.session_state.lang=="el" else "Photo analysis (optional)")):
             render_photo_scan()
+    # Confirmation after a photo was added — guide the user to keep answering
+    if st.session_state.get("photo_added"):
+        last_q = next((m["content"] for m in reversed(st.session_state.triage_chat) if m["role"]=="assistant"), "")
+        if st.session_state.lang=="el":
+            st.success("✅ Η ανάλυση της εικόνας προστέθηκε στην εκτίμηση. Συνέχισε απαντώντας στην τελευταία ερώτηση του Asklepios παρακάτω.")
+        else:
+            st.success("✅ The image analysis was added to the assessment. Continue by answering Asklepios's last question below.")
+        if last_q:
+            st.info(("🩺 Τελευταία ερώτηση: " if st.session_state.lang=="el" else "🩺 Last question: ") + last_q)
     ready_phrases=["έχω αρκετά στοιχεία","μπορούμε να δημιουργήσουμε","i have enough information","we can generate","full clinical report","πλήρη αναφορά"]
     last_kira=next((m["content"].lower() for m in reversed(st.session_state.triage_chat) if m["role"]=="assistant"),"")
     triage_ready=any(ph in last_kira for ph in ready_phrases)
     user_input=st.chat_input(t("triage_placeholder"),key="triage_input")
     if user_input:
+        st.session_state.pop("photo_added", None)
         st.session_state.triage_chat.append({"role":"user","content":user_input})
         with st.spinner("Asklepios..."):
             pp=p.get
@@ -1376,7 +1378,7 @@ Language: {"Greek" if lang=="el" else "English"}. Be direct. End with a one-line
     with c1:
         if st.button("← "+("Νέα Αξιολόγηση" if lang=="el" else "New Assessment"),use_container_width=True):
             for k,vv in defaults.items(): st.session_state[k]=vv
-            for fbk in ("fb_comment","fb_rating","fb_sent"): st.session_state.pop(fbk, None)
+            for fbk in ("fb_comment","fb_rating","fb_sent","photo_added","photo_findings"): st.session_state.pop(fbk, None)
             st.rerun()
     with c2:
         st.download_button("📄 TXT",data=st.session_state.report,file_name=fname+".txt",mime="text/plain",use_container_width=True)
