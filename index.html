@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1">
-<title>Kira · Face Scan</title>
+<title>Asklepios · Face Scan</title>
 <style>
 :root{--bg:#09090F;--s:#12121E;--b:rgba(255,255,255,.08);--p:#7C3AED;--bl:#2563EB;--t:#0EA5E9;--g:#10B981;--y:#F59E0B;--r:#EF4444;--tx:#F1F5F9;--mu:#64748B}
 *{margin:0;padding:0;box-sizing:border-box}
@@ -111,7 +111,7 @@ h1 em{background:linear-gradient(135deg,var(--p),var(--t));-webkit-background-cl
 <body>
 
 <div class="bar">
-  <div class="logo">🩺 Kira</div>
+  <div class="logo">🩺 Asklepios</div>
   <button class="lbtn" id="lbtn">🇬🇧 EN</button>
 </div>
 
@@ -120,7 +120,7 @@ h1 em{background:linear-gradient(135deg,var(--p),var(--t));-webkit-background-cl
 <!-- SCREEN 1: INTRO -->
 <div class="scr on" id="sc1">
   <h1 id="T_ht">Εκτίμηση Υγείας<br><em>σε 60 Δευτερόλεπτα</em></h1>
-  <p class="sub" id="T_hs">Μέτρηση ζωτικών σημείων μέσω κάμερας σε 60 δευτερόλεπτα, χωρίς εξοπλισμό.</p>
+  <p class="sub" id="T_hs">Μέτρηση καρδιακού ρυθμού μέσω κάμερας σε 60 δευτερόλεπτα, χωρίς εξοπλισμό.</p>
   <div class="steps">
     <div class="step"><div class="sn">1</div><div class="st" id="T_s1"><b>Φωτισμός</b> — Άμεσο φως στο πρόσωπο (λάμπα μπροστά σας, όχι πίσω).</div></div>
     <div class="step"><div class="sn">2</div><div class="st" id="T_s2"><b>Θέση</b> — Τοποθετήστε πρόσωπο στην έλλειψη οδηγό.</div></div>
@@ -130,13 +130,9 @@ h1 em{background:linear-gradient(135deg,var(--p),var(--t));-webkit-background-cl
     <div style="font-size:10px;color:var(--mu);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px">Μετρήσεις</div>
     <div class="mg">
       <div class="mc"><div class="mi">❤️</div><div class="ml" id="T_m1">Καρδιακός Ρυθμός</div></div>
-      <div class="mc"><div class="mi">📊</div><div class="ml">HRV</div></div>
-      <div class="mc"><div class="mi">🌬️</div><div class="ml" id="T_m3">Αναπνοή</div></div>
-      <div class="mc"><div class="mi">🧠</div><div class="ml" id="T_m4">Δείκτης Στρες</div></div>
-      <div class="mc"><div class="mi">💓</div><div class="ml" id="T_m5">Καρδ. Φορτίο</div></div>
-      <div class="mc"><div class="mi">🩸</div><div class="ml" id="T_m6">Πίεση (εκτ.)</div></div>
-      <div class="mc"><div class="mi">⚖️</div><div class="ml">Wellness</div></div>
-      <div class="mc"><div class="mi">🔋</div><div class="ml" id="T_m8">Παρασυμπ.</div></div>
+      <div class="mc"><div class="mi">🌬️</div><div class="ml" id="T_m3">Αναπνοή (πειρ.)</div></div>
+      <div class="mc"><div class="mi">📊</div><div class="ml">HRV (πειρ.)</div></div>
+      <div class="mc"><div class="mi">🧠</div><div class="ml" id="T_m4">Στρες (πειρ.)</div></div>
     </div>
   </div>
   <button class="btn" id="startBtn">📷 ΕΝΑΡΞΗ ΣΑΡΩΣΗΣ</button>
@@ -183,7 +179,7 @@ h1 em{background:linear-gradient(135deg,var(--p),var(--t));-webkit-background-cl
   <div style="width:100%;background:var(--s);border:1px solid var(--b);border-radius:12px;padding:12px 16px">
     <div style="display:flex;justify-content:space-between;margin-bottom:6px">
       <span style="font-size:11px;color:var(--mu)" id="qualLabel">📶 Ποιότητα σήματος</span>
-      <span style="font-size:11px;font-weight:700" id="qualPct" style="color:var(--mu)">—</span>
+      <span style="font-size:11px;font-weight:700" id="qualPct">—</span>
     </div>
     <div style="height:6px;background:rgba(255,255,255,.08);border-radius:3px;overflow:hidden">
       <div id="qualBar" style="height:100%;width:0%;border-radius:3px;background:var(--mu);transition:width .5s,background .5s"></div>
@@ -220,7 +216,7 @@ h1 em{background:linear-gradient(135deg,var(--p),var(--t));-webkit-background-cl
   <div class="rg" id="rg"></div>
   <p class="disc" id="T_d2">rPPG εκτίμηση · Δεν αποτελεί ιατρική διάγνωση · Συμβουλεύεστε γιατρό</p>
   <div id="sqBox" style="width:100%;border-radius:10px;padding:10px 14px;font-size:12px;display:none;line-height:1.5"></div>
-  <button class="btn" id="sendBtn">Αποστολή στο Kira →</button>
+  <button class="btn" id="sendBtn">Αποστολή στο Asklepios →</button>
   <button class="btn2" onclick="scanAgain()">🔄 Νέα Σάρωση</button>
 </div>
 
@@ -229,46 +225,42 @@ h1 em{background:linear-gradient(135deg,var(--p),var(--t));-webkit-background-cl
 const L={
   el:{
     T_ht:"Εκτίμηση Υγείας<br><em>σε 60 Δευτερόλεπτα</em>",
-    T_hs:"Μέτρηση ζωτικών σημείων μέσω κάμερας σε 60 δευτερόλεπτα, χωρίς εξοπλισμό.",
+    T_hs:"Μέτρηση καρδιακού ρυθμού μέσω κάμερας σε 60 δευτερόλεπτα, χωρίς εξοπλισμό.",
     T_s1:"<b>Φωτισμός</b> — Άμεσο φως στο πρόσωπο (λάμπα μπροστά σας, όχι πίσω).",
     T_s2:"<b>Θέση</b> — Τοποθετήστε πρόσωπο στην έλλειψη οδηγό.",
     T_s3:"<b>Ακινησία</b> — Μη μιλάτε ή κινείτε κεφάλι. Παρακολουθήστε την μπάρα ποιότητας.",
-    T_m1:"Καρδιακός Ρυθμός",T_m3:"Αναπνοή",T_m4:"Δείκτης Στρες",
-    T_m5:"Καρδ. Φορτίο",T_m6:"Πίεση (εκτ.)",T_m8:"Παρασυμπ.",
+    T_m1:"Καρδιακός Ρυθμός",T_m3:"Αναπνοή (πειρ.)",T_m4:"Στρες (πειρ.)",
     startBtn:"📷 ΕΝΑΡΞΗ ΣΑΡΩΣΗΣ",
     T_d1:"Βασίζεται σε rPPG. Δεν αντικαθιστά ιατρικά εργαλεία.",
     T_tl:"δευτερόλεπτα",T_hl:"BPM · Καρδιακός Ρυθμός",
     T_rtl:"Αποτελέσματα Σάρωσης",T_wl:"Wellness",
     T_d2:"rPPG εκτίμηση · Δεν αποτελεί ιατρική διάγνωση · Συμβουλεύεστε γιατρό",
-    sendBtn:"Αποστολή στο Kira →",
+    sendBtn:"Αποστολή στο Asklepios →",
     sw:"Τοποθετήστε το πρόσωπό σας...",
     ss:"Σάρωση — κρατήστε ακίνητο",sd:"Ανάλυση...",
     camDeny:"⛔ Δεν επιτράπηκε η κάμερα. Κάντε κλικ στο λουκέτο και επιτρέψτε την κάμερα.",
     noCam:"⛔ Δεν βρέθηκε κάμερα.",
-    lbl:{hr:"Καρδιακός Ρυθμός",hrv:"HRV",br:"Αναπνοή",stress:"Δείκτης Στρες",
-         cardio:"Καρδ. Φορτίο",bp:"Αρτηριακή Πίεση",parasym:"Παρασυμπαθ."},
+    lbl:{hr:"Καρδιακός Ρυθμός",hrv:"HRV",br:"Αναπνοή",stress:"Δείκτης Στρες"},
     st:{normal:"Φυσιολογικό",excellent:"Εξαιρετικό",moderate:"Μέτριο",high:"Υψηλό",low:"Χαμηλό"}
   },
   en:{
     T_ht:"Health Assessment<br><em>in 60 Seconds</em>",
-    T_hs:"Measure vital signs via camera in 60 seconds — no equipment needed.",
+    T_hs:"Measure heart rate via camera in 60 seconds — no equipment needed.",
     T_s1:"<b>Lighting</b> — Even light from the front.",
     T_s2:"<b>Position</b> — Place face inside the oval guide.",
     T_s3:"<b>Stay still</b> — Don't talk or move your head.",
-    T_m1:"Heart Rate",T_m3:"Breathing",T_m4:"Stress Index",
-    T_m5:"Cardiac Load",T_m6:"Blood Pressure",T_m8:"Parasympath.",
+    T_m1:"Heart Rate",T_m3:"Breathing (exp.)",T_m4:"Stress (exp.)",
     startBtn:"📷 START SCANNING",
     T_d1:"Based on rPPG. Not a substitute for medical devices.",
     T_tl:"seconds",T_hl:"BPM · Heart Rate",
     T_rtl:"Scan Results",T_wl:"Wellness",
     T_d2:"rPPG estimate · Not a medical diagnosis · Consult a doctor",
-    sendBtn:"Send to Kira →",
+    sendBtn:"Send to Asklepios →",
     sw:"Position your face in the guide...",
     ss:"Scanning — please stay still",sd:"Analysing...",
     camDeny:"⛔ Camera access denied. Click the lock icon and allow camera.",
     noCam:"⛔ No camera found on this device.",
-    lbl:{hr:"Heart Rate",hrv:"HRV",br:"Breathing Rate",stress:"Stress Index",
-         cardio:"Cardiac Workload",bp:"Blood Pressure",parasym:"Parasympathetic"},
+    lbl:{hr:"Heart Rate",hrv:"HRV",br:"Breathing Rate",stress:"Stress Index"},
     st:{normal:"Normal",excellent:"Excellent",moderate:"Moderate",high:"Elevated",low:"Low"}
   }
 };
@@ -297,9 +289,17 @@ document.getElementById("lbtn").onclick=()=>{
 const DUR=60,FPS=30,WARMUP=5,LO=0.75,HI=3.5,BLO=0.1,BHI=0.55;
 let stream=null,raf=null,t0=null,lastT=0;
 let gB=[],rB=[],bB=[],fn=0,R={};
+let sampleT=[];   // real timestamp (ms) of every pushed sample → lets us compute the TRUE fps
 const vid=document.getElementById("vid");
 const cv=document.getElementById("cv");
 const cx=cv.getContext("2d",{willReadFrequently:true});
+
+// TRUE effective sampling rate (not the assumed 30). This is the key HR-accuracy fix.
+function effFps(){
+  if(sampleT.length<2) return FPS;
+  const dt=(sampleT[sampleT.length-1]-sampleT[0])/1000;
+  return dt>0 ? (sampleT.length-1)/dt : FPS;
+}
 
 // ── SCREENS ───────────────────────────────────────────────────────────────────
 const show=id=>{
@@ -353,6 +353,7 @@ if(document.getElementById("startBtn")) {
 // ── SCAN LOOP ─────────────────────────────────────────────────────────────────
 function beginScan(){
   gB=[];rB=[];bB=[];fn=0;
+  sampleT=[];
   _goodFrames=0;_totalFrames=0;
   t0=performance.now();lastT=0;
   setStatus("w"); setRing(0);
@@ -371,7 +372,7 @@ function loop(now){
     if(el>WARMUP){
       setStatus("s");
       grab();fn++;
-      if(fn>0&&fn%(FPS*2)===0){   // live update every 2s
+      if(fn>0&&fn%(FPS*2)===0){   // live update every ~2s
         const h=calcHR(rB,gB,bB);
         if(h>0){
           document.getElementById("hrv").textContent=Math.round(h);
@@ -380,29 +381,30 @@ function loop(now){
         }
         // Update live quality indicator
         if(gB.length>60){
+          const fs=effFps();
           const sig=chromSignal([...rB],[...gB],[...bB]);
-          const{mg,fr}=dft(sig,FPS);
+          const{mg,fr}=dft(sig,fs);
           const liveQ=snr(mg,fr,LO,HI);
           const qBar=document.getElementById("qualBar");
           const qPct=document.getElementById("qualPct");
           const qTip=document.getElementById("qualTip");
-          const el=lang==="el";
+          const elg=lang==="el";
           if(qBar&&qPct&&qTip){
             qBar.style.width=liveQ+"%";
             qPct.textContent=liveQ+"/100";
             const faceOk=_totalFrames>0&&(_goodFrames/_totalFrames)>=0.4;
             if(!faceOk){
               qBar.style.background="var(--r)"; qPct.style.color="var(--r)";
-              qTip.textContent=el?"⛔ Τοποθετήστε το πρόσωπό σας στην έλλειψη!":"⛔ Position your face in the oval!";
+              qTip.textContent=elg?"⛔ Τοποθετήστε το πρόσωπό σας στην έλλειψη!":"⛔ Position your face in the oval!";
             } else if(liveQ>=50){
               qBar.style.background="var(--g)"; qPct.style.color="var(--g)";
-              qTip.textContent=el?"✅ Καλή ποιότητα — συνεχίστε να κρατάτε ακίνητο":"✅ Good quality — keep still";
+              qTip.textContent=elg?"✅ Καλή ποιότητα — συνεχίστε να κρατάτε ακίνητο":"✅ Good quality — keep still";
             } else if(liveQ>=25){
               qBar.style.background="var(--y)"; qPct.style.color="var(--y)";
-              qTip.textContent=el?"⚠️ Μέτρια — πιο κοντά σε φωτεινό σημείο":"⚠️ Moderate — move closer to light";
+              qTip.textContent=elg?"⚠️ Μέτρια — πιο κοντά σε φωτεινό σημείο":"⚠️ Moderate — move closer to light";
             } else {
               qBar.style.background="var(--r)"; qPct.style.color="var(--r)";
-              qTip.textContent=el?"❌ Χαμηλή — περισσότερο φως, μη κινείτε κεφάλι":"❌ Low — more light, don't move head";
+              qTip.textContent=elg?"❌ Χαμηλή — περισσότερο φως, μη κινείτε κεφάλι":"❌ Low — more light, don't move head";
             }
           }
         }
@@ -434,11 +436,8 @@ function grab(){
   const totalPixels=d.length/4;
   const skinRatio=n/totalPixels;
 
-  // STRICT: require at least 8% skin pixels — NO fallback to all pixels
-  // If no face → skip this frame entirely (don't push garbage data)
+  // STRICT: require enough skin pixels. If no face → hold last value (keep sampling uniform)
   if(skinRatio<0.08||n<150){
-    // Push the last good values (or zeros if none yet) to avoid FFT gaps
-    // but mark as a bad frame
     if(gB.length>0){
       gB.push(gB[gB.length-1]);
       rB.push(rB[rB.length-1]);
@@ -446,7 +445,7 @@ function grab(){
     }else{
       gB.push(128);rB.push(128);bB.push(128);
     }
-    // Show real-time warning
+    sampleT.push(performance.now());   // keep time axis aligned with buffers
     const qTip=document.getElementById("qualTip");
     if(qTip) qTip.textContent=lang==="el"
       ?"⛔ Δεν βλέπω πρόσωπο — τοποθετήστε το μέτωπό σας στην έλλειψη"
@@ -455,14 +454,13 @@ function grab(){
   }
 
   _goodFrames++;
-  // Track skin ratio for final gate
   if(typeof window._skinRatios==='undefined') window._skinRatios=[];
   window._skinRatios.push(skinRatio);
   gB.push(sg/n);rB.push(sr/n);bB.push(sb/n);
+  sampleT.push(performance.now());     // real timestamp for true-fps calc
 }
 
 // ── SIGNAL PROCESSING — CHROM rPPG + Hanning + SNR ──────────────────────────
-// CHROM: de Haan & Jeanne (2013) — far more robust than single green channel
 function _mean(a){return a.reduce((x,y)=>x+y,0)/a.length;}
 function _std(a){const m=_mean(a);return Math.sqrt(a.reduce((x,y)=>x+(y-m)**2,0)/a.length)||1;}
 
@@ -473,13 +471,11 @@ function detrend(a){
   return a.map((v,i)=>v-(sl*i+it));
 }
 
-// Hanning window reduces spectral leakage — cleaner FFT peak
 function hanning(a){
   const N=a.length;
   return a.map((v,i)=>v*0.5*(1-Math.cos(2*Math.PI*i/(N-1))));
 }
 
-// CHROM algorithm: cancels illumination noise, isolates pulse waveform
 function chromSignal(r,g,b){
   const mr=_mean(r),mg=_mean(g),mb=_mean(b);
   const Rn=r.map(v=>v/mr), Gn=g.map(v=>v/mg), Bn=b.map(v=>v/mb);
@@ -506,6 +502,20 @@ function peak(mg,fr,lo,hi){
   for(let k=1;k<fr.length;k++)if(fr[k]>=lo&&fr[k]<=hi&&mg[k]>bm){bm=mg[k];bf=fr[k];}
   return{freq:bf,mag:bm};
 }
+// HR with sub-harmonic correction: rPPG often shows a strong 2nd harmonic
+// (reports ~2× the true rate). If half the detected freq is in-band and strong,
+// it is the true fundamental.
+function pickHR(mg,fr,lo,hi){
+  const{freq:f,mag:m}=peak(mg,fr,lo,hi);
+  if(f<=0) return 0;
+  const hf=f/2;
+  if(hf>=lo){
+    let best=0;
+    for(let k=1;k<fr.length;k++) if(Math.abs(fr[k]-hf)<=0.06 && mg[k]>best) best=mg[k];
+    if(best>=m*0.6) return hf;
+  }
+  return f;
+}
 // SNR: ratio of peak energy to band average — quality indicator
 function snr(mg,fr,lo,hi){
   let pk=0,sum=0,cnt=0;
@@ -513,76 +523,64 @@ function snr(mg,fr,lo,hi){
   const avg=(sum-pk)/Math.max(cnt-1,1);
   return Math.min(100,Math.round(pk/(avg||1)*6));
 }
-function detectPeaks(sig){
-  const pk=[],thr=_mean(sig)*0.4,minD=Math.round(FPS*0.4);
+function detectPeaks(sig,fs){
+  // amplitude-based threshold (NOT mean, which is ~0 for a zero-mean signal)
+  const pk=[],thr=_std(sig)*0.5,minD=Math.round(fs*0.4);
   for(let i=1;i<sig.length-1;i++)
     if(sig[i]>thr&&sig[i]>sig[i-1]&&sig[i]>sig[i+1]&&(!pk.length||i-pk[pk.length-1]>minD))pk.push(i);
   return pk;
 }
 function calcHR(r,g,b){
   if(g.length<60)return 0;
+  const fs=effFps();
   const sig=chromSignal([...r],[...g],[...b]);
-  const{mg,fr}=dft(sig,FPS);
-  const{freq:f}=peak(mg,fr,LO,HI);
+  const{mg,fr}=dft(sig,fs);
+  const f=pickHR(mg,fr,LO,HI);
   const h=f*60;
   return h>=45&&h<=200?h:0;
 }
 function calcAll(){
+  const fs=effFps();
   const chrom=chromSignal([...rB],[...gB],[...bB]);
-  const{mg,fr}=dft(chrom,FPS);
-  const{freq:hf}=peak(mg,fr,LO,HI);
+  const{mg,fr}=dft(chrom,fs);
+  const hf=pickHR(mg,fr,LO,HI);
   const quality=snr(mg,fr,LO,HI);
 
-  // ── DIRECTLY MEASURED: Heart Rate ────────────────────────────────────────
-  // Only report HR if signal quality is sufficient
+  // ── PRIMARY: Heart Rate (the one rPPG can do semi-reliably) ──────────────
   const hr=hf>0&&quality>=15?Math.round(hf*60):null;
 
-  // ── DIRECTLY MEASURED: Breathing Rate ────────────────────────────────────
-  const{mg:bm,fr:bf}=dft([...gB],FPS);
+  // ── EXPERIMENTAL: Breathing (camera rPPG, 60s — indicative only) ─────────
+  const{mg:bm,fr:bf}=dft([...gB],fs);
   const{freq:brf}=peak(bm,bf,BLO,BHI);
   const br=brf>0&&quality>=15?Math.round(brf*60):null;
 
-  // ── ESTIMATED: HRV (needs 2+ min for accuracy, 30s is rough) ─────────────
+  // ── EXPERIMENTAL: HRV (needs 2+ min for accuracy; 30-60s is rough) ───────
   const nc=chrom.map(v=>v/_std(chrom));
-  const pks=detectPeaks(nc);
+  const pks=detectPeaks(nc,fs);
   let hrv=null, hrvReliable=false;
   if(pks.length>5){
-    const iv=[];for(let i=1;i<pks.length;i++)iv.push((pks[i]-pks[i-1])*1000/FPS);
+    const iv=[];for(let i=1;i<pks.length;i++)iv.push((pks[i]-pks[i-1])*1000/fs);
     const m=_mean(iv);
     const rmssd=Math.sqrt(iv.reduce((a,b)=>a+(b-m)**2,0)/iv.length);
-    // Only trust HRV if peaks are consistent (low CV of intervals)
-    const cv=Math.sqrt(iv.reduce((a,b)=>a+(b-m)**2,0)/iv.length)/_mean(iv);
+    const cv=rmssd/_mean(iv);
     if(cv<0.3&&quality>=25){
       hrv=Math.round(Math.min(100,Math.max(5,rmssd)));
       hrvReliable=true;
     }
   }
-
-  // ── DERIVED from HRV (only show if HRV is reliable) ──────────────────────
   const stress=hrvReliable&&hrv?Math.round(Math.max(1,Math.min(99,100-hrv/100*100))):null;
-  const parasym=hrvReliable&&hrv?Math.round(Math.min(100,Math.max(0,hrv/100*100))):null;
 
-  // ── NOT MEASURABLE via rPPG — removed ────────────────────────────────────
-  // BP and cardiac workload cannot be measured from simple rPPG
-  // without individual calibration. We do NOT report them.
-
-  // ── Wellness: based only on what we actually measured ────────────────────
-  let w=80; // start at 80 (not 100) to be conservative
+  // ── Wellness: based mainly on HR (the reliable signal) ───────────────────
+  let w=80;
   if(hr!==null){
-    if(hr>=60&&hr<=100)w+=10;
+    if(hr>=60&&hr<=100)w+=12;
     else if(hr<50||hr>110)w-=15;
     else w-=5;
-  }
-  if(hrv!==null&&hrvReliable){
-    if(hrv>=30)w+=5;else if(hrv<15)w-=10;
-  }
-  if(br!==null){
-    if(br>=12&&br<=20)w+=3;else if(br<10||br>24)w-=8;
   }
   if(quality<20)w-=15;else if(quality>=50)w+=5;
   const wellness=Math.max(30,Math.min(95,w));
 
-  return{hr,br,hrv,hrvReliable,stress,parasym,wellness,quality};
+  return{hr,br,hrv,hrvReliable,stress,wellness,quality};
 }
 
 // ── DONE ──────────────────────────────────────────────────────────────────────
@@ -593,13 +591,8 @@ function done(){
   setTimeout(()=>{
     R=calcAll();
     if(stream)stream.getTracks().forEach(t=>t.stop());
-    // Quality gate: if signal too poor, show retry prompt
-    // Face presence check: if avg skin pixel ratio < 15%, no face detected
-    const avgSkin = window._skinRatios && window._skinRatios.length>0
-      ? window._skinRatios.reduce((a,b)=>a+b,0)/window._skinRatios.length : 1;
     window._skinRatios = [];
 
-    // Require at least 40% of frames to have detected a face
     const faceRatio = _totalFrames>0 ? _goodFrames/_totalFrames : 0;
     if(faceRatio < 0.40){
       show("sc1");
@@ -633,9 +626,6 @@ function cls(m,v){
   if(m==="hrv")return v<15?"high":v<=20?"moderate":v<=50?"normal":"excellent";
   if(m==="br")return v<10?"low":v<=20?"normal":"high";
   if(m==="stress")return v<=25?"normal":v<=50?"moderate":"high";
-  if(m==="bp")return v[0]<120&&v[1]<80?"normal":v[0]<130?"moderate":"high";
-  if(m==="cardio")return v<120?"normal":v<200?"moderate":"high";
-  if(m==="parasym")return v<30?"low":v<=60?"moderate":"normal";
   if(m==="wellness")return v>=80?"excellent":v>=60?"normal":v>=40?"moderate":"high";
   return "normal";
 }
@@ -643,7 +633,6 @@ function clsColor(c){
   return{normal:"var(--g)",excellent:"var(--g)",low:"var(--y)",moderate:"var(--y)",high:"var(--r)"}[c]||"var(--mu)";
 }
 
-// ── CLINICAL CONTEXT ─────────────────────────────────────────────────────────
 function clinicalNote(m,v){
   const el=lang==="el";
   if(m==="hr"){
@@ -654,43 +643,21 @@ function clinicalNote(m,v){
     return el?"Ταχυκαρδία — αξιολογήστε με γιατρό αν επιμένει":"Tachycardia — assess with a doctor if persistent";
   }
   if(m==="hrv"){
-    if(v<15)return el?"Πολύ χαμηλό HRV — υψηλό στρες ή κόπωση. Χαλάρωση & ύπνος συνιστώνται.":"Very low HRV — high stress or fatigue. Rest & sleep recommended.";
-    if(v<30)return el?"Κάτω του μέσου — παρακολουθήστε ανάκαμψη & επίπεδα στρες":"Below average — monitor recovery & stress levels";
-    if(v<=50)return el?"Μέτριο HRV — καλή αυτόνομη ισορροπία":"Moderate HRV — good autonomic balance";
-    return el?"Υψηλό HRV — εξαιρετική καρδιαγγειακή προσαρμοστικότητα":"High HRV — excellent cardiovascular adaptability";
+    if(v<15)return el?"Πολύ χαμηλό HRV — υψηλό στρες ή κόπωση (πειραματικό)":"Very low HRV — high stress or fatigue (experimental)";
+    if(v<30)return el?"Κάτω του μέσου — ενδεικτικό":"Below average — indicative";
+    if(v<=50)return el?"Μέτριο HRV — καλή ισορροπία (πειραματικό)":"Moderate HRV — good balance (experimental)";
+    return el?"Υψηλό HRV — ενδεικτικό":"High HRV — indicative";
   }
   if(m==="br"){
-    if(v<10)return el?"Χαμηλός ρυθμός — μπορεί να υποδηλώνει βαθιά χαλάρωση":"Low rate — may indicate deep relaxation";
-    if(v<=20)return el?"Φυσιολογικός αναπνευστικός ρυθμός ηρεμίας":"Normal resting breathing rate";
-    if(v<=24)return el?"Ελαφρά αυξημένος — κανονικά μετά άγχος ή δραστηριότητα":"Mildly elevated — normal after stress or activity";
-    return el?"Ταχύπνοια — αν επιμένει, συμβουλευτείτε γιατρό":"Tachypnea — if persistent, consult a doctor";
+    if(v<10)return el?"Χαμηλός ρυθμός — ενδεικτικό":"Low rate — indicative";
+    if(v<=20)return el?"Εντός τυπικού εύρους ηρεμίας (πειραματικό)":"Within typical resting range (experimental)";
+    if(v<=24)return el?"Ελαφρά αυξημένος — ενδεικτικό":"Mildly elevated — indicative";
+    return el?"Αυξημένος — ενδεικτικό, επιβεβαιώστε με μέτρηση":"Elevated — indicative, confirm with measurement";
   }
   if(m==="stress"){
-    if(v<=20)return el?"Πολύ χαμηλό στρες — εξαιρετική χαλάρωση αυτόνομου νευρικού":"Very low stress — excellent autonomic relaxation";
-    if(v<=40)return el?"Χαμηλά επίπεδα στρες — καλή ψυχολογική κατάσταση":"Low stress levels — good psychological state";
-    if(v<=60)return el?"Μέτριο στρες — φυσιολογικό για καθημερινές δραστηριότητες":"Moderate stress — normal for daily activities";
-    if(v<=80)return el?"Αυξημένο στρες — τεχνικές χαλάρωσης & ανάπαυση συνιστώνται":"Elevated stress — relaxation techniques & rest advised";
-    return el?"Υψηλό στρες — αξιολογήστε αιτίες & επιδιώξτε ανάπαυση":"High stress — evaluate causes & prioritise rest";
-  }
-  if(m==="bp"){
-    const s=v[0],d=v[1];
-    if(s<90)return el?"Χαμηλή πίεση — παρακολουθήστε για ζάλη":"Low BP — monitor for dizziness";
-    if(s<120&&d<80)return el?"Βέλτιστη αρτηριακή πίεση — ιδανικό για καρδιαγγειακή υγεία":"Optimal BP — ideal for cardiovascular health";
-    if(s<130)return el?"Φυσιολογική — ελαφρά αυξημένη τάση, παρακολουθήστε τακτικά":"Normal-high — slight upward trend, monitor regularly";
-    if(s<140)return el?"Στάδιο 1 Υπέρτασης — αλλαγές τρόπου ζωής & τακτική παρακολούθηση":"Stage 1 Hypertension — lifestyle changes & regular monitoring";
-    return el?"Στάδιο 2 Υπέρτασης — ιατρική αξιολόγηση συνιστάται":"Stage 2 Hypertension — medical evaluation advised";
-  }
-  if(m==="cardio"){
-    if(v<100)return el?"Χαμηλό καρδιακό φορτίο — καλή αποδοτικότητα καρδιάς":"Low cardiac workload — good heart efficiency";
-    if(v<160)return el?"Φυσιολογικό καρδιακό φορτίο για ηρεμία":"Normal cardiac workload at rest";
-    if(v<200)return el?"Μέτρια αυξημένο — παρακολουθήστε σε συνδυασμό με πίεση & ρυθμό":"Moderately elevated — monitor alongside BP & HR";
-    return el?"Υψηλό καρδιακό φορτίο — συζητήστε με καρδιολόγο":"High cardiac workload — discuss with a cardiologist";
-  }
-  if(m==="parasym"){
-    if(v<25)return el?"Χαμηλή παρασυμπαθητική δραστηριότητα — κυριαρχία συμπαθητικού (stress mode)":"Low parasympathetic — sympathetic dominance (stress mode)";
-    if(v<50)return el?"Μέτρια — το σύστημα τείνει προς ισορροπία":"Moderate — system trending toward balance";
-    if(v<75)return el?"Καλή παρασυμπαθητική δραστηριότητα — χαλάρωση & ανάκαμψη":"Good parasympathetic activity — rest & recovery mode";
-    return el?"Υψηλή παρασυμπαθητική δραστηριότητα — βαθιά χαλάρωση":"High parasympathetic — deep relaxation state";
+    if(v<=40)return el?"Χαμηλά επίπεδα (πειραματικό)":"Low levels (experimental)";
+    if(v<=60)return el?"Μέτρια (πειραματικό)":"Moderate (experimental)";
+    return el?"Αυξημένα — ενδεικτικό":"Elevated — indicative";
   }
   return "";
 }
@@ -698,23 +665,17 @@ function clinicalNote(m,v){
 function refRange(m){
   const el=lang==="el";
   if(m==="hr")  return el?"Φυσ. εύρος: 60–100 bpm":"Normal range: 60–100 bpm";
-  if(m==="hrv") return el?"Τυπικό: 20–100 ms (υψηλότερο = καλύτερο)":"Typical: 20–100 ms (higher = better)";
-  if(m==="br")  return el?"Φυσ. εύρος: 12–20 αναπνοές/min":"Normal range: 12–20 breaths/min";
-  if(m==="stress") return el?"Χαμηλότερο = λιγότερο στρες":"Lower = less stress";
-  if(m==="bp")  return el?"Βέλτιστο: <120/80 mmHg":"Optimal: <120/80 mmHg";
-  if(m==="cardio") return el?"Φυσ. ηρεμία: 60–160":"Normal at rest: 60–160";
-  if(m==="parasym") return el?"Υψηλότερο = περισσότερη χαλάρωση":"Higher = more relaxed";
+  if(m==="hrv") return el?"Τυπικό: 20–100 ms · πειραματικό":"Typical: 20–100 ms · experimental";
+  if(m==="br")  return el?"Φυσ. εύρος: 12–20 /min · πειραματικό":"Normal range: 12–20 /min · experimental";
+  if(m==="stress") return el?"Χαμηλότερο = λιγότερο στρες · πειραματικό":"Lower = less stress · experimental";
   return "";
 }
 
-// Range bar config: [min, lo_normal, hi_normal, max, gradient]
 function rangeConfig(m){
   if(m==="hr")     return[30,60,100,180,"linear-gradient(90deg,#3B82F6 0%,#10B981 33%,#10B981 55%,#F59E0B 75%,#EF4444 100%)"];
   if(m==="hrv")    return[0,20,80,120, "linear-gradient(90deg,#EF4444 0%,#F59E0B 15%,#10B981 40%,#10B981 100%)"];
   if(m==="br")     return[6,12,20,36,  "linear-gradient(90deg,#3B82F6 0%,#10B981 17%,#10B981 67%,#EF4444 100%)"];
   if(m==="stress") return[0,0,35,100,  "linear-gradient(90deg,#10B981 0%,#10B981 35%,#F59E0B 60%,#EF4444 100%)"];
-  if(m==="cardio") return[40,60,160,280,"linear-gradient(90deg,#3B82F6 0%,#10B981 15%,#10B981 57%,#F59E0B 80%,#EF4444 100%)"];
-  if(m==="parasym")return[0,40,100,100,"linear-gradient(90deg,#EF4444 0%,#F59E0B 40%,#10B981 70%,#10B981 100%)"];
   return null;
 }
 
@@ -732,19 +693,15 @@ function clsText(cs){
 function showResults(){
   show("sc3");
   const now=new Date();
-
-  // Timestamp
   document.getElementById("rts").textContent=
     now.toLocaleDateString(lang==="el"?"el-GR":"en-GB")+" · "+
     now.toLocaleTimeString(lang==="el"?"el-GR":"en-GB",{hour:"2-digit",minute:"2-digit"});
 
-  // Wellness arc
   setTimeout(()=>{
     document.getElementById("wscore").textContent=R.wellness;
     document.getElementById("warc").style.strokeDashoffset=239-(R.wellness/100)*239;
   },200);
 
-  // Signal quality
   const sq=R.quality||0;
   const sqEl=document.getElementById("sqBox");
   if(sqEl){
@@ -757,27 +714,19 @@ function showResults(){
     sqEl.textContent=`📶 ${lang==="el"?"Ποιότητα σήματος":"Signal quality"}: ${sq}/100 — ${qLabel}`;
   }
 
-  // Build metric definitions
-  // Only include metrics we actually measured or can estimate reliably
-  // Parasympathetic removed — requires 2+ min HRV, not reliable from 30s rPPG
+  // hr = primary (sent). br/hrv/stress = experimental (shown, NOT sent to the assessment)
   const allMetrics=[
     {k:"hr",     icon:"❤️",  v:R.hr,      u:"bpm",  m:"hr",     raw:R.hr,     tag:"measured"},
-    {k:"br",     icon:"🌬️", v:R.br,      u:"/min", m:"br",     raw:R.br,     tag:"measured"},
-    {k:"hrv",    icon:"📊",  v:R.hrv,     u:"ms",   m:"hrv",    raw:R.hrv,    tag:"estimate"},
-    {k:"stress", icon:"🧠",  v:R.stress,  u:"/100", m:"stress", raw:R.stress, tag:"estimate"},
+    {k:"br",     icon:"🌬️", v:R.br,      u:"/min", m:"br",     raw:R.br,     tag:"experimental"},
+    {k:"hrv",    icon:"📊",  v:R.hrv,     u:"ms",   m:"hrv",    raw:R.hrv,    tag:"experimental"},
+    {k:"stress", icon:"🧠",  v:R.stress,  u:"/100", m:"stress", raw:R.stress, tag:"experimental"},
   ];
   const metrics=allMetrics.filter(c=>c.v!==null&&c.v!==undefined);
-
-  // Classify each
   metrics.forEach(c=>{c.status=cls(c.m,c.raw);c.color=clsColor(c.status);});
 
-  // Summary sections
   const greens=metrics.filter(c=>c.status==="normal"||c.status==="excellent");
   const yellows=metrics.filter(c=>c.status==="moderate"||c.status==="low");
   const reds=metrics.filter(c=>c.status==="high");
-  // Add data reliability note
-  const measuredCount=metrics.filter(c=>c.tag==="measured").length;
-  const estimateCount=metrics.filter(c=>c.tag==="estimate").length;
   const el=lang==="el";
   const sumEl=document.getElementById("summary-sections");
   sumEl.innerHTML="";
@@ -787,61 +736,46 @@ function showResults(){
   </div>`;
   if(yellows.length) sumEl.innerHTML+=`<div class="summary-section ss-yellow">
     <div class="ss-title">🟡 ${el?"Αξίζει Παρακολούθηση":"Worth Watching"}</div>
-    ${yellows.map(c=>`<div class="ss-item"><span>${c.icon}</span><span><b>${tll(c.k)}</b> (${c.v}${c.u}) — ${clinicalNote(c.m,c.raw).split(".")[0]}</span></div>`).join("")}
+    ${yellows.map(c=>`<div class="ss-item"><span>${c.icon}</span><span><b>${tll(c.k)}</b> (${c.v}${c.u}) — ${(clinicalNote(c.m,c.raw)||"").split(".")[0]}</span></div>`).join("")}
   </div>`;
   if(reds.length) sumEl.innerHTML+=`<div class="summary-section ss-red">
     <div class="ss-title">🔴 ${el?"Χρήζει Προσοχής":"Needs Attention"}</div>
-    ${reds.map(c=>`<div class="ss-item"><span>${c.icon}</span><span><b>${tll(c.k)}</b> (${c.v}${c.u}) — ${clinicalNote(c.m,c.raw).split(".")[0]}</span></div>`).join("")}
+    ${reds.map(c=>`<div class="ss-item"><span>${c.icon}</span><span><b>${tll(c.k)}</b> (${c.v}${c.u}) — ${(clinicalNote(c.m,c.raw)||"").split(".")[0]}</span></div>`).join("")}
   </div>`;
 
-  // Honesty disclaimer about what's measured
   const honesty_note=lang==="el"
     ?`<div style="width:100%;background:rgba(45,63,231,.08);border:1px solid rgba(45,63,231,.2);border-radius:10px;padding:10px 14px;font-size:11px;color:#93C5FD;margin-bottom:8px;line-height:1.6">
-        📡 <strong>Τι μετράται απευθείας:</strong> Καρδιακός ρυθμός, αναπνοή — από το σήμα rPPG της κάμερας.<br>
-        ⚠️ <strong>Εκτιμήσεις μόνο:</strong> HRV, stress, παρασυμπαθητικό — απαιτούν 2+ λεπτά για αξιόπιστα αποτελέσματα.<br>
-        ❌ <strong>Η αρτηριακή πίεση δεν μετράται</strong> από απλό rPPG χωρίς βαθμονόμηση.
+        📡 <strong>Αξιόπιστη μέτρηση:</strong> Καρδιακός ρυθμός — αυτός στέλνεται στην εκτίμηση.<br>
+        ⚠️ <strong>Πειραματικά (ΔΕΝ στέλνονται):</strong> Αναπνοή, HRV, στρες — η κάμερα δεν τα δίνει αξιόπιστα σε 60''.<br>
+        ❌ <strong>Η αρτηριακή πίεση δεν μετράται</strong> από απλό rPPG.
       </div>`
     :`<div style="width:100%;background:rgba(45,63,231,.08);border:1px solid rgba(45,63,231,.2);border-radius:10px;padding:10px 14px;font-size:11px;color:#93C5FD;margin-bottom:8px;line-height:1.6">
-        📡 <strong>Directly measured:</strong> Heart rate, breathing rate — from the camera rPPG signal.<br>
-        ⚠️ <strong>Estimates only:</strong> HRV, stress, parasympathetic — require 2+ minutes for reliable results.<br>
-        ❌ <strong>Blood pressure is not measurable</strong> from simple rPPG without individual calibration.
+        📡 <strong>Reliable measurement:</strong> Heart rate — this is sent to the assessment.<br>
+        ⚠️ <strong>Experimental (NOT sent):</strong> Breathing, HRV, stress — the camera can't give these reliably in 60s.<br>
+        ❌ <strong>Blood pressure is not measurable</strong> from simple rPPG.
       </div>`;
   sumEl.innerHTML = honesty_note + sumEl.innerHTML;
 
-  // Rich cards — only for non-null metrics
   const rgEl=document.getElementById("rg");
   rgEl.innerHTML=metrics.map((c,i)=>{
     const tagHtml=c.tag==="measured"
       ?'<span style="font-size:9px;background:rgba(16,185,129,.15);color:#6EE7B7;padding:2px 6px;border-radius:8px;margin-left:6px">MEASURED</span>'
-      :'<span style="font-size:9px;background:rgba(245,158,11,.15);color:#FCD34D;padding:2px 6px;border-radius:8px;margin-left:6px">ESTIMATE</span>';
+      :'<span style="font-size:9px;background:rgba(245,158,11,.15);color:#FCD34D;padding:2px 6px;border-radius:8px;margin-left:6px">EXPERIMENTAL</span>';
     const rc=rangeConfig(c.m);
     let rangeHtml="";
-    if(rc&&c.m!=="bp"){
+    if(rc){
       const[mn,lo,hi,mx,grad]=rc;
-      const numVal=typeof c.raw==="number"?c.raw:c.raw[0];
+      const numVal=c.raw;
       const pct=Math.max(2,Math.min(98,Math.round((numVal-mn)/(mx-mn)*100)));
       rangeHtml=`
         <div class="range-wrap">
           <div class="range-track" style="background:${grad}">
-            <div class="range-marker" id="rm${i}" style="left:${pct}%;background:${c.color}"></div>
+            <div class="range-marker" style="left:${pct}%;background:${c.color}"></div>
           </div>
           <div class="range-labels">
             <span class="range-lbl">${mn}</span>
             <span class="range-lbl" style="color:${c.color};font-weight:600">${numVal} ${c.u}</span>
             <span class="range-lbl">${mx}</span>
-          </div>
-        </div>`;
-    } else if(c.m==="bp"){
-      const pct=Math.max(2,Math.min(98,Math.round(((R.bp_sys-80)/120)*100)));
-      rangeHtml=`
-        <div class="range-wrap">
-          <div class="range-track" style="background:linear-gradient(90deg,#3B82F6 0%,#10B981 25%,#F59E0B 60%,#EF4444 100%)">
-            <div class="range-marker" style="left:${pct}%;background:${c.color}"></div>
-          </div>
-          <div class="range-labels">
-            <span class="range-lbl">80</span>
-            <span class="range-lbl" style="color:${c.color};font-weight:600">${R.bp_sys}/${R.bp_dia}</span>
-            <span class="range-lbl">200</span>
           </div>
         </div>`;
     }
@@ -858,24 +792,20 @@ function showResults(){
     </div>`;
   }).join("");
 
-  // Animate cards in with stagger
   metrics.forEach((_,i)=>setTimeout(()=>{
     const card=document.getElementById("vc"+i);
     if(card)card.classList.add("show");
   },400+i*120));
 }
 
-// ── SEND TO KIRA ──────────────────────────────────────────────────────────────
+// ── SEND TO ASKLEPIOS ───────────────────────────────────────────────────────
 document.getElementById("sendBtn").addEventListener("click", sendToKira);
-document.getElementById("sendBtn").onclick = sendToKira;
 
 function sendToKira(){
-  // Build clean vitals object — only include non-null, measured values
+  // Send ONLY the reliable measurement (HR) + context. Breathing/HRV/stress are
+  // experimental and deliberately NOT fed into the medical assessment.
   const vitals={};
-  if(R.hr!==null&&R.hr!==undefined)      vitals.hr=R.hr;
-  if(R.br!==null&&R.br!==undefined)      vitals.br=R.br;
-  if(R.hrv!==null&&R.hrv!==undefined)    vitals.hrv=R.hrv;
-  if(R.stress!==null&&R.stress!==undefined) vitals.stress=R.stress;
+  if(R.hr!==null&&R.hr!==undefined) vitals.hr=R.hr;
   vitals.quality=R.quality||0;
   vitals.wellness=R.wellness||80;
 
@@ -886,34 +816,28 @@ function sendToKira(){
   let kiraUrl=params.get("kira_url")||"";
   if(kiraUrl) kiraUrl=decodeURIComponent(kiraUrl);
 
-  const KIRA_DEFAULT="https://kiraainurse.streamlit.app";
+  const KIRA_DEFAULT="https://asklepiosainurse.up.railway.app";
   const target=(kiraUrl||KIRA_DEFAULT).replace(/\/+$/,"");
   const redirect=target+"?facescan="+encoded;
 
-  // Show sending status
   const btn=document.getElementById("sendBtn");
   btn.textContent=lang==="el"?"Αποστολή...":"Sending...";
   btn.disabled=true;
 
-  // Show manual fallback link immediately (for mobile where redirect may fail)
   const fallbackDiv=document.createElement("div");
   fallbackDiv.style.cssText="width:100%;background:rgba(45,63,231,.1);border:1px solid rgba(45,63,231,.3);border-radius:10px;padding:12px 14px;font-size:12px;color:#93C5FD;text-align:center;margin-top:8px";
   fallbackDiv.innerHTML=`
     <div style="margin-bottom:8px">${lang==="el"?"Αν δεν ανακατευθυνθείτε αυτόματα:":"If not redirected automatically:"}</div>
     <a href="${redirect}" style="background:#2D3FE7;color:white;padding:8px 18px;border-radius:8px;text-decoration:none;font-weight:700;font-size:13px;display:inline-block">
-      ${lang==="el"?"→ Άνοιγμα Kira":"→ Open Kira"}
+      ${lang==="el"?"→ Άνοιγμα Asklepios":"→ Open Asklepios"}
     </a>`;
   document.getElementById("sendBtn").parentNode.insertBefore(fallbackDiv, document.getElementById("sendBtn").nextSibling);
 
-  // Attempt redirect
-  try{
-    window.location.href=redirect;
-  }catch(e){
-    console.error("Redirect failed:",e);
-  }
+  try{ window.location.href=redirect; }
+  catch(e){ console.error("Redirect failed:",e); }
 }
 
-function scanAgain(){gB=[];rB=[];bB=[];R={};_scanning=false;startScan();}
+function scanAgain(){gB=[];rB=[];bB=[];sampleT=[];R={};_scanning=false;startScan();}
 
 // ── UI ────────────────────────────────────────────────────────────────────────
 function setRing(p){document.getElementById("rp").style.strokeDashoffset=848*(1-p);}
