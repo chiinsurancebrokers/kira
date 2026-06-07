@@ -10,8 +10,17 @@ import json
 import io
 import urllib.request
 import urllib.parse
-from datetime import datetime
+from datetime import datetime, timedelta
 import io as _io, base64 as _b64
+import hmac, hashlib, time
+
+# "Stay signed in" via a browser cookie (persists login across reloads / new tabs,
+# e.g. when returning from the external face scan). Degrades gracefully if missing.
+try:
+    import extra_streamlit_components as stx
+    _STX_OK = True
+except Exception:
+    _STX_OK = False
 
 # HEIC support for iPhone photos
 try:
@@ -290,6 +299,51 @@ def auth_enabled():
 def is_logged_in():
     return bool(st.session_state.get("auth_user"))
 
+# ── PERSISTENT LOGIN (HMAC-signed cookie — cannot be forged) ──────────────────
+CM = None  # CookieManager instance, created once per run in the router
+COOKIE_NAME = "ak_session"
+
+def _cookie_secret():
+    return (_secret("AUTH_COOKIE_SECRET","") or _secret("SUPABASE_ANON_KEY","")
+            or "asklepios-dev-cookie-secret")
+
+def _make_token(email, days=14):
+    exp = int(time.time()) + days*86400
+    body = f"{email}|{exp}"
+    sig = hmac.new(_cookie_secret().encode(), body.encode(), hashlib.sha256).hexdigest()[:32]
+    return _b64.urlsafe_b64encode(f"{body}|{sig}".encode()).decode()
+
+def _read_token(tok):
+    try:
+        raw = _b64.urlsafe_b64decode(str(tok).encode()).decode()
+        email, exp, sig = raw.rsplit("|", 2)
+        if int(exp) < time.time():
+            return None
+        good = hmac.new(_cookie_secret().encode(), f"{email}|{exp}".encode(), hashlib.sha256).hexdigest()[:32]
+        if hmac.compare_digest(sig, good):
+            return email
+    except Exception:
+        return None
+    return None
+
+def _save_login_cookie(email):
+    cm = globals().get("CM")
+    if not cm:
+        return
+    try:
+        cm.set(COOKIE_NAME, _make_token(email), expires_at=datetime.now()+timedelta(days=14))
+    except Exception:
+        pass
+
+def _clear_login_cookie():
+    cm = globals().get("CM")
+    if not cm:
+        return
+    try:
+        cm.delete(COOKIE_NAME)
+    except Exception:
+        pass
+
 def send_otp(email):
     sb = _supabase_client()
     if not sb: return False, "Auth not configured."
@@ -320,6 +374,7 @@ def logout():
     if sb:
         try: sb.auth.sign_out()
         except Exception: pass
+    _clear_login_cookie()
     st.session_state.pop("auth_user", None)
     st.session_state.pop("otp_sent_to", None)
     try:
@@ -365,6 +420,7 @@ def render_login_gate():
             if st.button(("Επιβεβαίωση" if lang=="el" else "Verify"), type="primary", use_container_width=True, key="otp_verify"):
                 ok, err = verify_otp(sent_to, code)
                 if ok:
+                    _save_login_cookie(sent_to)
                     st.session_state.pop("otp_sent_to", None)
                     if "pe" in st.query_params: del st.query_params["pe"]
                     st.rerun()
@@ -1434,9 +1490,25 @@ try:
 except Exception:
     pass
 
-# ── ROUTER ────────────────────────────────────────────────────────────────────
-# Login at the start: when Supabase auth is configured, require sign-in before
-# anything else. When not configured, the app stays fully open (demo mode).
+# ── PERSISTENT LOGIN + GATE ───────────────────────────────────────────────────
+# Login-first (every visitor is identified in Supabase → Authentication → Users).
+# A signed cookie keeps the user logged in across reloads / new tabs (e.g. returning
+# from the external face scan), so they are NOT asked to sign in again.
+if _STX_OK and auth_enabled():
+    try:
+        CM = stx.CookieManager()
+    except Exception:
+        CM = None
+
+if auth_enabled() and CM is not None and not is_logged_in():
+    try:
+        _tok = CM.get(COOKIE_NAME)
+    except Exception:
+        _tok = None
+    _em = _read_token(_tok) if _tok else None
+    if _em:
+        st.session_state["auth_user"] = _em
+
 if auth_enabled() and not is_logged_in():
     render_login_screen()
     st.stop()
