@@ -881,14 +881,17 @@ def render_vitals():
     lang=st.session_state.lang
     st.markdown(f"## 📊 {t('vitals_title')} — {p.get('name','')}")
 
-    # ── Tab layout: Face Scan | Device Import | Manual ───────────────────────
-    tab_scan, tab_device, tab_manual = st.tabs([
-        "📷 " + ("Σάρωση Προσώπου" if lang=="el" else "Face Scan"),
-        "⌚ " + ("Εισαγωγή από Συσκευή" if lang=="el" else "Import from Device"),
+    # ── Tab layout: Manual (default) | Device Import | Face Scan (experimental) ──
+    tab_manual, tab_device, tab_scan = st.tabs([
         "✏️ " + ("Χειροκίνητη Εισαγωγή" if lang=="el" else "Manual Entry"),
+        "⌚ " + ("Εισαγωγή από Συσκευή" if lang=="el" else "Import from Device"),
+        "📷 " + ("Σάρωση (πειραματικό)" if lang=="el" else "Face Scan (experimental)"),
     ])
 
     with tab_scan:
+        st.caption(("⚠️ Πειραματικό. Η σάρωση με κάμερα δίνει μόνο ενδεικτικό καρδιακό ρυθμό — για αξιόπιστες τιμές χρησιμοποίησε «Χειροκίνητη Εισαγωγή» ή «Συσκευή»."
+                    if lang=="el" else
+                    "⚠️ Experimental. The camera scan gives only an indicative heart rate — for reliable values use 'Manual Entry' or 'Device'."))
         facescan_url=_secret("FACESCAN_URL","https://asklepiosnurse.netlify.app")
         kira_url=_secret("ASKLEPIOS_URL","https://asklepiosainurse.up.railway.app")
         scan_link=f"{facescan_url}?kira_url={urllib.parse.quote(kira_url)}"
@@ -1105,7 +1108,8 @@ Use a certified upper-arm cuff device, note systolic/diastolic values
     with col_b:
         if st.button(t("back")): st.session_state.screen="intake"; st.rerun()
     with col_s:
-        if st.button(t("skip_vitals"), use_container_width=True):
+        if st.button(("Δεν χρειάζομαι ζωτικά — Συνέχεια στα συμπτώματα →" if lang=="el"
+                      else "I don't need vitals — Continue to symptoms →"), use_container_width=True):
             st.session_state.vitals={}; st.session_state.screen="triage"; st.rerun()
 
 def render_vitals_summary():
@@ -1264,31 +1268,39 @@ def render_triage():
     st.markdown(f"## 🩺 {t('triage_title')} — {p.get('name','')}")
     render_vitals_summary()
     st.markdown(f'<div class="disclaimer">{t("disclaimer_main")}</div>',unsafe_allow_html=True)
-    CHIPS_EL=["Πονοκέφαλος","Πυρετός","Βήχας","Δύσπνοια","Ναυτία","Πόνος στήθους","Κοιλιακός πόνος","Ζάλη","Κόπωση","Πόνος πλάτης","Διάρροια","Αιματοχεσία","Άλλο"]
-    CHIPS_EN=["Headache","Fever","Cough","Shortness of breath","Nausea","Chest pain","Abdominal pain","Dizziness","Fatigue","Back pain","Diarrhoea","Blood in stool","Other"]
-    chips=CHIPS_EL if st.session_state.lang=="el" else CHIPS_EN
-    st.caption("Γρήγορη επιλογή:" if st.session_state.lang=="el" else "Quick select:")
-    chip_row1=chips[:7]; chip_row2=chips[7:]
-    cr1=st.columns(len(chip_row1))
-    for ci,chip in enumerate(chip_row1):
-        with cr1[ci]:
-            sel=chip in st.session_state.symptom_chips
-            if st.button(("✓ " if sel else "")+chip,key=f"chip_{ci}",use_container_width=True):
-                if chip in st.session_state.symptom_chips: st.session_state.symptom_chips.remove(chip)
-                else: st.session_state.symptom_chips.append(chip)
-                st.rerun()
-    cr2=st.columns(len(chip_row2))
-    for ci,chip in enumerate(chip_row2):
-        with cr2[ci]:
-            sel=chip in st.session_state.symptom_chips
-            if st.button(("✓ " if sel else "")+chip,key=f"chip2_{ci}",use_container_width=True):
-                if chip in st.session_state.symptom_chips: st.session_state.symptom_chips.remove(chip)
-                else: st.session_state.symptom_chips.append(chip)
-                st.rerun()
-    if st.session_state.symptom_chips:
-        if st.button("➤ "+("Αποστολή επιλεγμένων" if st.session_state.lang=="el" else "Send selected"),type="primary"):
-            msg=("Κύρια συμπτώματα: " if st.session_state.lang=="el" else "Main symptoms: ")+", ".join(st.session_state.symptom_chips)
-            st.session_state.triage_chat.append({"role":"user","content":msg}); st.session_state.symptom_chips=[]; st.rerun()
+    # Symptom quick-select: only BEFORE the conversation starts, so once chatting
+    # the previous Q&A stays visible instead of being buried under the buttons.
+    if not st.session_state.triage_chat:
+        st.info(("👇 Βήμα 3 — Περίγραψε εδώ τι σε απασχολεί (π.χ. «πόνος στο μάτι 2 μέρες»). "
+                 "Ο Asklepios θα σου κάνει ερωτήσεις και στο τέλος θα δημιουργήσει αναφορά."
+                 if st.session_state.lang=="el" else
+                 "👇 Step 3 — Describe what's bothering you (e.g. 'eye pain for 2 days'). "
+                 "Asklepios will ask follow-up questions and then generate a report."))
+        CHIPS_EL=["Πονοκέφαλος","Πυρετός","Βήχας","Δύσπνοια","Ναυτία","Πόνος στήθους","Κοιλιακός πόνος","Ζάλη","Κόπωση","Πόνος πλάτης","Διάρροια","Αιματοχεσία","Άλλο"]
+        CHIPS_EN=["Headache","Fever","Cough","Shortness of breath","Nausea","Chest pain","Abdominal pain","Dizziness","Fatigue","Back pain","Diarrhoea","Blood in stool","Other"]
+        chips=CHIPS_EL if st.session_state.lang=="el" else CHIPS_EN
+        st.caption("Γρήγορη επιλογή:" if st.session_state.lang=="el" else "Quick select:")
+        chip_row1=chips[:7]; chip_row2=chips[7:]
+        cr1=st.columns(len(chip_row1))
+        for ci,chip in enumerate(chip_row1):
+            with cr1[ci]:
+                sel=chip in st.session_state.symptom_chips
+                if st.button(("✓ " if sel else "")+chip,key=f"chip_{ci}",use_container_width=True):
+                    if chip in st.session_state.symptom_chips: st.session_state.symptom_chips.remove(chip)
+                    else: st.session_state.symptom_chips.append(chip)
+                    st.rerun()
+        cr2=st.columns(len(chip_row2))
+        for ci,chip in enumerate(chip_row2):
+            with cr2[ci]:
+                sel=chip in st.session_state.symptom_chips
+                if st.button(("✓ " if sel else "")+chip,key=f"chip2_{ci}",use_container_width=True):
+                    if chip in st.session_state.symptom_chips: st.session_state.symptom_chips.remove(chip)
+                    else: st.session_state.symptom_chips.append(chip)
+                    st.rerun()
+        if st.session_state.symptom_chips:
+            if st.button("➤ "+("Αποστολή επιλεγμένων" if st.session_state.lang=="el" else "Send selected"),type="primary"):
+                msg=("Κύρια συμπτώματα: " if st.session_state.lang=="el" else "Main symptoms: ")+", ".join(st.session_state.symptom_chips)
+                st.session_state.triage_chat.append({"role":"user","content":msg}); st.session_state.symptom_chips=[]; st.rerun()
     st.divider()
     for msg in st.session_state.triage_chat:
         with st.chat_message(msg["role"], avatar="🩺" if msg["role"]=="assistant" else None):
