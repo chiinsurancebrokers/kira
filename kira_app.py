@@ -287,14 +287,18 @@ def send_otp(email):
 def verify_otp(email, token):
     sb = _supabase_client()
     if not sb: return False, "Auth not configured."
-    try:
-        res = sb.auth.verify_otp({"email": email, "token": str(token).strip(), "type": "email"})
-        if getattr(res, "user", None):
-            st.session_state["auth_user"] = email
-            return True, ""
-        return False, "invalid"
-    except Exception as e:
-        return False, str(e)
+    token = str(token).strip()
+    last_err = "invalid"
+    # New users (or with "Confirm email" on) get a 'signup' token; returning users get 'email'.
+    for otp_type in ("email", "signup"):
+        try:
+            res = sb.auth.verify_otp({"email": email, "token": token, "type": otp_type})
+            if getattr(res, "user", None):
+                st.session_state["auth_user"] = email
+                return True, ""
+        except Exception as e:
+            last_err = str(e)
+    return False, last_err
 
 def logout():
     sb = _supabase_client()
@@ -303,6 +307,10 @@ def logout():
         except Exception: pass
     st.session_state.pop("auth_user", None)
     st.session_state.pop("otp_sent_to", None)
+    try:
+        if "pe" in st.query_params: del st.query_params["pe"]
+    except Exception:
+        pass
 
 def render_login_gate():
     """Inline email->OTP login. Returns True once the user is logged in."""
@@ -316,12 +324,20 @@ def render_login_gate():
     </div>''', unsafe_allow_html=True)
     sent_to = st.session_state.get("otp_sent_to")
     if not sent_to:
+        # Survive a mobile reload / new session: recover the pending email from the URL
+        pe = st.query_params.get("pe")
+        if pe:
+            st.session_state["otp_sent_to"] = pe
+            sent_to = pe
+    if not sent_to:
         email = st.text_input("Email", key="otp_email", placeholder="you@example.com")
         if st.button(("Στείλε κωδικό" if lang=="el" else "Send code"), type="primary", use_container_width=True, key="otp_send"):
             if email and "@" in email:
                 ok, err = send_otp(email)
                 if ok:
-                    st.session_state["otp_sent_to"] = email; st.rerun()
+                    st.session_state["otp_sent_to"] = email
+                    st.query_params["pe"] = email
+                    st.rerun()
                 else:
                     st.error(("Σφάλμα αποστολής: " if lang=="el" else "Send error: ") + err)
             else:
@@ -334,12 +350,16 @@ def render_login_gate():
             if st.button(("Επιβεβαίωση" if lang=="el" else "Verify"), type="primary", use_container_width=True, key="otp_verify"):
                 ok, err = verify_otp(sent_to, code)
                 if ok:
-                    st.session_state.pop("otp_sent_to", None); st.rerun()
+                    st.session_state.pop("otp_sent_to", None)
+                    if "pe" in st.query_params: del st.query_params["pe"]
+                    st.rerun()
                 else:
-                    st.error("Λάθος ή ληγμένος κωδικός." if lang=="el" else "Wrong or expired code.")
+                    st.error(("Δεν έγινε σύνδεση: " if lang=="el" else "Sign-in failed: ") + (err or ("λάθος/ληγμένος κωδικός" if lang=="el" else "wrong/expired code")))
         with c2:
             if st.button(("Άλλο email" if lang=="el" else "Change email"), use_container_width=True, key="otp_reset"):
-                st.session_state.pop("otp_sent_to", None); st.rerun()
+                st.session_state.pop("otp_sent_to", None)
+                if "pe" in st.query_params: del st.query_params["pe"]
+                st.rerun()
     return is_logged_in()
 
 def render_login_screen():
@@ -1110,13 +1130,37 @@ def render_photo_scan():
                     if rf_key:
                         f2 = florence2_human(img_b64, scan_k, rf_key)
                         if f2.get("ok"): f2_desc = f2.get("description","")
+
+                    # Clinical context from the ongoing assessment so the photo is read
+                    # WITHIN the reported complaint — not as an isolated, context-free image.
+                    conv = st.session_state.triage_chat
+                    convo_txt = "\n".join(
+                        f"{'Ασθενής' if m['role']=='user' else 'Asklepios'}: {m['content']}"
+                        for m in conv[-6:]
+                    ) if conv else ("Δεν έχει καταγραφεί συνομιλία ακόμη." if lang=="el" else "No conversation yet.")
+                    ctx_el = (f"ΚΛΙΝΙΚΟ ΠΛΑΙΣΙΟ (ο ασθενής έχει ΗΔΗ περιγράψει το πρόβλημα):\n"
+                              f"Ασθενής: {p.get('age','?')} ετών, {p.get('sex','')}. Ιστορικό: {p.get('history','') or '—'}.\n"
+                              f"Συζήτηση μέχρι τώρα:\n{convo_txt}\n\n"
+                              f"Η φωτογραφία αφορά ΑΥΤΟ το παράπονο. Ερμήνευσέ την ΜΕΣΑ σε αυτό το πλαίσιο. "
+                              f"ΜΗΝ αλλάζεις την ανατομική περιοχή ή το πρόβλημα που έχει ήδη περιγραφεί (π.χ. αν ο ασθενής λέει αγκώνας, μην το μετατρέπεις σε μασχάλη/θώρακα). "
+                              f"ΜΗΝ εφευρίσκεις νέα διάγνωση ή νέο επίπεδο επείγοντος που έρχεται σε αντίθεση με την τρέχουσα εκτίμηση. "
+                              f"Αν η εικόνα είναι ασαφής ή δεν προσθέτει κάτι, πες το ειλικρινά.")
+                    ctx_en = (f"CLINICAL CONTEXT (the patient has ALREADY described the problem):\n"
+                              f"Patient: {p.get('age','?')}yo {p.get('sex','')}. History: {p.get('history','') or '—'}.\n"
+                              f"Conversation so far:\n{convo_txt}\n\n"
+                              f"The photo relates to THIS complaint. Interpret it WITHIN this context. "
+                              f"Do NOT change the anatomical region or the problem already described (e.g. if the patient says elbow, do not turn it into armpit/chest). "
+                              f"Do NOT invent a new diagnosis or a new urgency level that contradicts the ongoing assessment. "
+                              f"If the image is unclear or adds nothing, say so honestly.")
+                    clin_ctx = (ctx_el if lang=="el" else ctx_en)
+
                     base_prompt = HUMAN_SCAN_PROMPTS.get(scan_k, HUMAN_SCAN_PROMPTS["skin"])
                     rf_context  = f"\n\nFLORENCE-2 DESCRIPTION: {f2_desc}" if f2_desc else ""
-                    suffix_el   = "\n\nΔώσε: **ΕΥΡΗΜΑΤΑ** | **ΚΛΙΝΙΚΗ ΑΞΙΟΛΟΓΗΣΗ** (Φυσιολογικό/Παρακολούθηση/Άμεσος ιατρός) | **ΠΙΘΑΝΕΣ ΑΙΤΙΕΣ** (με % πιθανότητα) | **ΕΠΕΙΓΟΝ;** | **ΣΥΣΤΑΣΗ**"
-                    suffix_en   = "\n\nProvide: **FINDINGS** | **ASSESSMENT** (Normal/Monitor/See doctor urgently) | **POSSIBLE CAUSES** (with % probability) | **URGENT?** | **RECOMMENDATION**"
-                    full_prompt = base_prompt + rf_context + (suffix_el if lang=="el" else suffix_en)
-                    sys_prompt  = ("Είσαι κλινικός αναλυτής φωτογραφιών για τον Asklepios AI. Είσαι ακριβής, δομημένος και προσεκτικός." if lang=="el"
-                                   else "You are a clinical photo analyst for Asklepios AI. Accurate, structured, cautious.")
+                    suffix_el   = "\n\nΔώσε ΣΥΜΠΛΗΡΩΜΑΤΙΚΑ ΟΠΤΙΚΑ ΕΥΡΗΜΑΤΑ (όχι ξεχωριστή διάγνωση): **ΟΡΑΤΑ ΕΥΡΗΜΑΤΑ** (μόνο ό,τι φαίνεται) | **ΣΥΜΒΑΤΟΤΗΤΑ με το παράπονο** (στηρίζει/δεν στηρίζει την τρέχουσα εκτίμηση) | **ΣΗΜΕΙΑ ΠΡΟΣΟΧΗΣ** (μόνο αν φαίνονται καθαρά στην εικόνα). Σύντομα και συνεπή με την τρέχουσα εκτίμηση."
+                    suffix_en   = "\n\nGive SUPPLEMENTARY VISUAL FINDINGS (not a separate diagnosis): **VISIBLE FINDINGS** (only what is visible) | **CONSISTENCY with the complaint** (supports/does not support the current assessment) | **WARNING SIGNS** (only if clearly visible in the image). Brief and consistent with the current assessment."
+                    full_prompt = clin_ctx + "\n\n" + base_prompt + rf_context + (suffix_el if lang=="el" else suffix_en)
+                    sys_prompt  = ("Είσαι ο βοηθός οπτικής εξέτασης του Asklepios AI. Συμπληρώνεις μια εκτίμηση που ήδη εξελίσσεται — ΔΕΝ ξεκινάς νέα. Μένεις πιστός στο παράπονο και στην ανατομική περιοχή που έχει δηλωθεί, είσαι ακριβής, προσεκτικός και δεν δραματοποιείς." if lang=="el"
+                                   else "You are Asklepios AI's visual-exam assistant. You SUPPLEMENT an assessment already in progress — you do NOT start a new one. Stay faithful to the stated complaint and anatomical region, be accurate, cautious, and do not dramatise.")
                     analysis = claude_vision_human(img_b64, img_type, full_prompt, sys_prompt)
 
                 if f2_desc:
