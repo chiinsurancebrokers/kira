@@ -217,7 +217,7 @@ h1 em{background:linear-gradient(135deg,var(--p),var(--t));-webkit-background-cl
   <p class="disc" id="T_d2">rPPG εκτίμηση · Δεν αποτελεί ιατρική διάγνωση · Συμβουλεύεστε γιατρό</p>
   <div id="sqBox" style="width:100%;border-radius:10px;padding:10px 14px;font-size:12px;display:none;line-height:1.5"></div>
   <button class="btn" id="sendBtn">Αποστολή στο Asklepios →</button>
-  <button class="btn2" onclick="scanAgain()">🔄 Νέα Σάρωση</button>
+  <button class="btn2" id="rescanBtn" onclick="scanAgain()">🔄 Νέα Σάρωση</button>
 </div>
 
 <script>
@@ -286,10 +286,12 @@ document.getElementById("lbtn").onclick=()=>{
 };
 
 // ── STATE ─────────────────────────────────────────────────────────────────────
-const DUR=60,FPS=30,WARMUP=5,LO=0.75,HI=3.5,BLO=0.1,BHI=0.55;
+const DUR=60,FPS=30,WARMUP=5,LO=0.75,HI=3.5,BLO=0.13,BHI=0.55;
 let stream=null,raf=null,t0=null,lastT=0;
 let gB=[],rB=[],bB=[],fn=0,R={};
 let sampleT=[];   // real timestamp (ms) of every pushed sample → lets us compute the TRUE fps
+// Motion-based breathing: mean luminance of chest ROI per frame
+let chestL=[];
 const vid=document.getElementById("vid");
 const cv=document.getElementById("cv");
 const cx=cv.getContext("2d",{willReadFrequently:true});
@@ -309,6 +311,8 @@ const show=id=>{
 
 // ── START ─────────────────────────────────────────────────────────────────────
 let _scanning=false; // guard against double-fire
+let _scanRound=0;       // 0=not started, 1=first scan done, 2=second done
+let _R1=null;           // results from first scan
 
 async function startScan(){
   if(_scanning) return; // prevent double-tap / double-click
@@ -353,7 +357,7 @@ if(document.getElementById("startBtn")) {
 // ── SCAN LOOP ─────────────────────────────────────────────────────────────────
 function beginScan(){
   gB=[];rB=[];bB=[];fn=0;
-  sampleT=[];
+  sampleT=[];chestL=[];
   _goodFrames=0;_totalFrames=0;
   t0=performance.now();lastT=0;
   setStatus("w"); setRing(0);
@@ -458,6 +462,15 @@ function grab(){
   window._skinRatios.push(skinRatio);
   gB.push(sg/n);rB.push(sr/n);bB.push(sb/n);
   sampleT.push(performance.now());     // real timestamp for true-fps calc
+
+  // ── CHEST ROI: lower half of frame for motion-based breathing ──────────
+  // Use a wide band below face (shoulder/chest area) — luminance variance
+  // across frames tracks thoracic movement reliably.
+  const cy1=H*.50|0, cy2=H*.85|0;
+  const cd=cx.getImageData(x1,cy1,x2-x1,cy2-cy1).data;
+  let sl=0,cn=0;
+  for(let i=0;i<cd.length;i+=4) { sl+=(cd[i]*0.299+cd[i+1]*0.587+cd[i+2]*0.114); cn++; }
+  chestL.push(cn>0?sl/cn:128);
 }
 
 // ── SIGNAL PROCESSING — CHROM rPPG + Hanning + SNR ──────────────────────────
@@ -585,10 +598,24 @@ function calcAll(){
   const hWin=hrByWindows(rB,gB,bB,fs);
   const hr=hWin>0&&quality>=15?Math.round(hWin):null;
 
-  // ── EXPERIMENTAL: Breathing (camera rPPG, 60s — indicative only) ─────────
-  const{mg:bm,fr:bf}=dft([...gB],fs);
-  const{freq:brf}=peak(bm,bf,BLO,BHI);
-  const br=brf>0&&quality>=15?Math.round(brf*60):null;
+  // ── BREATHING: motion-based (chest luminance variance, much more reliable) ──
+  // Band-pass filter chestL to 0.13–0.55 Hz (8–33 breaths/min), then DFT peak.
+  // Fallback: rPPG only if not enough chest frames.
+  let br=null;
+  if(chestL.length>=fs*20){
+    const{mg:cm,fr:cf}=dft([...chestL],fs);
+    const{freq:cbrf}=peak(cm,cf,BLO,BHI);
+    // Sanity check: value in physiological range 8–33 /min
+    const bpm_c=cbrf*60;
+    if(cbrf>0&&bpm_c>=8&&bpm_c<=33&&quality>=10) br=Math.round(bpm_c);
+  }
+  // Fallback to rPPG-derived (less reliable) if motion method failed
+  if(br===null&&quality>=20){
+    const{mg:bm,fr:bf}=dft([...gB],fs);
+    const{freq:brf}=peak(bm,bf,BLO,BHI);
+    const bpm_r=brf*60;
+    if(brf>0&&bpm_r>=8&&bpm_r<=33) br=Math.round(bpm_r);
+  }
 
   // ── EXPERIMENTAL: HRV (needs 2+ min for accuracy; 30-60s is rough) ───────
   const nc=pos.map(v=>v/_std(pos));
@@ -652,8 +679,93 @@ function done(){
       document.getElementById("startBtn").disabled=false;
       return;
     }
-    showResults();
+    if(_scanRound===0){
+      // First scan complete — store results, offer second scan
+      _scanRound=1;
+      _R1=R;
+      showAfterFirst();
+    } else {
+      // Second scan complete — merge with first, show final results
+      _scanRound=2;
+      R=mergeScans(_R1,R);
+      showResults();
+    }
   },700);
+}
+
+function mergeScans(r1,r2){
+  // Median of two values for HR and BR; average quality; keep best HRV
+  const med=(a,b)=>(a!==null&&b!==null)?Math.round((a+b)/2):(a!==null?a:b);
+  return{
+    hr:   med(r1.hr,   r2.hr),
+    br:   med(r1.br,   r2.br),
+    hrv:  r1.hrv&&r2.hrv ? Math.round((r1.hrv+r2.hrv)/2) : (r1.hrv||r2.hrv),
+    hrvReliable: r1.hrvReliable||r2.hrvReliable,
+    stress: r1.stress&&r2.stress ? Math.round((r1.stress+r2.stress)/2) : (r1.stress||r2.stress),
+    wellness: Math.round((r1.wellness+r2.wellness)/2),
+    quality:  Math.round((r1.quality+r2.quality)/2),
+  };
+}
+
+function showAfterFirst(){
+  show("sc3");
+  const el=lang==="el";
+  const sumEl=document.getElementById("summary-sections");
+  const ww=document.querySelector(".ww");
+  if(ww)ww.style.display="none";
+  const sqBox=document.getElementById("sqBox");
+  if(sqBox)sqBox.style.display="none";
+  const rg=document.getElementById("rg");
+  if(rg)rg.innerHTML="";
+  const rts=document.getElementById("rts");
+  if(rts)rts.textContent=el?"Σάρωση 1/2 ολοκληρώθηκε":"Scan 1/2 complete";
+
+  const hr1=_R1.hr!==null?(_R1.hr+" bpm"):"—";
+  const br1=_R1.br!==null?(_R1.br+" /min"):"—";
+  const q1=_R1.quality||0;
+
+  const d1=document.createElement("div");
+  d1.style.cssText="background:rgba(124,58,237,.12);border:1px solid rgba(124,58,237,.3);border-radius:12px;padding:16px;text-align:center;margin-bottom:8px";
+  d1.innerHTML=(
+    "<div style='font-size:13px;color:#C4B5FD;margin-bottom:10px;font-weight:600'>"+(el?"✅ 1ος Γύρος — Αποτελέσματα":"✅ Round 1 — Results")+"</div>"+
+    "<div style='display:flex;justify-content:center;gap:24px;margin-bottom:12px'>"+
+      "<div><div style='font-size:22px;font-weight:700;color:#fff'>"+hr1+"</div><div style='font-size:10px;color:#94A3B8'>"+(el?"Καρδιακός Ρυθμός":"Heart Rate")+"</div></div>"+
+      "<div><div style='font-size:22px;font-weight:700;color:#fff'>"+br1+"</div><div style='font-size:10px;color:#94A3B8'>"+(el?"Αναπνοές":"Breathing")+"</div></div>"+
+    "</div>"+
+    "<div style='font-size:11px;color:#94A3B8'>"+(el?"Ποιότητα: "+q1+"/100":"Quality: "+q1+"/100")+"</div>"
+  );
+
+  const d2=document.createElement("div");
+  d2.style.cssText="background:rgba(16,185,129,.08);border:1px solid rgba(16,185,129,.2);border-radius:12px;padding:14px;text-align:center";
+  d2.innerHTML=(
+    "<div style='font-size:13px;color:#6EE7B7;font-weight:600;margin-bottom:6px'>"+(el?"🎯 2ος Γύρος για μέγιστη ακρίβεια":"🎯 2nd scan for maximum accuracy")+"</div>"+
+    "<div style='font-size:11px;color:#94A3B8;line-height:1.6'>"+(el?"Ένας επιπλέον γύρος 60'' βελτιώνει σημαντικά την ακρίβεια αναπνοών και HR.":"One more 60'' round significantly improves accuracy of breathing rate and HR.")+"</div>"
+  );
+
+  sumEl.innerHTML="";
+  sumEl.appendChild(d1);
+  sumEl.appendChild(d2);
+
+  document.getElementById("sendBtn").style.display="block";
+  document.getElementById("sendBtn").textContent=el?"Αποστολή μόνο με 1η σάρωση →":"Send with 1st scan only →";
+
+  const rb=document.getElementById("rescanBtn");
+  if(rb){
+    rb.textContent=el?"▶ Έναρξη 2ου Γύρου (60'')":"▶ Start 2nd Scan (60'')";
+    rb.onclick=startSecondScan;
+    rb.style.background="linear-gradient(135deg,#7C3AED,#0EA5E9)";
+    rb.style.color="#fff";
+  }
+}
+
+function startSecondScan(){
+  const ww=document.querySelector(".ww");
+  if(ww)ww.style.display="";
+  gB=[];rB=[];bB=[];sampleT=[];chestL=[];R={};_scanning=false;
+  const rb=document.getElementById("rescanBtn");
+  if(rb){rb.textContent=lang==="el"?"🔄 Νέα Σάρωση":"🔄 New Scan";rb.onclick=scanAgain;rb.style.background="";rb.style.color="";}
+  document.getElementById("sendBtn").textContent=lang==="el"?"Αποστολή στο Asklepios →":"Send to Asklepios →";
+  startScan();
 }
 
 // ── RESULTS ───────────────────────────────────────────────────────────────────
@@ -728,6 +840,7 @@ function clsText(cs){
 
 function showResults(){
   show("sc3");
+  const _ww=document.querySelector(".ww");if(_ww)_ww.style.display="";
   const now=new Date();
   document.getElementById("rts").textContent=
     now.toLocaleDateString(lang==="el"?"el-GR":"en-GB")+" · "+
@@ -873,7 +986,7 @@ function sendToKira(){
   catch(e){ console.error("Redirect failed:",e); }
 }
 
-function scanAgain(){gB=[];rB=[];bB=[];sampleT=[];R={};_scanning=false;startScan();}
+function scanAgain(){gB=[];rB=[];bB=[];sampleT=[];chestL=[];R={};_R1=null;_scanRound=0;_scanning=false;startScan();}
 
 // ── UI ────────────────────────────────────────────────────────────────────────
 function setRing(p){document.getElementById("rp").style.strokeDashoffset=848*(1-p);}
