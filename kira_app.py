@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 ASKLEPIOS — AI Nurse
 Bilingual AI health assistant for the Greek market.
@@ -496,7 +495,7 @@ def render_login_screen():
     with c2:
         if st.button("🇬🇧 EN" if lang=="el" else "🇬🇷 ΕΛ", key="login_lang"):
             st.session_state.lang = "en" if lang=="el" else "el"; st.rerun()
-    st.markdown(f'''<div class="kira-hero"><div style="font-size:64px;margin-bottom:8px">&#x1FA7A;</div><h1>{t("title")}</h1><p>{t("subtitle")}</p><div class="kira-tagline">{t("tagline")}</div></div>''', unsafe_allow_html=True)
+    st.markdown(f'''<div class="kira-hero"><div style="font-size:64px;margin-bottom:8px">🩺</div><h1>{t("title")}</h1><p>{t("subtitle")}</p><div class="kira-tagline">{t("tagline")}</div></div>''', unsafe_allow_html=True)
     col1, col2, col3 = st.columns([1,2,1])
     with col2:
         render_login_gate()
@@ -821,15 +820,15 @@ def demographic_bp_risk(age, bmi, hr, weight=None, height=None):
 
 KIRA_SYSTEM_EL = """Είσαι ο Asklepios — AI νοσηλευτής για Έλληνες χρήστες. Είσαι κλινικά ακριβής, άμεσος και υποστηρικτικός.
 Ρόλος: Τριάζ συμπτωμάτων (μία ερώτηση κάθε φορά), ερμηνεία ζωτικών, φάρμακα, ελληνικό σύστημα υγείας (ΕΟΠΥΥ, ΕΟΔΥ, ΕΟΦ).
-Φωτογραφία: Αν το σύμπτωμα είναι οπτικό (δέρμα/εξάνθημα, μάτι, τραύμα/πληγή/χτύπημα/εξόγκωμα/μώλωπας, στόμα/λαιμός, νύχια, ορατή αλλοίωση), αφού κάνεις την αρχική σου εκτίμηση πρότεινε στον χρήστη να ανεβάσει φωτογραφία από την επιλογή «📷 Ανάλυση φωτογραφίας» πιο κάτω, για πιο ακριβή εκτίμηση. Για μη-οπτικά συμπτώματα (π.χ. πονοκέφαλος, ζάλη) ΜΗΝ ζητάς φωτογραφία. Η φωτογραφία είναι ΠΡΟΑΙΡΕΤΙΚΗ: αν ο χρήστης δεν ανεβάσει ή δεν θέλει, ΣΥΝΕΧΙΣΕ κανονικά την εκτίμηση χωρίς να σταματάς, να περιμένεις ή να επιμένεις.
+Φωτογραφία: Αν το σύμπτωμα είναι οπτικό (δέρμα/εξάνθημα, μάτι, τραύμα/πληγή, στόμα/λαιμός, νύχια, ορατή αλλοίωση), αφού κάνεις την αρχική σου εκτίμηση πρότεινε στον χρήστη να ανεβάσει φωτογραφία από την επιλογή «📷 Ανάλυση φωτογραφίας» πιο κάτω, για πιο ακριβή εκτίμηση. Για μη-οπτικά συμπτώματα (π.χ. πονοκέφαλος, ζάλη) ΜΗΝ ζητάς φωτογραφία. Η φωτογραφία είναι ΠΡΟΑΙΡΕΤΙΚΗ: αν ο χρήστης δεν ανεβάσει ή δεν θέλει, ΣΥΝΕΧΙΣΕ κανονικά την εκτίμηση χωρίς να σταματάς, να περιμένεις ή να επιμένεις.
 Κανόνες: Πάντα συστήνεις επαγγελματία. Κόκκινες σημαίες → 166/112. Όταν έχεις αρκετά: "Έχω αρκετά στοιχεία — μπορούμε να δημιουργήσουμε πλήρη αναφορά." Μία ερώτηση κάθε φορά.
-Ζωτικά: Αν τα συμπτώματα είναι καρδιακά/αυτόνομα (αίσθημα παλμών, ταχυπαλμία, πόνος/σφίξιμο στο στήθος, δύσπνοια, ζάλη, λιποθυμία, κρύος ιδρώτας/εφίδρωση) ή αναπνευστικά (βήχας, άσθμα, δύσπνοια), πρότεινε ήπια στον χρήστη να μετρήσει ζωτικά μέσω σάρωσης κάμερας ή χειροκίνητα — ΠΡΟΑΙΡΕΤΙΚΟ, συνέχισε κανονικά αν δεν το κάνει."""
+Ζωτικά: Αν τα συμπτώματα είναι καρδιακά/αυτόνομα (αίσθημα παλμών, ταχυπαλμία, πόνος/σφίξιμο στο στήθος, δύσπνοια, ζάλη, λιποθυμία, κρύος ιδρώτας/εφίδρωση), πρότεινε ήπια στον χρήστη να μετρήσει ζωτικά (καρδιακός ρυθμός/πίεση) — ΠΡΟΑΙΡΕΤΙΚΟ, συνέχισε κανονικά αν δεν το κάνει."""
 
 KIRA_SYSTEM_EN = """You are Asklepios — an AI nurse for users in Greece. Clinically accurate, direct, supportive.
 Role: Symptom triage (one question at a time), vitals interpretation, medications, Greek health system (EOPYY, EODY, EOF).
-Photo: If the symptom is visual (skin/rash, eye, wound/hit/bruise/swelling/lump/hematoma, mouth/throat, nails, any visible lesion), after giving your initial assessment, invite the user to upload a photo via the "📷 Photo analysis" option below for a more accurate assessment. For non-visual symptoms (e.g. headache, dizziness) do NOT ask for a photo. The photo is OPTIONAL: if the user doesn't upload one or declines, CONTINUE the assessment normally — do not stop, wait, or insist.
+Photo: If the symptom is visual (skin/rash, eye, wound, mouth/throat, nails, any visible lesion), after giving your initial assessment, invite the user to upload a photo via the "📷 Photo analysis" option below for a more accurate assessment. For non-visual symptoms (e.g. headache, dizziness) do NOT ask for a photo. The photo is OPTIONAL: if the user doesn't upload one or declines, CONTINUE the assessment normally — do not stop, wait, or insist.
 Rules: Always recommend a professional. Red flags → 166/112. When ready: "I have enough information — we can generate a full clinical report." One question at a time.
-Vitals: If the symptoms are cardiac/autonomic (palpitations, racing heart, chest pain/tightness, shortness of breath, dizziness, fainting, cold sweat/sweating) or respiratory (cough, asthma, dyspnoea), gently suggest the user measure vitals via camera scan or manual entry — OPTIONAL, continue normally if they don't."""
+Vitals: If the symptoms are cardiac/autonomic (palpitations, racing heart, chest pain/tightness, shortness of breath, dizziness, fainting, cold sweat/sweating), gently suggest the user measure vitals (heart rate/blood pressure) — OPTIONAL, continue normally if they don't."""
 
 def kira_system(): return KIRA_SYSTEM_EL if st.session_state.lang=="el" else KIRA_SYSTEM_EN
 
@@ -855,7 +854,7 @@ _VITAL_CATEGORIES = [
      "el":"θερμοκρασία","en":"temperature",
      "roots":["πυρετ","θερμοκρασ","δεκατ","εμπυρετ","ριγος","ριγη","κρυαδ",
               "fever","febrile","chills","temperature","high temp"]},
-    {"key":"resp","scan":True,
+    {"key":"resp","scan":False,
      "el":"οξυγόνο (SpO₂) & αναπνοές","en":"oxygen (SpO₂) & breathing",
      "roots":["δυσπν","βηχ","ασθμ","πνευμον","αναπν","λαχαν","συριγμ","βρογχ","κορον","covid",
               "cough","wheez","asthma","pneumonia","breathless","short of breath",
@@ -876,12 +875,10 @@ _VISUAL_ROOTS = [
     "κνησμ","φαγουρ","φουσκαλ","φλυκταιν","εκζεμ","ψωριασ","ελκος","εξελκωσ","αφθ",
     "οφθαλμ","ματι","λαιμ","αμυγδαλ","φαρυγγ","γλωσσ","νυχι","ονυχ","ουλη","κονδυλωμ",
     "αλλοιωσ","κηλιδ","δοθιην","αποστημ","σπυρακ","πρηξιμ","οζο",
-    "χτυπ","χτυπημ","κτυπ","αιματωμ","χτυπησ","χτυπαω","εκχυμ",
     # English
     "skin","rash","lesion","wound","laceration","abrasion","lump","bump","swelling",
     "swollen","bruise","mole","melanoma","eye","throat","tonsil","tongue","nail",
     "burn","bite","itch","blister","eczema","psoriasis","ulcer","pimple","cyst","wart",
-    "hematom","haematom","contusion","bruising","impact injury","ecchymosis",
 ]
 def _visual_relevant():
     txt = _strip_accents(" ".join(m["content"] for m in st.session_state.triage_chat))
@@ -991,253 +988,19 @@ table.vitals tbody tr:nth-child(even){{background:#F8FAFF}}
 <div class="hint">💡 Ctrl+P → Save as PDF</div></body></html>"""
     return html_out.encode("utf-8")
 
-def render_ad_banner(lang):
-    import streamlit.components.v1 as components
-    el = (lang == "el")
-    tx = {
-        "el": {
-            "h1":   "O \u03bd\u03bf\u03c3\u03b7\u03bb\u03b5\u03c5\u03c4\u03ae\u03c2<br>\u03c3\u03c4\u03b7\u03bd <em>\u03c4\u03c3\u03ad\u03c0\u03b7</em> \u03c3\u03bf\u03c5.",
-            "sub":  "\u0393\u03c1\u03ae\u03b3\u03bf\u03c1\u03b7 \u03b5\u03ba\u03c4\u03af\u03bc\u03b7\u03c3\u03b7 \u03c5\u03b3\u03b5\u03af\u03b1\u03c2, \u03c3\u03c4\u03b1 \u03b5\u03bb\u03bb\u03b7\u03bd\u03b9\u03ba\u03ac \u2014 \u03cc\u03c0\u03bf\u03c4\u03b5 \u03c4\u03b7 \u03c7\u03c1\u03b5\u03b9\u03b1\u03c3\u03c4\u03b5\u03af\u03c2.",
-            "bub":  "\u00ab\u03a0\u03b5\u03c1\u03af\u03b3\u03c1\u03b1\u03c8\u03ad \u03bc\u03bf\u03c5 \u03c4\u03b9 \u03bd\u03b9\u03ce\u03b8\u03b5\u03b9\u03c2 \u03ba\u03b1\u03b9 \u03b8\u03b1 \u03c3\u03b5 \u03ba\u03b1\u03b8\u03bf\u03b4\u03b7\u03b3\u03ae\u03c3\u03c9 \u2014 <strong>\u03b2\u03ae\u03bc\u03b1-\u03b2\u03ae\u03bc\u03b1.</strong>\u00bb",
-            "f1":   "\u03a0\u03c1\u03ce\u03c4\u03b7 \u03b5\u03ba\u03c4\u03af\u03bc\u03b7\u03c3\u03b7 \u03c3\u03b5 ~2 \u03bb\u03b5\u03c0\u03c4\u03ac",
-            "f2":   "\u03a3\u03c4\u03b1 \u03b5\u03bb\u03bb\u03b7\u03bd\u03b9\u03ba\u03ac, \u03b4\u03b9\u03b1\u03b8\u03ad\u03c3\u03b9\u03bc\u03bf\u03c2 24/7",
-            "f3":   "\u039c\u03b5 \u03b5\u03c0\u03b9\u03c3\u03c4\u03b7\u03bc\u03bf\u03bd\u03b9\u03ba\u03ae \u03c4\u03b5\u03ba\u03bc\u03b7\u03c1\u03af\u03c9\u03c3\u03b7",
-            "cta":  "\u0394\u03bf\u03ba\u03af\u03bc\u03b1\u03c3\u03ad \u03c4\u03bf \u03b4\u03c9\u03c1\u03b5\u03ac\u03bd \u2192",
-            "disc": "\u0395\u03bd\u03b7\u03bc\u03b5\u03c1\u03c9\u03c4\u03b9\u03ba\u03cc \u03b5\u03c1\u03b3\u03b1\u03bb\u03b5\u03af\u03bf. \u0394\u03b5\u03bd \u03b1\u03bd\u03c4\u03b9\u03ba\u03b1\u03b8\u03b9\u03c3\u03c4\u03ac \u03b9\u03b1\u03c4\u03c1\u03b9\u03ba\u03ae \u03b4\u03b9\u03ac\u03b3\u03bd\u03c9\u03c3\u03b7 \u03ae \u03b8\u03b5\u03c1\u03b1\u03c0\u03b5\u03af\u03b1.",
-        },
-        "en": {
-            "h1":   "The nurse<br>in your <em>pocket.</em>",
-            "sub":  "Quick health assessment, in your language \u2014 whenever you need it.",
-            "bub":  "Tell me how you feel and I will guide you \u2014 <strong>step by step.</strong>",
-            "f1":   "First assessment in ~2 minutes",
-            "f2":   "In Greek & English, available 24/7",
-            "f3":   "Evidence-based, powered by PubMed",
-            "cta":  "Try it for free \u2192",
-            "disc": "Informational tool only. Does not replace medical diagnosis or treatment.",
-        },
+def _save_session_for_external_nav():
+    """Save session to Supabase ONLY when user leaves for facescan or photo picker.
+    Deleted immediately on return. GDPR: minimal data, single-use, auto-deleted."""
+    if not (auth_enabled() and is_logged_in()):
+        return
+    payload = {
+        "profile":         st.session_state.profile,
+        "lang":            st.session_state.lang,
+        "triage_chat":     st.session_state.triage_chat,
+        "medications":     st.session_state.medications,
+        "vitals_analysis": st.session_state.vitals_analysis,
     }
-    d = tx.get(lang, tx["el"])
-    css = (
-        "*{box-sizing:border-box;margin:0;padding:0}"
-        "body{background:transparent;font-family:sans-serif}"
-        ".ad{width:100%;border-radius:24px;overflow:hidden;"
-        "background:linear-gradient(160deg,#3D2FE7 0%,#7B2FE0 55%,#9B3FFF 100%);"
-        "padding:28px 24px 24px}"
-        ".lo{width:40px;height:40px;border-radius:12px;background:rgba(255,255,255,.18);"
-        "display:flex;align-items:center;justify-content:center}"
-        ".lo i,.av i{color:#fff}"
-        ".lo i{font-size:20px}"
-        ".nm{font-size:15px;font-weight:700;color:#fff;line-height:1}"
-        ".sm{font-size:11px;color:rgba(255,255,255,.65);letter-spacing:.06em;"
-        "text-transform:uppercase;margin-top:2px}"
-        "h1{font-size:34px;font-weight:800;color:#fff;line-height:1.15;margin:18px 0 8px}"
-        "h1 em{color:#F9C846;font-style:italic}"
-        ".su{font-size:14px;color:rgba(255,255,255,.75);line-height:1.55;margin-bottom:18px}"
-        ".cb{background:rgba(255,255,255,.13);border:1px solid rgba(255,255,255,.2);"
-        "border-radius:14px;padding:12px 14px;margin-bottom:18px;display:flex;gap:10px}"
-        ".av{width:28px;height:28px;border-radius:50%;background:rgba(255,255,255,.25);"
-        "display:flex;align-items:center;justify-content:center;flex-shrink:0}"
-        ".av i{font-size:14px}"
-        ".bt{font-size:12px;color:#fff;line-height:1.55;font-style:italic}"
-        ".bt strong{font-style:normal;font-weight:700}"
-        ".ar{text-align:center;color:rgba(255,255,255,.45);font-size:18px;margin:-4px 0 10px}"
-        ".fe{display:flex;flex-direction:column;gap:9px;margin-bottom:20px}"
-        ".fr{display:flex;align-items:center;gap:11px}"
-        ".fi{width:32px;height:32px;border-radius:10px;background:rgba(255,255,255,.14);"
-        "display:flex;align-items:center;justify-content:center;flex-shrink:0}"
-        ".fi i{font-size:16px;color:#fff}"
-        ".ft{font-size:13px;color:rgba(255,255,255,.9);line-height:1.3}"
-        ".ct{width:100%;padding:15px;border-radius:16px;"
-        "background:linear-gradient(135deg,#3D2FE7,#7B2FE0);"
-        "border:2px solid rgba(255,255,255,.4);cursor:pointer;"
-        "font-size:15px;font-weight:700;color:#fff;"
-        "transition:background .25s,color .25s}"
-        ".ct:hover{background:#fff;color:#1a1a1a;border-color:#fff}"
-        ".ct:active{transform:scale(.98)}"
-        ".di{font-size:11px;color:rgba(255,255,255,.45);text-align:center;"
-        "margin-top:10px;line-height:1.5}"
-    )
-    js = (
-        "function scrollToStart(){"
-        "try{var p=window.parent.document,t=null;"
-        "p.querySelectorAll(\"button\").forEach(function(b){"
-        "if(b.innerText&&(b.innerText.indexOf(\"\\u0388\\u03bd\\u03b1\\u03c1\\u03be\\u03b7\")>=0"
-        "||b.innerText.indexOf(\"Start\")>=0))t=b;});"
-        "if(t){t.scrollIntoView({behavior:\"smooth\",block:\"center\"});"
-        "setTimeout(function(){t.focus();},600);}"
-        "else window.parent.scrollTo({top:99999,behavior:\"smooth\"});}"
-        "catch(e){try{window.parent.scrollTo({top:99999,behavior:\"smooth\"});}catch(e2){}}}"
-    )
-    html = (
-        "<html><head><meta charset=\"UTF-8\">"
-        "<link rel=\"stylesheet\" href=\"https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.19.0/tabler-icons.min.css\">"
-        "<link href=\"https://fonts.googleapis.com/css2?family=DM+Sans:ital,wght@0,700;0,800;1,700&display=swap\" rel=\"stylesheet\">"
-        "<style>" + css + "</style></head><body>"
-        "<div class=\"ad\">"
-        "<div style=\"display:flex;align-items:center;gap:10px\">"
-        "<div class=\"lo\"><i class=\"ti ti-stethoscope\"></i></div>"
-        "<div><div class=\"nm\">Asklepios</div><div class=\"sm\">AI Nurse</div></div>"
-        "</div>"
-        "<h1>" + d["h1"] + "</h1>"
-        "<p class=\"su\">" + d["sub"] + "</p>"
-        "<div class=\"cb\"><div class=\"av\"><i class=\"ti ti-robot\"></i></div>"
-        "<div class=\"bt\">" + d["bub"] + "</div></div>"
-        "<div class=\"ar\">&#8964;</div>"
-        "<div class=\"fe\">"
-        "<div class=\"fr\"><div class=\"fi\"><i class=\"ti ti-clock\"></i></div><div class=\"ft\">" + d["f1"] + "</div></div>"
-        "<div class=\"fr\"><div class=\"fi\"><i class=\"ti ti-flag\"></i></div><div class=\"ft\">" + d["f2"] + "</div></div>"
-        "<div class=\"fr\"><div class=\"fi\"><i class=\"ti ti-microscope\"></i></div><div class=\"ft\">" + d["f3"] + "</div></div>"
-        "</div>"
-        "<button class=\"ct\" onclick=\"scrollToStart()\">" + d["cta"] + "</button>"
-        "<p class=\"di\">" + d["disc"] + "</p>"
-        "</div>"
-        "<script>" + js + "</script>"
-        "</body></html>"
-    )
-    components.html(html, height=560, scrolling=False)
-
-def render_explainer_video(lang):
-    import streamlit.components.v1 as components
-    el = (lang == "el")
-    C = {
-        "el": {
-            "steps": ["asklepios", "\u03b2\u03ae\u03bc\u03b1 1", "\u03b2\u03ae\u03bc\u03b1 2", "\u03b2\u03ae\u03bc\u03b1 3",
-                      "\u03c0\u03c1\u03bf\u03b1\u03b9\u03c1\u03b5\u03c4\u03b9\u03ba\u03cc", "ai \u03c0\u03c1\u03cc\u03c4\u03b1\u03c3\u03b7", "\u03b2\u03ae\u03bc\u03b1 4"],
-            "titles": ["\u039f \u03c8\u03b7\u03c6\u03b9\u03b1\u03ba\u03cc\u03c2 \u03c3\u03bf\u03c5 \u03bd\u03bf\u03c3\u03b7\u03bb\u03b5\u03c5\u03c4\u03ae\u03c2",
-                       "\u03a3\u03cd\u03bd\u03b4\u03b5\u03c3\u03b7 \u03bc\u03b5 email",
-                       "\u03a3\u03c5\u03bc\u03c0\u03bb\u03ae\u03c1\u03c9\u03c3\u03b5 \u03c4\u03bf \u03c0\u03c1\u03bf\u03c6\u03af\u03bb \u03c3\u03bf\u03c5",
-                       "\u03a0\u03b5\u03c1\u03af\u03b3\u03c1\u03b1\u03c8\u03b5 \u03c4\u03b1 \u03c3\u03c5\u03bc\u03c0\u03c4\u03ce\u03bc\u03b1\u03c4\u03ac \u03c3\u03bf\u03c5",
-                       "\u039c\u03ad\u03c4\u03c1\u03b7\u03c3\u03b7 \u03b6\u03c9\u03c4\u03b9\u03ba\u03ce\u03bd \u2014 3 \u03b5\u03c0\u03b9\u03bb\u03bf\u03b3\u03ad\u03c2",
-                       "\u03a6\u03c9\u03c4\u03cc \u03ae \u03c3\u03ac\u03c1\u03c9\u03c3\u03b7 \u2014 \u03bc\u03cc\u03bd\u03bf \u03b1\u03bd \u03c7\u03c1\u03b5\u03b9\u03b1\u03c3\u03c4\u03b5\u03af",
-                       "\u0391\u03bd\u03b1\u03bb\u03c5\u03c4\u03b9\u03ba\u03ae \u03b1\u03bd\u03b1\u03c6\u03bf\u03c1\u03ac \u03c5\u03b3\u03b5\u03af\u03b1\u03c2"],
-            "subs": ["\u0391\u03be\u03b9\u03bf\u03bb\u03cc\u03b3\u03b7\u03c3\u03b7 \u03c3\u03c5\u03bc\u03c0\u03c4\u03c9\u03bc\u03ac\u03c4\u03c9\u03bd \u03bc\u03b5 AI \u2014 \u03b3\u03c1\u03ae\u03b3\u03bf\u03c1\u03b1, \u03c3\u03c4\u03b1 \u03b5\u03bb\u03bb\u03b7\u03bd\u03b9\u03ba\u03ac.",
-                     "\u0395\u03b9\u03c3\u03ac\u03b3\u03b5\u03b9\u03c2 \u03c4\u03bf email \u03c3\u03bf\u03c5, \u03bb\u03b1\u03bc\u03b2\u03ac\u03bd\u03b5\u03b9\u03c2 OTP. \u03a7\u03c9\u03c1\u03af\u03c2 password.",
-                     "\u038c\u03bd\u03bf\u03bc\u03b1, \u03b7\u03bb\u03b9\u03ba\u03af\u03b1, \u03c6\u03cd\u03bb\u03bf, \u03b9\u03c3\u03c4\u03bf\u03c1\u03b9\u03ba\u03cc, \u03b1\u03bb\u03bb\u03b5\u03c1\u03b3\u03af\u03b5\u03c2, \u03c6\u03ac\u03c1\u03bc\u03b1\u03ba\u03b1.",
-                     "\u039f Asklepios \u03ba\u03ac\u03bd\u03b5\u03b9 \u03c3\u03c4\u03bf\u03c7\u03b5\u03c5\u03bc\u03ad\u03bd\u03b5\u03c2 \u03b5\u03c1\u03c9\u03c4\u03ae\u03c3\u03b5\u03b9\u03c2 \u2014 \u03bc\u03af\u03b1 \u03ba\u03ac\u03b8\u03b5 \u03c6\u03bf\u03c1\u03ac.",
-                     "", "",
-                     "\u039a\u03bb\u03b9\u03bd\u03b9\u03ba\u03ae \u03b5\u03ba\u03c4\u03af\u03bc\u03b7\u03c3\u03b7 \u03bc\u03b5 PubMed + GPT-4o. PDF \u03b3\u03b9\u03b1 \u03c4\u03bf\u03bd \u03b3\u03b9\u03b1\u03c4\u03c1\u03cc \u03c3\u03bf\u03c5."],
-        },
-        "en": {
-            "steps": ["asklepios", "step 1", "step 2", "step 3", "optional", "ai suggestion", "step 4"],
-            "titles": ["Your digital nurse", "Sign in with email", "Fill in your profile",
-                       "Describe your symptoms", "Measure vitals — 3 options",
-                       "Photo or scan — only when needed", "Detailed health report"],
-            "subs": ["AI-powered symptom assessment — fast, in your language.",
-                     "Enter your email, receive OTP. No password needed.",
-                     "Name, age, sex, history, allergies, medications.",
-                     "Asklepios asks targeted questions — one at a time.",
-                     "", "",
-                     "Clinical assessment with PubMed + GPT-4o. PDF for your doctor."],
-        },
-    }
-    d = C.get(lang, C["el"])
-    TOTAL = 7
-    slides_html = ""
-    icons = ["ti-stethoscope","ti-login","ti-user-circle","ti-message-chatbot",
-             "ti-heart-rate-monitor","ti-camera","ti-report-medical"]
-    ic_cls = ["ic-b","ic-p","ic-t","ic-b","ic-a","ic-c","ic-t"]
-    for i in range(TOTAL):
-        active = " active" if i == 0 else ""
-        sub_html = ("<p class=\"s-sub\">" + d["subs"][i] + "</p>") if d["subs"][i] else ""
-        slides_html += (
-            "<div class=\"slide" + active + "\" id=\"s" + str(i) + "\">"
-            "<div class=\"s-icon " + ic_cls[i] + "\"><i class=\"ti " + icons[i] + "\"></i></div>"
-            "<div class=\"s-step\" id=\"p" + str(i) + "\">" + d["steps"][i] + "</div>"
-            "<div class=\"s-title\" id=\"h" + str(i) + "\">" + d["titles"][i] + "</div>"
-            + sub_html +
-            "</div>"
-        )
-    css = (
-        "@import url(\'https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600&display=swap\');"
-        "*{box-sizing:border-box;margin:0;padding:0}"
-        "body{background:transparent;font-family:\'DM Sans\',sans-serif}"
-        ".ex{width:100%;border:1px solid #e5e7eb;border-radius:14px;overflow:hidden;background:#fff}"
-        ".stage{position:relative;width:100%;height:290px;overflow:hidden;background:#F8F9FF}"
-        ".slide{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;"
-        "justify-content:center;padding:24px 32px;opacity:0;transform:translateY(14px);"
-        "transition:opacity .4s,transform .4s;pointer-events:none}"
-        ".slide.active{opacity:1;transform:translateY(0);pointer-events:auto}"
-        ".slide.exit{opacity:0;transform:translateY(-14px);transition:opacity .25s,transform .25s}"
-        ".s-icon{width:52px;height:52px;border-radius:50%;display:flex;align-items:center;"
-        "justify-content:center;margin-bottom:14px;font-size:22px}"
-        ".ic-b{background:#EFF6FF;color:#1D4ED8}.ic-p{background:#EEEDFE;color:#534AB7}"
-        ".ic-t{background:#ECFDF5;color:#065F46}.ic-a{background:#FFFBEB;color:#92400E}"
-        ".ic-c{background:#FEF2F2;color:#991B1B}"
-        ".s-step{font-size:10px;font-weight:600;letter-spacing:.09em;color:#9CA3AF;margin-bottom:6px;text-transform:uppercase}"
-        ".s-title{font-size:17px;font-weight:600;color:#1A1A2E;text-align:center;margin-bottom:7px;line-height:1.3}"
-        ".s-sub{font-size:12px;color:#6B7280;text-align:center;line-height:1.6;max-width:380px}"
-        ".prog{height:2px;background:#F3F4F6}"
-        ".pfill{height:100%;background:#2D3FE7;border-radius:1px;transition:width .3s}"
-        ".ctrl{display:flex;align-items:center;justify-content:space-between;padding:9px 13px;"
-        "border-top:1px solid #F3F4F6;background:#fff}"
-        ".dots{display:flex;gap:5px;align-items:center}"
-        ".dot{width:5px;height:5px;border-radius:50%;background:#E5E7EB;cursor:pointer;border:none;padding:0;transition:all .25s}"
-        ".dot.on{width:14px;border-radius:3px;background:#2D3FE7}"
-        ".ibtn{width:28px;height:28px;border-radius:50%;border:1px solid #E5E7EB;background:#fff;"
-        "cursor:pointer;display:flex;align-items:center;justify-content:center;color:#6B7280;font-size:13px}"
-        ".ibtn:disabled{opacity:.3;cursor:default}"
-        ".pbtn{width:28px;height:28px;border-radius:50%;border:1px solid #D1D5DB;background:#fff;"
-        "cursor:pointer;display:flex;align-items:center;justify-content:center;color:#1A1A2E;font-size:13px}"
-        ".sc{font-size:10px;color:#9CA3AF;min-width:28px;text-align:center}"
-        ".lbar{display:flex;justify-content:center;gap:7px;padding:7px 13px 11px;border-top:1px solid #F3F4F6;background:#fff}"
-        ".lbtn{font-size:11px;padding:3px 11px;border-radius:20px;border:1px solid #E5E7EB;"
-        "background:#fff;cursor:pointer;color:#6B7280}"
-        ".lbtn.on{border-color:#2D3FE7;color:#2D3FE7;font-weight:600}"
-    )
-    js = (
-        "var T=" + str(TOTAL) + ",cur=0,play=false,tim=null;"
-        "function mkDots(){var d=document.getElementById(\"dots\");d.innerHTML=\"\";for(var i=0;i<T;i++){"
-        "var b=document.createElement(\"button\");b.className=\"dot\"+(i===cur?\" on\":\"\");"
-        "b.onclick=(function(x){return function(){go(x);};})(i);d.appendChild(b);}}"
-        "function go(idx){var sl=document.querySelectorAll(\".slide\");"
-        "sl[cur].classList.remove(\"active\");sl[cur].classList.add(\"exit\");"
-        "setTimeout(function(){sl[cur].classList.remove(\"exit\");},280);"
-        "cur=idx;sl[cur].classList.add(\"active\");"
-        "document.getElementById(\"pf\").style.width=((cur+1)/T*100)+\"%\";"
-        "document.getElementById(\"sc\").textContent=(cur+1)+\" / \"+T;"
-        "document.getElementById(\"pb\").disabled=(cur===0);"
-        "document.getElementById(\"nb\").disabled=(cur===T-1);mkDots();}"
-        "function nav(d){var n=cur+d;if(n>=0&&n<T)go(n);"
-        "if(play&&n===T-1){clearInterval(tim);play=false;"
-        "document.getElementById(\"pli\").className=\"ti ti-player-play\";} }"
-        "function togPlay(){play=!play;"
-        "document.getElementById(\"pli\").className=play?\"ti ti-player-pause\":\"ti ti-player-play\";"
-        "if(play){if(cur===T-1)go(0);tim=setInterval(function(){if(cur<T-1)nav(1);else{"
-        "clearInterval(tim);play=false;"
-        "document.getElementById(\"pli\").className=\"ti ti-player-play\";}},3500);}"
-        "else clearInterval(tim);}"
-        "mkDots();"
-    )
-    dots_html = "".join(
-        "<button class=\"dot" + (" on" if i == 0 else "") + "\" onclick=\"go(" + str(i) + ")\"></button>"
-        for i in range(TOTAL)
-    )
-    html = (
-        "<html><head><meta charset=\"UTF-8\">"
-        "<link rel=\"stylesheet\" href=\"https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.19.0/tabler-icons.min.css\">"
-        "<link href=\"https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600&display=swap\" rel=\"stylesheet\">"
-        "<style>" + css + "</style></head><body>"
-        "<div class=\"ex\">"
-        "<div class=\"stage\">" + slides_html + "</div>"
-        "<div class=\"prog\"><div class=\"pfill\" id=\"pf\" style=\"width:14.3%\"></div></div>"
-        "<div class=\"ctrl\">"
-        "<button class=\"ibtn\" id=\"pb\" onclick=\"nav(-1)\" disabled><i class=\"ti ti-chevron-left\"></i></button>"
-        "<div style=\"display:flex;align-items:center;gap:8px\">"
-        "<div class=\"dots\" id=\"dots\">" + dots_html + "</div>"
-        "<button class=\"pbtn\" onclick=\"togPlay()\"><i class=\"ti ti-player-play\" id=\"pli\"></i></button>"
-        "</div>"
-        "<div style=\"display:flex;align-items:center;gap:5px\">"
-        "<span class=\"sc\" id=\"sc\">1 / " + str(TOTAL) + "</span>"
-        "<button class=\"ibtn\" id=\"nb\" onclick=\"nav(1)\"><i class=\"ti ti-chevron-right\"></i></button>"
-        "</div></div>"
-        "<div class=\"lbar\">"
-        "<button class=\"lbtn" + (" on" if el else "") + "\" onclick=\"\">&#127468;&#127479; &#917;&#923;</button>"
-        "<button class=\"lbtn" + ("" if el else " on") + "\" onclick=\"\">&#127468;&#127463; EN</button>"
-        "</div></div>"
-        "<script>" + js + "</script>"
-        "</body></html>"
-    )
-    components.html(html, height=420, scrolling=False)
+    save_draft(st.session_state.get("auth_user", ""), payload)
 
 def render_home():
     c1,c2,c3=st.columns([5,1,1])
@@ -1248,16 +1011,8 @@ def render_home():
         if is_logged_in():
             if st.button("🚪 " + ("Έξοδος" if st.session_state.lang=="el" else "Logout"), use_container_width=True, key="logout_home"):
                 logout(); st.rerun()
-    st.markdown(f'''<div class="kira-hero"><div style="font-size:64px;margin-bottom:8px">&#x1FA7A;</div><h1>{t("title")}</h1><p>{t("subtitle")}</p><div class="kira-tagline">{t("tagline")}</div></div>''',unsafe_allow_html=True)
-    render_ad_banner(st.session_state.lang)
+    st.markdown(f'''<div class="kira-hero"><div style="font-size:64px;margin-bottom:8px">🩺</div><h1>{t("title")}</h1><p>{t("subtitle")}</p><div class="kira-tagline">{t("tagline")}</div></div>''',unsafe_allow_html=True)
     st.markdown(f'<div class="disclaimer">{t("disclaimer_main")}</div>',unsafe_allow_html=True)
-    # Explainer video: always visible on home, but collapsible for returning users
-    _has_history = bool(st.session_state.triage_chat or st.session_state.profile.get("name"))
-    if not _has_history:
-        render_explainer_video(st.session_state.lang)
-    else:
-        with st.expander("▶ " + ("Πώς λειτουργεί;" if st.session_state.lang=="el" else "How does it work?"), expanded=False):
-            render_explainer_video(st.session_state.lang)
     col1,col2,col3=st.columns([1,2,1])
     with col2:
         if st.button(t("start"),type="primary",use_container_width=True):
@@ -1336,6 +1091,7 @@ def render_vitals():
         st.caption(("⚠️ Πειραματικό. Η σάρωση με κάμερα δίνει μόνο ενδεικτικό καρδιακό ρυθμό — για αξιόπιστες τιμές χρησιμοποίησε «Χειροκίνητη Εισαγωγή» ή «Συσκευή»."
                     if lang=="el" else
                     "⚠️ Experimental. The camera scan gives only an indicative heart rate — for reliable values use 'Manual Entry' or 'Device'."))
+        _save_session_for_external_nav()
         facescan_url=_secret("FACESCAN_URL","https://asklepiosnurse.netlify.app")
         kira_url=_secret("ASKLEPIOS_URL","https://asklepiosainurse.up.railway.app")
         scan_link=f"{facescan_url}?kira_url={urllib.parse.quote(kira_url)}"
@@ -1615,6 +1371,7 @@ def render_photo_scan():
     st.caption(tips.get(scan_k, tips["skin"])[lang])
     st.markdown(f'<div class="disclaimer">{"⚠️ Εργαλείο AI screening. Δεν αντικαθιστά κλινική εξέταση." if lang=="el" else "⚠️ AI screening tool. Does not replace clinical examination."}</div>', unsafe_allow_html=True)
 
+    _save_session_for_external_nav()
     uploaded_photo = st.file_uploader(
         ("Φωτογραφία" if lang=="el" else "Upload photo"),
         type=["jpg","jpeg","png","webp","heic","heif"],
@@ -1765,6 +1522,7 @@ def render_triage():
         _ci = 1
         if _show_scan:
             with _cols[_ci]:
+                _save_session_for_external_nav()
                 _fs = _secret("FACESCAN_URL","https://asklepiosnurse.netlify.app")
                 _ku = _secret("ASKLEPIOS_URL","https://asklepiosainurse.up.railway.app")
                 _link = f"{_fs}?kira_url={urllib.parse.quote(_ku)}"
@@ -1979,10 +1737,11 @@ if auth_enabled() and not is_logged_in():
         st.session_state["auth_user"] = _em
 
 # Restore the in-progress assessment from the ENCRYPTED server-side draft (Supabase,
-# keyed by email): profile AND the conversation, so returning from the face scan
-# resumes the SAME assessment instead of starting over. Synchronous fetch — once the
-# email is known this is deterministic (no cookie race).
-if (auth_enabled() and is_logged_in() and not st.session_state.profile.get("name")
+# Draft restore: ONLY when returning from facescan/photo (external nav round-trip).
+# Triggered by ?facescan= param in URL — the draft was saved just before leaving
+# and is deleted immediately after restore. Not loaded on normal login.
+_returning_from_external = bool(st.query_params.get("facescan",""))
+if (_returning_from_external and auth_enabled() and is_logged_in()
         and not st.session_state.get("_draft_loaded")):
     st.session_state["_draft_loaded"] = True
     _dd = load_draft(st.session_state.get("auth_user", ""))
@@ -2000,6 +1759,8 @@ if (auth_enabled() and is_logged_in() and not st.session_state.profile.get("name
             _mr = st.session_state.profile.get("meds_raw", "")
             st.session_state.medications = [{"name": m.strip(), "freq": "", "notes": ""}
                                             for m in _mr.split(",") if m.strip()] if _mr else []
+        # Draft served its purpose — delete immediately
+        delete_draft(st.session_state.get("auth_user", ""))
 
 # If we came back from the face scan during an ongoing conversation, drop the
 # measurement into the chat so Asklepios continues the SAME assessment with it
@@ -2039,6 +1800,7 @@ try:
                 st.session_state["_fs_banner"] = True
                 st.session_state["_scan_injected"] = False
                 st.session_state.screen = "triage" if st.session_state.profile.get("name") else "intake"
+            delete_draft(st.session_state.get("auth_user", ""))
             st.query_params.clear()
             st.rerun()
 except Exception:
