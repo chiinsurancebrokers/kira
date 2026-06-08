@@ -990,6 +990,93 @@ table.vitals tbody tr:nth-child(even){{background:#F8FAFF}}
 <div class="hint">💡 Ctrl+P → Save as PDF</div></body></html>"""
     return html_out.encode("utf-8")
 
+def render_ad_banner(lang):
+    """Promotional ad banner shown above the disclaimer on home screen."""
+    import streamlit.components.v1 as components
+    html = """<!DOCTYPE html><html><head>
+<meta charset="UTF-8">
+<style>
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,wght@0,400;0,500;0,700;0,800;1,700&display=swap');
+@import url('https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.19.0/tabler-icons.min.css');
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:transparent;font-family:'DM Sans',sans-serif}
+.ad{width:100%;max-width:480px;margin:0 auto;border-radius:24px;overflow:hidden;background:linear-gradient(160deg,#3D2FE7 0%,#7B2FE0 55%,#9B3FFF 100%);padding:28px 24px 24px;position:relative}
+.ad::before{content:'';position:absolute;top:-60px;right:-40px;width:200px;height:200px;border-radius:50%;background:rgba(255,255,255,.06)}
+.ad::after{content:'';position:absolute;bottom:-40px;left:-30px;width:160px;height:160px;border-radius:50%;background:rgba(255,255,255,.04)}
+.topbar{display:flex;align-items:center;gap:10px;margin-bottom:24px;position:relative;z-index:1}
+.logo-box{width:40px;height:40px;border-radius:12px;background:rgba(255,255,255,.18);display:flex;align-items:center;justify-content:center}
+.logo-box i{font-size:20px;color:#fff}
+.brand-text .name{font-size:15px;font-weight:700;color:#fff;line-height:1}
+.brand-text .sub{font-size:11px;color:rgba(255,255,255,.65);letter-spacing:.06em;text-transform:uppercase;margin-top:2px}
+.headline{position:relative;z-index:1;margin-bottom:10px}
+.headline h1{font-size:36px;font-weight:800;color:#fff;line-height:1.15;letter-spacing:-0.5px}
+.headline h1 em{color:#F9C846;font-style:italic}
+.subline{font-size:14px;color:rgba(255,255,255,.75);line-height:1.55;margin-bottom:20px;position:relative;z-index:1}
+.chat-bubble{background:rgba(255,255,255,.13);border:1px solid rgba(255,255,255,.2);border-radius:14px;padding:12px 14px;margin-bottom:20px;display:flex;align-items:flex-start;gap:10px;position:relative;z-index:1}
+.bubble-av{width:28px;height:28px;border-radius:50%;background:rgba(255,255,255,.25);display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.bubble-av i{font-size:14px;color:#fff}
+.bubble-text{font-size:12.5px;color:#fff;line-height:1.55;font-style:italic}
+.bubble-text strong{font-style:normal;font-weight:700}
+.arrow-down{text-align:center;color:rgba(255,255,255,.45);font-size:18px;margin:-8px 0 12px;position:relative;z-index:1}
+.features{display:flex;flex-direction:column;gap:9px;margin-bottom:22px;position:relative;z-index:1}
+.feat{display:flex;align-items:center;gap:11px}
+.feat-icon{width:32px;height:32px;border-radius:10px;background:rgba(255,255,255,.14);display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.feat-icon i{font-size:16px;color:#fff}
+.feat-text{font-size:13px;color:rgba(255,255,255,.9);line-height:1.3}
+.cta-btn{width:100%;padding:16px;border-radius:16px;background:linear-gradient(135deg,#3D2FE7,#7B2FE0);border:none;cursor:pointer;font-family:'DM Sans',sans-serif;font-size:15px;font-weight:700;color:#ffffff;letter-spacing:.01em;position:relative;z-index:1;transition:background .25s,color .25s;outline:none}
+.cta-btn:hover{background:#ffffff;color:#1a1a1a}
+.cta-btn:active{transform:scale(.98)}
+.disc{font-size:11px;color:rgba(255,255,255,.45);text-align:center;margin-top:10px;line-height:1.5;position:relative;z-index:1}
+</style></head><body>
+<div class="ad">
+  <div class="topbar">
+    <div class="logo-box"><i class="ti ti-stethoscope"></i></div>
+    <div class="brand-text"><div class="name">Asklepios</div><div class="sub">AI Nurse</div></div>
+  </div>
+  <div class="headline"><h1 id="h1"></h1></div>
+  <p class="subline" id="sub"></p>
+  <div class="chat-bubble">
+    <div class="bubble-av"><i class="ti ti-robot"></i></div>
+    <div class="bubble-text" id="bubble"></div>
+  </div>
+  <div class="arrow-down">⌄</div>
+  <div class="features">
+    <div class="feat"><div class="feat-icon"><i class="ti ti-clock"></i></div><div class="feat-text" id="f1"></div></div>
+    <div class="feat"><div class="feat-icon"><i class="ti ti-flag"></i></div><div class="feat-text" id="f2"></div></div>
+    <div class="feat"><div class="feat-icon"><i class="ti ti-microscope"></i></div><div class="feat-text" id="f3"></div></div>
+  </div>
+  <button class="cta-btn" id="cta" onclick="scrollToStart()"></button>
+  <p class="disc" id="disc"></p>
+</div>
+<script>
+var lg="'+lang+'";
+var T={
+  el:{h1:"O νοσηλευτής<br>στην <em>τσέπη</em> σου.",sub:"Γρήγορη εκτίμηση υγείας, στα ελληνικά — όποτε τη χρειαστείς.",bubble:"«Περίγραψέ μου τι νιώθεις και θα σε καθοδηγήσω — <strong>βήμα-βήμα.</strong>»",f1:"Πρώτη εκτίμηση σε ~2 λεπτά",f2:"Στα ελληνικά, διαθέσιμος 24/7",f3:"Με επιστημονική τεκμηρίωση",cta:"Δοκίμασέ το δωρεάν →",disc:"Ενημερωτικό εργαλείο. Δεν αντικαθιστά ιατρική διάγνωση ή θεραπεία."},
+  en:{h1:"The nurse<br>in your <em>pocket.</em>",sub:"Quick health assessment, in your language — whenever you need it.",bubble:"«Tell me how you feel and I will guide you — <strong>step by step.</strong>»",f1:"First assessment in ~2 minutes",f2:"In Greek & English, available 24/7",f3:"Evidence-based, powered by PubMed",cta:"Try it for free →",disc:"Informational tool only. Does not replace medical diagnosis or treatment."}
+};
+function apply(l){
+  var d=T[l]||T.el;
+  document.getElementById("h1").innerHTML=d.h1;
+  document.getElementById("sub").textContent=d.sub;
+  document.getElementById("bubble").innerHTML=d.bubble;
+  ["f1","f2","f3","disc"].forEach(function(id){document.getElementById(id).textContent=d[id];});
+  document.getElementById("cta").textContent=d.cta;
+}
+function scrollToStart(){
+  try{
+    var p=window.parent.document;
+    var btns=p.querySelectorAll("button");
+    var target=null;
+    btns.forEach(function(b){if(b.innerText&&(b.innerText.includes("Έναρξη")||b.innerText.includes("Start")||b.innerText.includes("Εναρξη")))target=b;});
+    if(target){target.scrollIntoView({behavior:"smooth",block:"center"});setTimeout(function(){target.focus();},600);}
+    else window.parent.scrollTo({top:window.parent.document.body.scrollHeight,behavior:"smooth"});
+  }catch(e){try{window.parent.scrollTo({top:9999,behavior:"smooth"});}catch(e2){}}
+}
+apply(lg);
+</script></body></html>"""
+    html = html.replace('"{LANG}"', '"'+ lang + '"')
+    components.html(html, height=580, scrolling=False)
+
 def render_explainer_video(lang):
     """Embedded how-it-works explainer — shown on home screen."""
     import streamlit.components.v1 as components
@@ -1186,6 +1273,7 @@ def render_home():
             if st.button("🚪 " + ("Έξοδος" if st.session_state.lang=="el" else "Logout"), use_container_width=True, key="logout_home"):
                 logout(); st.rerun()
     st.markdown(f'''<div class="kira-hero"><div style="font-size:64px;margin-bottom:8px">🩺</div><h1>{t("title")}</h1><p>{t("subtitle")}</p><div class="kira-tagline">{t("tagline")}</div></div>''',unsafe_allow_html=True)
+    render_ad_banner(st.session_state.lang)
     st.markdown(f'<div class="disclaimer">{t("disclaimer_main")}</div>',unsafe_allow_html=True)
     # Explainer video: always visible on home, but collapsible for returning users
     _has_history = bool(st.session_state.triage_chat or st.session_state.profile.get("name"))
