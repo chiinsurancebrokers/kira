@@ -1,37 +1,474 @@
 """
-ASKLEPIOS — AI Nurse
+KIRA — AI Nurse
 Bilingual AI health assistant for the Greek market.
 Standalone Streamlit app · Real data only · No placeholders.
 """
 
 import streamlit as st
-import os
+import streamlit.components.v1 as components
 import json
-import io
 import urllib.request
 import urllib.parse
-from datetime import datetime, timedelta
-import io as _io, base64 as _b64
-import hmac, hashlib, time, unicodedata
+import hashlib, hmac, base64, unicodedata
+from datetime import datetime, date, timedelta
 
-# "Stay signed in" via a browser cookie (persists login across reloads / new tabs,
-# e.g. when returning from the external face scan). Degrades gracefully if missing.
-try:
-    import extra_streamlit_components as stx
-    _STX_OK = True
-except Exception:
-    _STX_OK = False
+# ── PAGE CONFIG ───────────────────────────────────────────────────────────────
+st.set_page_config(
+    page_title="Kira · AI Nurse",
+    page_icon="🩺",
+    layout="wide",
+    initial_sidebar_state="collapsed",
+)
 
-# HEIC support for iPhone photos
-try:
-    import pillow_heif as _heif
-    from PIL import Image as _Image
-    _heif.register_heif_opener()
-    HEIC_OK = True
-except ImportError:
-    HEIC_OK = False
+# ── STYLING ───────────────────────────────────────────────────────────────────
+st.markdown("""
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
 
-# ── SAFE SECRETS / ENV ACCESS ─────────────────────────────────────────────────
+* { font-family: 'Inter', sans-serif; }
+
+[data-testid="stAppViewContainer"] {
+    background: linear-gradient(135deg, #F0F4FF 0%, #F8F0FF 100%);
+}
+[data-testid="stSidebar"] { display: none; }
+
+.kira-hero {
+    background: linear-gradient(135deg, #2D3FE7 0%, #7B2FE0 100%);
+    border-radius: 20px;
+    padding: 48px 40px;
+    color: white;
+    text-align: center;
+    margin-bottom: 32px;
+}
+.kira-hero h1 { font-size: 52px; font-weight: 700; margin: 0; letter-spacing: -1px; }
+.kira-hero p  { font-size: 18px; opacity: 0.85; margin: 12px 0 0; }
+.kira-tagline { font-size: 13px; opacity: 0.65; margin-top: 8px; letter-spacing: 2px; text-transform: uppercase; }
+
+.card {
+    background: white;
+    border-radius: 16px;
+    padding: 24px 28px;
+    margin-bottom: 20px;
+    box-shadow: 0 2px 12px rgba(45,63,231,0.07);
+    border: 1px solid rgba(45,63,231,0.08);
+}
+.card h3 { font-size: 16px; font-weight: 600; margin: 0 0 16px; color: #1A1A2E; }
+
+.vital-badge {
+    background: #F4F6FF;
+    border: 1px solid #E0E5FF;
+    border-radius: 12px;
+    padding: 14px 18px;
+    min-width: 120px;
+    text-align: center;
+    flex: 1;
+}
+.vital-badge.green { background: #EDFBF0; border-color: #A3E6B5; }
+.vital-badge.yellow { background: #FFFBEB; border-color: #FCD34D; }
+.vital-badge.red { background: #FEF2F2; border-color: #FCA5A5; }
+.vital-badge .vb-value { font-size: 22px; font-weight: 700; color: #1A1A2E; }
+.vital-badge .vb-label { font-size: 11px; color: #6B7280; margin-top: 2px; }
+.vital-badge .vb-unit  { font-size: 10px; color: #9CA3AF; }
+
+.pill { display: inline-block; padding: 3px 10px; border-radius: 20px; font-size: 12px; font-weight: 600; }
+.pill-green  { background: #DCFCE7; color: #15803D; }
+.pill-yellow { background: #FEF9C3; color: #A16207; }
+.pill-red    { background: #FEE2E2; color: #B91C1C; }
+.pill-blue   { background: #DBEAFE; color: #1D4ED8; }
+
+.disclaimer {
+    background: #FFFBEB;
+    border: 1px solid #FCD34D;
+    border-radius: 10px;
+    padding: 12px 16px;
+    font-size: 13px;
+    color: #92400E;
+    margin: 12px 0;
+}
+.disclaimer-red {
+    background: #FEF2F2;
+    border: 1px solid #FCA5A5;
+    border-radius: 10px;
+    padding: 12px 16px;
+    font-size: 13px;
+    color: #991B1B;
+    margin: 12px 0;
+}
+
+.emergency {
+    background: linear-gradient(90deg, #DC2626, #B91C1C);
+    color: white; border-radius: 10px; padding: 16px 20px;
+    font-weight: 600; font-size: 14px; margin: 12px 0;
+}
+
+.kira-stepper {
+    display: flex; align-items: center; justify-content: center;
+    gap: 0; margin: 0 0 28px; padding: 16px 0 0;
+}
+.kira-step {
+    display: flex; flex-direction: column; align-items: center; gap: 6px;
+    flex: 1; max-width: 120px;
+}
+.kira-step-circle {
+    width: 32px; height: 32px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 13px; font-weight: 700; border: 2px solid #E0E5FF;
+    background: white; color: #CBD5E1; position: relative; z-index: 1;
+}
+.kira-step.done   .kira-step-circle { background: #7B2FE0; border-color: #7B2FE0; color: white; }
+.kira-step.active .kira-step-circle { background: #2D3FE7; border-color: #2D3FE7; color: white; box-shadow: 0 0 0 4px rgba(45,63,231,.15); }
+.kira-step-label { font-size: 10px; color: #94A3B8; text-align: center; letter-spacing: .02em; }
+.kira-step.done   .kira-step-label  { color: #7B2FE0; }
+.kira-step.active .kira-step-label  { color: #2D3FE7; font-weight: 600; }
+.kira-step-line {
+    flex: 1; height: 2px; background: #E0E5FF; margin-bottom: 18px;
+}
+.kira-step-line.done { background: #7B2FE0; }
+
+.chip-row { display: flex; flex-wrap: wrap; gap: 8px; margin: 10px 0 16px; }
+.chip {
+    padding: 6px 14px; border-radius: 20px; font-size: 13px; cursor: pointer;
+    border: 1.5px solid #C4B5FD; color: #5B21B6; background: #F5F3FF;
+    transition: all .15s; user-select: none;
+}
+.chip.selected { background: #7B2FE0; border-color: #7B2FE0; color: white; }
+
+.wellness-wrap {
+    display: flex; align-items: center; gap: 20px;
+    background: linear-gradient(135deg,#2D3FE7,#7B2FE0);
+    border-radius: 16px; padding: 20px 24px; margin-bottom: 20px; color: white;
+}
+.wellness-score { font-size: 48px; font-weight: 800; letter-spacing: -2px; }
+.wellness-label { font-size: 12px; opacity: .7; text-transform: uppercase; letter-spacing: 1.5px; }
+.wellness-desc  { font-size: 15px; opacity: .9; margin-top: 4px; }
+
+.red-flags-urgent {
+    background: linear-gradient(90deg,#DC2626,#B91C1C);
+    color: white; border-radius: 12px; padding: 16px 20px; margin: 12px 0;
+    animation: pulse-bg 2s ease-in-out infinite;
+}
+@keyframes pulse-bg { 0%,100%{opacity:1} 50%{opacity:.85} }
+
+/* Mobile */
+@media (max-width: 768px) {
+    .kira-hero h1 { font-size: 32px !important; }
+    .kira-hero { padding: 28px 20px !important; }
+    .stChatMessage { font-size: 14px !important; }
+    [data-testid="stChatMessageContent"] { max-width: 100% !important; overflow-wrap: break-word !important; }
+    .main .block-container { padding-bottom: 120px !important; }
+    .stButton button { white-space: normal !important; min-height: 44px !important; }
+}
+[data-testid="stMarkdownContainer"] { overflow-wrap: break-word !important; word-break: break-word !important; }
+/* Markdown tables — clean column alignment on mobile (override the per-letter break above) */
+[data-testid="stMarkdownContainer"] table {
+    width: 100%; border-collapse: collapse; table-layout: fixed;
+    font-size: 12.5px; margin: 12px 0;
+}
+[data-testid="stMarkdownContainer"] thead th { background: #F4F6FF; font-weight: 600; }
+[data-testid="stMarkdownContainer"] th,
+[data-testid="stMarkdownContainer"] td {
+    border: 1px solid #E0E5FF; padding: 7px 9px;
+    text-align: left; vertical-align: top;
+    word-break: normal !important; overflow-wrap: break-word !important; hyphens: none;
+}
+/* Narrow middle column (probability/%) so Διάγνωση & Σχόλιο get the room */
+[data-testid="stMarkdownContainer"] th:nth-child(2),
+[data-testid="stMarkdownContainer"] td:nth-child(2) { width: 64px; text-align: center; }
+</style>
+""", unsafe_allow_html=True)
+
+# ── KEYS ──────────────────────────────────────────────────────────────────────
+def _key(name, fallback=""):
+    for k in [name, name.lower(), name.upper()]:
+        v = st.secrets.get(k, "")
+        if v:
+            return v
+    return fallback
+
+def get_claude_key():  return _key("Claude_API_Key")
+def get_openai_key():  return _key("OPENAI_API_KEY")
+def get_ncbi_key():    return _key("NCBI_API_KEY")
+
+# ── NCBI HELPERS ──────────────────────────────────────────────────────────────
+def pubmed_search(query, n=4):
+    try:
+        p = urllib.parse.urlencode({"db":"pubmed","term":query,"retmax":n,"retmode":"json","api_key":get_ncbi_key()})
+        with urllib.request.urlopen(f"https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi?{p}", timeout=8) as r:
+            ids = json.loads(r.read()).get("esearchresult",{}).get("idlist",[])
+        if not ids: return []
+        p2 = urllib.parse.urlencode({"db":"pubmed","id":",".join(ids),"retmode":"json","api_key":get_ncbi_key()})
+        with urllib.request.urlopen(f"https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esummary.fcgi?{p2}", timeout=8) as r:
+            res = json.loads(r.read()).get("result",{})
+        out = []
+        for pmid in ids:
+            a = res.get(pmid,{})
+            out.append({
+                "pmid": pmid, "title": a.get("title","—"),
+                "authors": ", ".join(x.get("name","") for x in a.get("authors",[])[:2]),
+                "journal": a.get("source",""), "date": a.get("pubdate",""),
+                "url": f"https://pubmed.ncbi.nlm.nih.gov/{pmid}/"
+            })
+        return out
+    except: return []
+
+def rxnorm_interactions(names):
+    try:
+        cuis = []
+        for name in names:
+            p = urllib.parse.urlencode({"name": name.split()[0]})
+            with urllib.request.urlopen(f"https://rxnav.nlm.nih.gov/REST/rxcui.json?{p}", timeout=6) as r:
+                ids = json.loads(r.read()).get("idGroup",{}).get("rxnormId",[])
+                if ids: cuis.append(ids[0])
+        if len(cuis) < 2: return None
+        p2 = urllib.parse.urlencode({"rxcuis": " ".join(cuis)})
+        with urllib.request.urlopen(f"https://rxnav.nlm.nih.gov/REST/interaction/list.json?{p2}", timeout=8) as r:
+            data = json.loads(r.read())
+        pairs = data.get("fullInteractionTypeGroup",[])
+        if not pairs: return "✅ RxNorm: No known interactions found."
+        lines = []
+        for g in pairs:
+            src = g.get("sourceName","")
+            for t in g.get("fullInteractionType",[]):
+                for pair in t.get("interactionPair",[]):
+                    sev  = pair.get("severity","")
+                    desc = pair.get("description","")
+                    drugs = " + ".join(c.get("minConceptItem",{}).get("name","") for c in pair.get("interactionConcept",[]))
+                    lines.append(f"- **{drugs}** [{sev}] — {desc} *({src})*")
+        return "\n".join(lines) if lines else "✅ RxNorm: No known interactions found."
+    except: return None
+
+# ── GPT-4o ────────────────────────────────────────────────────────────────────
+def gpt4o(prompt, system="", max_tokens=900):
+    try:
+        oai = get_openai_key()
+        if not oai: return None
+        body = json.dumps({
+            "model": "gpt-4o",
+            "max_tokens": max_tokens,
+            "messages": [{"role":"system","content":system},{"role":"user","content":prompt}] if system
+                        else [{"role":"user","content":prompt}],
+        }).encode()
+        req = urllib.request.Request(
+            "https://api.openai.com/v1/chat/completions", data=body,
+            headers={"Content-Type":"application/json","Authorization":f"Bearer {oai}"}
+        )
+        with urllib.request.urlopen(req, timeout=25) as r:
+            return json.loads(r.read())["choices"][0]["message"]["content"]
+    except Exception as e:
+        return f"GPT-4o unavailable: {e}"
+
+# ── CLAUDE ────────────────────────────────────────────────────────────────────
+def claude(messages, system="", max_tokens=1200, timeout=60):
+    """Call Claude via raw HTTP — no anthropic package needed."""
+    key = get_claude_key()
+    if not key:
+        return "⚠️ Claude API key not set."
+    body = json.dumps({
+        "model": "claude-sonnet-4-20250514",
+        "max_tokens": max_tokens,
+        "system": system,
+        "messages": messages,
+    }).encode()
+    req = urllib.request.Request(
+        "https://api.anthropic.com/v1/messages",
+        data=body,
+        headers={
+            "x-api-key": key,
+            "anthropic-version": "2023-06-01",
+            "content-type": "application/json",
+        },
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=timeout) as r:
+            data = json.loads(r.read())
+        return data["content"][0]["text"]
+    except urllib.error.URLError as e:
+        if "timed out" in str(e).lower() or "timeout" in str(e).lower():
+            return "⚠️ Claude error: Request timed out — the report was too long. Try again or reduce the conversation length."
+        return f"⚠️ Claude error: {e}"
+    except Exception as e:
+        return f"⚠️ Claude error: {e}"
+
+# ── SESSION STATE ─────────────────────────────────────────────────────────────
+defaults = {
+    "lang": "el",           # el | en
+    "screen": "home",       # home | intake | vitals | triage | report
+    "profile": {},          # user profile dict
+    "vitals": {},           # vitals dict
+    "vitals_analysis": "",  # Claude's vitals interpretation
+    "triage_chat": [],      # [{role, content}]
+    "triage_ready": False,  # enough info collected for report
+    "report": "",           # full clinical report text
+    "report_pubmed": [],    # pubmed refs used
+    "report_gpt": "",       # GPT-4o second opinion
+    "medications": [],      # [{name, freq, notes}]
+}
+for k, v in defaults.items():
+    if k not in st.session_state:
+        st.session_state[k] = v
+
+# ── TRANSLATIONS ──────────────────────────────────────────────────────────────
+T = {
+    "el": {
+        "title": "Kira",
+        "subtitle": "Ο AI Νοσηλευτής σου",
+        "tagline": "Έγκυρη ιατρική πληροφόρηση · Πάντα δίπλα σου",
+        "start": "Ξεκίνα Εκτίμηση",
+        "disclaimer_main": "⚠️ Η Kira παρέχει πληροφορίες υγείας αποκλειστικά για ενημερωτικούς σκοπούς. Δεν αντικαθιστά ιατρική διάγνωση ή θεραπεία. Σε επείγουσα ανάγκη καλέστε **166** (ΕΚΑΒ) ή **112**.",
+        "emergency": "🚨 ΣΕ ΕΠΕΙΓΟΥΣΑ ΑΝΑΓΚΗ: ΚΑΛΕΣΤΕ 166 (ΕΚΑΒ) ή 112",
+        "name": "Όνομα", "age": "Ηλικία", "sex": "Φύλο",
+        "male": "Άνδρας", "female": "Γυναίκα", "other": "Άλλο",
+        "history": "Ιατρικό ιστορικό (προηγούμενες παθήσεις, χειρουργεία)",
+        "allergies": "Αλλεργίες",
+        "meds": "Τρέχοντα φάρμακα / συμπληρώματα",
+        "next": "Επόμενο →",
+        "back": "← Πίσω",
+        "vitals_title": "Ζωτικές Ενδείξεις",
+        "vitals_sub": "Εισάγετε τις μετρήσεις σας. Χρησιμοποιήστε πιστοποιημένη συσκευή για ακριβή αποτελέσματα.",
+        "hr": "Καρδιακός Ρυθμός (bpm)",
+        "bp_sys": "Αρτηριακή Πίεση — Συστολική (mmHg)",
+        "bp_dia": "Αρτηριακή Πίεση — Διαστολική (mmHg)",
+        "br": "Αναπνευστικός Ρυθμός (/min)",
+        "spo2": "SpO2 (%)",
+        "temp": "Θερμοκρασία (°C)",
+        "weight": "Βάρος (kg)",
+        "height": "Ύψος (cm)",
+        "analyse_vitals": "Ανάλυση Ζωτικών",
+        "triage_title": "Εκτίμηση Συμπτωμάτων",
+        "triage_sub": "Περιγράψτε τα συμπτώματά σας. Η Kira θα σας κάνει κατευθυνόμενες ερωτήσεις.",
+        "triage_placeholder": "Π.χ. Έχω πονοκέφαλο τριών ημερών με ναυτία...",
+        "generate_report": "Δημιουργία Πλήρους Αναφοράς",
+        "report_title": "Λεπτομερής Εκτίμηση Υγείας",
+        "second_opinion": "Δεύτερη Γνώμη GPT-4o",
+        "pubmed": "Επιστημονικές Αναφορές PubMed",
+        "green_label": "✅ Ενθαρρυντικά",
+        "yellow_label": "🟡 Παρακολούθηση",
+        "red_label": "🔴 Χρήζει Προσοχής",
+        "skip_vitals": "Παράλειψη (χωρίς μετρήσεις)",
+        "face_scan_soon": "📷 Σάρωση Προσώπου — Σύντομα",
+        "face_scan_note": "Η αυτόματη ανάγνωση ζωτικών μέσω κάμερας θα είναι διαθέσιμη στην επόμενη έκδοση.",
+    },
+    "en": {
+        "title": "Kira",
+        "subtitle": "Your AI Nurse",
+        "tagline": "Evidence-based health guidance · Always by your side",
+        "start": "Start Assessment",
+        "disclaimer_main": "⚠️ Kira provides health information for informational purposes only. It does not replace medical diagnosis or treatment. In an emergency call **166** (EKAB) or **112**.",
+        "emergency": "🚨 EMERGENCY: CALL 166 (EKAB) or 112",
+        "name": "Name", "age": "Age", "sex": "Biological Sex",
+        "male": "Male", "female": "Female", "other": "Other",
+        "history": "Medical history (conditions, surgeries)",
+        "allergies": "Allergies",
+        "meds": "Current medications / supplements",
+        "next": "Next →",
+        "back": "← Back",
+        "vitals_title": "Your Vitals",
+        "vitals_sub": "Enter your measurements. Use a certified device for accurate readings.",
+        "hr": "Heart Rate (bpm)",
+        "bp_sys": "Blood Pressure — Systolic (mmHg)",
+        "bp_dia": "Blood Pressure — Diastolic (mmHg)",
+        "br": "Breathing Rate (/min)",
+        "spo2": "SpO2 (%)",
+        "temp": "Temperature (°C)",
+        "weight": "Weight (kg)",
+        "height": "Height (cm)",
+        "analyse_vitals": "Analyse Vitals",
+        "triage_title": "Symptom Assessment",
+        "triage_sub": "Describe your symptoms. Kira will ask targeted follow-up questions.",
+        "triage_placeholder": "E.g. I have had a headache for three days with nausea...",
+        "generate_report": "Generate Full Clinical Report",
+        "report_title": "Detailed Health Assessment",
+        "second_opinion": "GPT-4o Second Opinion",
+        "pubmed": "PubMed Evidence",
+        "green_label": "✅ Reassuring",
+        "yellow_label": "🟡 Worth Watching",
+        "red_label": "🔴 Needs Attention",
+        "skip_vitals": "Skip (no measurements)",
+        "face_scan_soon": "📷 Face Scan — Coming Soon",
+        "face_scan_note": "Automatic vital sign detection via camera will be available in the next version.",
+    }
+}
+
+def t(key): return T[st.session_state.lang].get(key, key)
+
+# ── VITAL INTERPRETATION ──────────────────────────────────────────────────────
+def classify_vitals(v):
+    """Returns {metric: 'green'|'yellow'|'red'} for known vitals."""
+    status = {}
+    hr = v.get("hr")
+    if hr:
+        if 60 <= hr <= 100: status["hr"] = "green"
+        elif 50 <= hr <= 110: status["hr"] = "yellow"
+        else: status["hr"] = "red"
+    sys = v.get("bp_sys"); dia = v.get("bp_dia")
+    if sys and dia:
+        if sys < 120 and dia < 80: status["bp"] = "green"
+        elif sys < 130 and dia < 80: status["bp"] = "yellow"
+        elif sys < 140 or dia < 90: status["bp"] = "yellow"
+        else: status["bp"] = "red"
+    br = v.get("br")
+    if br:
+        if 12 <= br <= 20: status["br"] = "green"
+        elif 10 <= br <= 24: status["br"] = "yellow"
+        else: status["br"] = "red"
+    spo2 = v.get("spo2")
+    if spo2:
+        if spo2 >= 95: status["spo2"] = "green"
+        elif spo2 >= 90: status["spo2"] = "yellow"
+        else: status["spo2"] = "red"
+    temp = v.get("temp")
+    if temp:
+        if 36.1 <= temp <= 37.2: status["temp"] = "green"
+        elif 37.3 <= temp <= 38.0: status["temp"] = "yellow"
+        else: status["temp"] = "red"
+    w = v.get("weight"); h = v.get("height")
+    if w and h:
+        bmi = w / ((h/100)**2)
+        v["bmi"] = round(bmi, 1)
+        if 18.5 <= bmi <= 24.9: status["bmi"] = "green"
+        elif 25 <= bmi <= 29.9: status["bmi"] = "yellow"
+        else: status["bmi"] = "red"
+    return status
+
+KIRA_SYSTEM_EL = """Είσαι η Kira — AI νοσηλευτής για Έλληνες χρήστες. Είσαι κλινικά ακριβής, άμεση και υποστηρικτική.
+
+Ρόλος:
+- Τριάζ συμπτωμάτων: Κάνεις στοχευμένες ερωτήσεις (μία κάθε φορά), αξιολογείς και δίνεις δομημένη διαφορική.
+- Ζωτικές ενδείξεις: Ερμηνεύεις τιμές, εντοπίζεις μοτίβα, προτείνεις δράση.
+- Φάρμακα: Εξηγείς αλληλεπιδράσεις, χρόνο λήψης, παρενέργειες.
+- Ελληνικό σύστημα υγείας: Αναφέρεις ΕΟΠΥΥ, ΕΟΔΥ, ΕΟΦ όπου σχετικό.
+
+Κανόνες:
+- Πάντα συστήνεις επαγγελματία για διάγνωση/θεραπεία.
+- Κόκκινες σημαίες (chest pain, stroke, anaphylaxis) → άμεση παραπομπή σε 166/112.
+- Απαντάς στη γλώσσα του χρήστη (Ελληνικά ή Αγγλικά).
+- Μία ερώτηση κάθε φορά — ποτέ λίστα ερωτήσεων.
+- Όταν έχεις αρκετές πληροφορίες, γράψε: "Έχω αρκετά στοιχεία — μπορούμε να δημιουργήσουμε πλήρη αναφορά."
+- Μην αρνείσαι ιατρικές ερωτήσεις — δίνεις την καλύτερη τεκμηριωμένη απάντηση σημειώνοντας τους περιορισμούς."""
+
+KIRA_SYSTEM_EN = """You are Kira — an AI nurse for users in Greece. You are clinically accurate, direct, and supportive.
+
+Role:
+- Symptom triage: Ask targeted questions (one at a time), assess, give structured differentials.
+- Vitals: Interpret readings, spot patterns, recommend action.
+- Medications: Explain interactions, timing, side-effects.
+- Greek health system: Reference EOPYY, EODY, EOF where relevant.
+
+Rules:
+- Always recommend a healthcare professional for diagnosis/treatment.
+- Red flags (chest pain, stroke signs, anaphylaxis) → immediate referral to 166/112.
+- Respond in the user's language (Greek or English).
+- One question at a time — never a list of questions.
+- When you have enough information, write: "I have enough information — we can generate a full clinical report."
+- Never refuse a medical question — give the best evidence-based answer while noting limitations."""
+
+def kira_system(): return KIRA_SYSTEM_EL if st.session_state.lang == "el" else KIRA_SYSTEM_EN
+
+# ─────────────────────────────────────────────────────────────────────────────
+# SCREENS
+# ─────────────────────────────────────────────────────────────────────────────
+
+
 def _secret(name, default=""):
     """Read a config value from st.secrets, falling back to os.environ, then default.
     Safe on platforms (e.g. Railway) where no secrets.toml exists — accessing
@@ -55,34 +492,516 @@ HUMAN_SCAN_PROMPTS = {
     "body":   "Describe the visible body area. Note: skin colour, visible swelling, asymmetry, rashes, bruising, oedema, muscle wasting, posture, any visible masses or lesions.",
 }
 
-def convert_heic_human(img_bytes):
-    if not HEIC_OK: raise RuntimeError("pillow-heif not installed")
-    img = _Image.open(_io.BytesIO(img_bytes))
-    buf = _io.BytesIO()
-    img.convert("RGB").save(buf, format="JPEG", quality=92)
-    return buf.getvalue(), "image/jpeg"
 
-def florence2_human(image_b64, scan_type, api_key):
-    workspace = _secret("ROBOFLOW_WORKSPACE","chriss-workspace-zk0ng")
-    workflow  = _secret("ROBOFLOW_WORKFLOW","florence2-base-demo")
-    url = f"https://serverless.roboflow.com/{workspace}/workflows/{workflow}"
-    task_prompt = HUMAN_SCAN_PROMPTS.get(scan_type, HUMAN_SCAN_PROMPTS["skin"])
-    body = json.dumps({
-        "api_key": api_key,
-        "inputs": {"image":{"type":"base64","value":image_b64},"task_prompt":task_prompt}
-    }).encode()
-    req = urllib.request.Request(url, data=body, headers={"Content-Type":"application/json"})
+def _strip_accents(s):
+    return "".join(c for c in unicodedata.normalize("NFD", s.lower())
+                   if unicodedata.category(c) != "Mn")
+# Each category maps symptom roots → the vital that helps. "scan"=True only where
+# the camera face-scan can actually produce the value (heart rate → cardiac only).
+_VITAL_CATEGORIES = [
+    {"key":"cardio","scan":True,
+     "el":"καρδιακός ρυθμός / πίεση","en":"heart rate / blood pressure",
+     "roots":["παλμ","ταχυκαρδ","αρρυθμ","στηθ","θωρακ","λιποθυμ","λιγοθυμ",
+              "εφιδρ","ιδρωτ","ιδρωσ","ιδρων","ζαλ",
+              "palpit","racing heart","irregular heart","tachycard","arrhythm",
+              "chest pain","chest tightness","faint","sweat","dizz","lightheaded","light-headed"]},
+    {"key":"bp","scan":False,
+     "el":"αρτηριακή πίεση","en":"blood pressure",
+     "roots":["πιεση","υπερτασ","υποτασ","αρτηριακ",
+              "blood pressure","hypertens","hypotens"]},
+    {"key":"temp","scan":False,
+     "el":"θερμοκρασία","en":"temperature",
+     "roots":["πυρετ","θερμοκρασ","δεκατ","εμπυρετ","ριγος","ριγη","κρυαδ",
+              "fever","febrile","chills","temperature","high temp"]},
+    {"key":"resp","scan":False,
+     "el":"οξυγόνο (SpO₂) & αναπνοές","en":"oxygen (SpO₂) & breathing",
+     "roots":["δυσπν","βηχ","ασθμ","πνευμον","αναπν","λαχαν","συριγμ","βρογχ","κορον","covid",
+              "cough","wheez","asthma","pneumonia","breathless","short of breath",
+              "shortness of breath","respiratory","oxygen"]},
+]
+
+def _supabase_client():
+    url = _secret("SUPABASE_URL", "")
+    key = _secret("SUPABASE_ANON_KEY", "")
+    if not url or not key:
+        return None
     try:
-        with urllib.request.urlopen(req, timeout=30) as r:
-            result = json.loads(r.read())
-        outputs = result.get("outputs",[])
-        if outputs:
-            for key in ["output","caption","text","result","description"]:
-                if key in outputs[0] and outputs[0][key]:
-                    return {"ok":True,"description":str(outputs[0][key])}
-        return {"ok":True,"description":str(result)}
+        from supabase import create_client
+        return create_client(url, key)
+    except Exception:
+        return None
+
+
+def _fernet():
+    # 32-byte urlsafe key derived from the app secret (AUTH_COOKIE_SECRET / anon key)
+    key = _b64.urlsafe_b64encode(hashlib.sha256(_cookie_secret().encode()).digest())
+    return Fernet(key)
+
+
+def _cookie_secret():
+    return (_secret("AUTH_COOKIE_SECRET","") or _secret("SUPABASE_ANON_KEY","")
+            or "asklepios-dev-cookie-secret")
+
+
+def _make_token(email, days=14):
+    exp = int(time.time()) + days*86400
+    body = f"{email}|{exp}"
+    sig = hmac.new(_cookie_secret().encode(), body.encode(), hashlib.sha256).hexdigest()[:32]
+    return _b64.urlsafe_b64encode(f"{body}|{sig}".encode()).decode()
+
+
+def _read_token(tok):
+    try:
+        raw = _b64.urlsafe_b64decode(str(tok).encode()).decode()
+        email, exp, sig = raw.rsplit("|", 2)
+        if int(exp) < time.time():
+            return None
+        good = hmac.new(_cookie_secret().encode(), f"{email}|{exp}".encode(), hashlib.sha256).hexdigest()[:32]
+        if hmac.compare_digest(sig, good):
+            return email
+    except Exception:
+        return None
+    return None
+
+
+def _save_login_cookie(email):
+    cm = globals().get("CM")
+    if not cm:
+        return
+    try:
+        cm.set(COOKIE_NAME, _make_token(email), key="ak_set_auth",
+               expires_at=datetime.now()+timedelta(days=14))
+    except Exception:
+        pass
+
+
+def _clear_login_cookie():
+    cm = globals().get("CM")
+    if not cm:
+        return
+    try:
+        cm.delete(COOKIE_NAME, key="ak_del_auth")
+    except Exception:
+        pass
+
+# ── IN-PROGRESS PROFILE DRAFT (server-side, encrypted) ────────────────────────
+# Returning from the external face scan opens a NEW browser tab → a fresh Streamlit
+# session, so the profile held in session_state is gone and intake gets re-asked.
+# We persist the profile server-side in Supabase, keyed by the user's email, and
+# ENCRYPT it (Fernet symmetric, key derived from the app secret) so the stored row
+# is ciphertext — readable only by the app, not by anyone who can see the DB.
+try:
+    from cryptography.fernet import Fernet
+    _ENC_OK = True
+except Exception:
+    _ENC_OK = False
+
+
+def save_draft(email, payload):
+    sb = _supabase_client()
+    if not sb or not email or not _ENC_OK:
+        return
+    try:
+        blob = _fernet().encrypt(
+            json.dumps(payload, ensure_ascii=False).encode()
+        ).decode()
+        sb.table("drafts").upsert({"user_email": email, "data": blob}, on_conflict="user_email").execute()
+    except Exception:
+        pass
+
+
+def load_draft(email):
+    sb = _supabase_client()
+    if not sb or not email or not _ENC_OK:
+        return None
+    try:
+        res = sb.table("drafts").select("data").eq("user_email", email).limit(1).execute()
+        rows = res.data or []
+        if rows and rows[0].get("data"):
+            dec = _fernet().decrypt(rows[0]["data"].encode()).decode()
+            return json.loads(dec)
+    except Exception:
+        return None
+    return None
+
+
+def delete_draft(email):
+    sb = _supabase_client()
+    if not sb or not email:
+        return
+    try:
+        sb.table("drafts").delete().eq("user_email", email).execute()
+    except Exception:
+        pass
+
+
+
+def send_otp(email):
+    sb = _supabase_client()
+    if not sb: return False, "Auth not configured."
+    try:
+        sb.auth.sign_in_with_otp({"email": email})
+        return True, ""
     except Exception as e:
-        return {"ok":False,"error":str(e)}
+        return False, str(e)
+
+
+def verify_otp(email, token):
+    sb = _supabase_client()
+    if not sb: return False, "Auth not configured."
+    token = str(token).strip()
+    last_err = "invalid"
+    # New users (or with "Confirm email" on) get a 'signup' token; returning users get 'email'.
+    for otp_type in ("email", "signup"):
+        try:
+            res = sb.auth.verify_otp({"email": email, "token": token, "type": otp_type})
+            if getattr(res, "user", None):
+                st.session_state["auth_user"] = email
+                return True, ""
+        except Exception as e:
+            last_err = str(e)
+    return False, last_err
+
+
+def auth_enabled():
+    return _supabase_client() is not None
+
+
+def is_logged_in():
+    return bool(st.session_state.get("auth_user"))
+
+# ── PERSISTENT LOGIN (HMAC-signed cookie — cannot be forged) ──────────────────
+CM = None  # CookieManager instance, created once per run in the router
+COOKIE_NAME = "ak_session"
+
+
+def logout():
+    sb = _supabase_client()
+    if sb:
+        try: sb.auth.sign_out()
+        except Exception: pass
+    delete_draft(st.session_state.get("auth_user", ""))
+    _clear_login_cookie()
+    # Clear all session state and reset to defaults
+    for key in list(st.session_state.keys()):
+        del st.session_state[key]
+    try:
+        if "pe" in st.query_params: del st.query_params["pe"]
+    except Exception:
+        pass
+
+
+def render_login_gate():
+    """Inline email->OTP login. Returns True once the user is logged in."""
+    lang = st.session_state.lang
+    if is_logged_in():
+        return True
+    st.markdown(f'''<div style="background:rgba(45,63,231,0.06);border:1px solid rgba(45,63,231,0.15);border-radius:14px;padding:20px 22px;text-align:center;margin:10px 0">
+        <div style="font-size:34px;margin-bottom:6px">🔒</div>
+        <div style="font-size:16px;font-weight:700;color:#1A1A2E">{"Σύνδεση" if lang=="el" else "Sign in"}</div>
+        <div style="font-size:13px;color:#6B7280;margin-top:4px">{"Βάλε το email σου και τον 6ψήφιο κωδικό που θα λάβεις για να συνεχίσεις." if lang=="el" else "Enter your email and the 6-digit code we send you to continue."}</div>
+    </div>''', unsafe_allow_html=True)
+    sent_to = st.session_state.get("otp_sent_to")
+    if not sent_to:
+        # Survive a mobile reload / new session: recover the pending email from the URL
+        pe = st.query_params.get("pe")
+        if pe:
+            st.session_state["otp_sent_to"] = pe
+            sent_to = pe
+    if not sent_to:
+        email = st.text_input("Email", key="otp_email", placeholder="you@example.com")
+        if st.button(("Στείλε κωδικό" if lang=="el" else "Send code"), type="primary", use_container_width=True, key="otp_send"):
+            if email and "@" in email:
+                ok, err = send_otp(email)
+                if ok:
+                    st.session_state["otp_sent_to"] = email
+                    st.query_params["pe"] = email
+                    st.rerun()
+                else:
+                    st.error(("Σφάλμα αποστολής: " if lang=="el" else "Send error: ") + err)
+            else:
+                st.warning("Έγκυρο email, παρακαλώ." if lang=="el" else "Please enter a valid email.")
+    else:
+        st.caption((f"Στείλαμε 6ψήφιο κωδικό στο {sent_to}" if lang=="el" else f"We sent a 6-digit code to {sent_to}"))
+        code = st.text_input(("Κωδικός" if lang=="el" else "Code"), key="otp_code", placeholder="123456")
+        c1, c2 = st.columns([2,1])
+        with c1:
+            if st.button(("Επιβεβαίωση" if lang=="el" else "Verify"), type="primary", use_container_width=True, key="otp_verify"):
+                ok, err = verify_otp(sent_to, code)
+                if ok:
+                    st.session_state.pop("otp_sent_to", None)
+                    if "pe" in st.query_params: del st.query_params["pe"]
+                    st.rerun()
+                else:
+                    st.error(("Δεν έγινε σύνδεση: " if lang=="el" else "Sign-in failed: ") + (err or ("λάθος/ληγμένος κωδικός" if lang=="el" else "wrong/expired code")))
+        with c2:
+            if st.button(("Άλλο email" if lang=="el" else "Change email"), use_container_width=True, key="otp_reset"):
+                st.session_state.pop("otp_sent_to", None)
+                if "pe" in st.query_params: del st.query_params["pe"]
+                st.rerun()
+    return is_logged_in()
+
+
+def render_login_screen():
+    """Full-page login shown at the very start when auth is enabled."""
+    lang = st.session_state.lang
+    c1, c2 = st.columns([6,1])
+    with c2:
+        if st.button("🇬🇧 EN" if lang=="el" else "🇬🇷 ΕΛ", key="login_lang"):
+            st.session_state.lang = "en" if lang=="el" else "el"; st.rerun()
+    st.markdown(f'''<div class="kira-hero"><div style="font-size:64px;margin-bottom:8px">🩺</div><h1>{t("title")}</h1><p>{t("subtitle")}</p><div class="kira-tagline">{t("tagline")}</div></div>''', unsafe_allow_html=True)
+    col1, col2, col3 = st.columns([1,2,1])
+    with col2:
+        render_login_gate()
+    st.markdown(f'<div class="disclaimer">{t("disclaimer_main")}</div>', unsafe_allow_html=True)
+
+
+def _save_session_for_external_nav():
+    """Save session to Supabase ONLY when user leaves for facescan or photo picker.
+    Deleted immediately on return. GDPR: minimal data, single-use, auto-deleted."""
+    if not (auth_enabled() and is_logged_in()):
+        return
+    payload = {
+        "profile":         st.session_state.profile,
+        "lang":            st.session_state.lang,
+        "triage_chat":     st.session_state.triage_chat,
+        "medications":     st.session_state.medications,
+        "vitals_analysis": st.session_state.vitals_analysis,
+    }
+    save_draft(st.session_state.get("auth_user", ""), payload)
+
+
+def render_stepper(current):
+    steps_el = ["1 Στοιχεία","2 Ζωτικές","3 Συμπτώματα","4 Αναφορά"]
+    steps_en = ["1 Profile","2 Vitals","3 Symptoms","4 Report"]
+    steps = steps_el if st.session_state.lang=="el" else steps_en
+    order = ["intake","vitals","triage","report"]
+    cur_i = order.index(current) if current in order else 0
+    html = '<div class="kira-stepper">'
+    for i, label in enumerate(steps):
+        cls = "done" if i < cur_i else ("active" if i == cur_i else "")
+        icon = "✓" if i < cur_i else str(i+1)
+        html += f'<div class="kira-step {cls}"><div class="kira-step-circle">{icon}</div><div class="kira-step-label">{label}</div></div>'
+        if i < len(steps)-1:
+            line_cls = "done" if i < cur_i else ""
+            html += f'<div class="kira-step-line {line_cls}"></div>'
+    html += "</div>"
+    st.markdown(html, unsafe_allow_html=True)
+
+
+def _relevant_vitals():
+    txt = _strip_accents(" ".join(m["content"] for m in st.session_state.triage_chat if m["role"]=="user"))
+    return [c for c in _VITAL_CATEGORIES if any(_strip_accents(r) in txt for r in c["roots"])]
+
+# A photo only helps for VISUAL complaints (skin/rash, eye, wound/swelling, mouth/
+# throat, nails, lesions...). For non-visual ones (e.g. chest pain, dizziness) the
+# camera adds nothing and just confuses, so the photo option is hidden unless the
+# conversation is about something visible.
+_VISUAL_ROOTS = [
+    # Greek (accent-insensitive)
+    "δερμα","εξανθημ","σπυρ","πληγ","τραυμ","κοψιμ","εκδορ","εξογκωμ","πρηξ","πρησμ",
+    "πρησιμ","οιδημ","μωλωπ","ελια","σπιλ","μελανωμ","εγκαυμ","καψιμ","δαγκωμ","τσιμπ",
+    "κνησμ","φαγουρ","φουσκαλ","φλυκταιν","εκζεμ","ψωριασ","ελκος","εξελκωσ","αφθ",
+    "οφθαλμ","ματι","λαιμ","αμυγδαλ","φαρυγγ","γλωσσ","νυχι","ονυχ","ουλη","κονδυλωμ",
+    "αλλοιωσ","κηλιδ","δοθιην","αποστημ","σπυρακ","πρηξιμ","οζο",
+    # English
+    "skin","rash","lesion","wound","laceration","abrasion","lump","bump","swelling",
+    "swollen","bruise","mole","melanoma","eye","throat","tonsil","tongue","nail",
+    "burn","bite","itch","blister","eczema","psoriasis","ulcer","pimple","cyst","wart",
+]
+
+def _visual_relevant():
+    txt = _strip_accents(" ".join(m["content"] for m in st.session_state.triage_chat))
+    return any(r in txt for r in _VISUAL_ROOTS)
+
+# Quick-select symptom chips, tailored to the person (age + sex from the profile).
+# These are common PRESENTING COMPLAINTS per group — not diagnoses — to speed up the
+# first message. Age takes precedence over sex (a child gets paediatric chips). The
+# user can always type freely or tap "Άλλο/Other".
+_CHIP_SETS = {
+    "female": {
+        "el": (["Πονοκέφαλος/Ημικρανία","Κοιλιακός/πυελικός πόνος","Διαταραχές περιόδου",
+                "Ούρα: καύσος/συχνουρία","Κόπωση","Ναυτία","Ζάλη","Πόνος στήθους",
+                "Δύσπνοια","Πόνος μέσης","Εξάνθημα/δέρμα","Άλλο"], "συχνά σε γυναίκες"),
+        "en": (["Headache/Migraine","Abdominal/pelvic pain","Menstrual changes",
+                "Urinary burning/frequency","Fatigue","Nausea","Dizziness","Chest pain",
+                "Shortness of breath","Back pain","Rash/skin","Other"], "common in women"),
+    },
+    "male": {
+        "el": (["Πόνος στήθους","Δύσπνοια","Κοιλιακός πόνος","Πόνος μέσης",
+                "Ούρα: δυσουρία/συχνουρία","Πονοκέφαλος","Ζάλη","Κόπωση","Βήχας",
+                "Πόνος αρθρώσεων","Εξάνθημα/δέρμα","Άλλο"], "συχνά σε άνδρες"),
+        "en": (["Chest pain","Shortness of breath","Abdominal pain","Back pain",
+                "Urinary problems","Headache","Dizziness","Fatigue","Cough",
+                "Joint pain","Rash/skin","Other"], "common in men"),
+    },
+    "infant": {
+        "el": (["Πυρετός","Ανήσυχο/κλάματα","Εμετός/αναγωγές","Διάρροια","Βήχας/συνάχι",
+                "Δυσκολία αναπνοής","Εξάνθημα","Δυσκολία σίτισης","Δυσκοιλιότητα",
+                "Ίκτερος (κιτρίνισμα)","Άλλο"], "συχνά σε βρέφη"),
+        "en": (["Fever","Irritable/crying","Vomiting/spit-up","Diarrhoea","Cough/congestion",
+                "Breathing difficulty","Rash","Feeding difficulty","Constipation",
+                "Jaundice","Other"], "common in infants"),
+    },
+    "child": {
+        "el": (["Πυρετός","Βήχας","Πονόλαιμος","Πόνος αυτιού","Κοιλιακός πόνος","Εμετός",
+                "Διάρροια","Εξάνθημα","Πονοκέφαλος","Δυσκολία αναπνοής","Άλλο"],
+               "συχνά σε παιδιά/εφήβους"),
+        "en": (["Fever","Cough","Sore throat","Ear pain","Abdominal pain","Vomiting",
+                "Diarrhoea","Rash","Headache","Breathing difficulty","Other"],
+               "common in children/teens"),
+    },
+    "adult": {
+        "el": (["Πονοκέφαλος","Πυρετός","Βήχας","Δύσπνοια","Ναυτία","Πόνος στήθους",
+                "Κοιλιακός πόνος","Ζάλη","Κόπωση","Πόνος πλάτης","Διάρροια","Άλλο"], ""),
+        "en": (["Headache","Fever","Cough","Shortness of breath","Nausea","Chest pain",
+                "Abdominal pain","Dizziness","Fatigue","Back pain","Diarrhoea","Other"], ""),
+    },
+}
+
+def _symptom_chips(profile, lang):
+    """Return (chips, group_label) for the person's age/sex group."""
+    age = profile.get("age", 0) or 0
+    sex = profile.get("sex", "")
+    if age <= 16:
+        g = "infant" if age < 2 else "child"
+    elif sex in ("Γυναίκα", "Female"):
+        g = "female"
+    elif sex in ("Άνδρας", "Male"):
+        g = "male"
+    else:
+        g = "adult"
+    return _CHIP_SETS[g]["el" if lang == "el" else "en"]
+
+
+def generate_html_report(profile, vitals, report_text, pubmed_refs, lang="el"):
+    import re as _re, html as _html
+    name=_html.escape(str(profile.get("name","—"))); age=str(profile.get("age","—"))
+    sex=_html.escape(str(profile.get("sex",""))); hx=_html.escape(str(profile.get("history","") or "—"))
+    allg=_html.escape(str(profile.get("allergies","") or "—")); meds=_html.escape(str(profile.get("meds_raw","") or "—"))
+    ts=datetime.now().strftime("%d %B %Y  %H:%M")
+    VLABELS={"hr":("Καρδιακός Ρυθμός","bpm"),"bp_sys":("ΑΠ Συστολική","mmHg"),"bp_dia":("ΑΠ Διαστολική","mmHg"),"br":("Αναπνευστικός Ρυθμός","/min"),"spo2":("SpO2","%"),"temp":("Θερμοκρασία","°C"),"weight":("Βάρος","kg"),"height":("Ύψος","cm"),"bmi":("ΔΜΣ","kg/m²"),"hrv":("HRV","ms"),"stress":("Δείκτης Στρες","/100")}
+    vitals_rows="".join(f"<tr><td>{VLABELS.get(k,(k,''))[0]}</td><td><strong>{_html.escape(str(val))}</strong> {VLABELS.get(k,(k,''))[1]}</td></tr>" for k,val in (vitals or {}).items())
+    vitals_sec=f"<h2>Ζωτικές Ενδείξεις</h2><table class='vitals'><thead><tr><th>Παράμετρος</th><th>Τιμή</th></tr></thead><tbody>{vitals_rows}</tbody></table>" if vitals_rows else ""
+    def md2h(text):
+        out=[]
+        for line in text.splitlines():
+            l=line.strip()
+            if not l: out.append("<br>"); continue
+            if l.startswith("## ") or l.startswith("# "): out.append(f"<h2>{_html.escape(l.lstrip('#').strip())}</h2>")
+            elif l.startswith(("- ","* ","• ")): out.append(f"<li>{_re.sub(r'\*\*(.*?)\*\*',r'<strong>\1</strong>',_html.escape(l[2:]))}</li>")
+            else: out.append(f"<p>{_re.sub(r'\*\*(.*?)\*\*',r'<strong>\1</strong>',_html.escape(l))}</p>")
+        r="\n".join(out)
+        return _re.sub(r"(<li>.*?</li>\n)+",lambda m:"<ul>"+m.group(0)+"</ul>",r,flags=_re.DOTALL)
+    refs_html=""
+    if pubmed_refs:
+        refs_html="<h2>Βιβλιογραφία</h2><ol>"+"".join(f'<li>{_html.escape(a.get("title","—"))} — {_html.escape(a.get("authors",""))}. <em>{_html.escape(a.get("journal",""))}</em>, {_html.escape(a.get("date",""))}. <a href="{_html.escape(a.get("url",""))}">{_html.escape(a.get("url",""))}</a></li>' for a in pubmed_refs)+"</ol>"
+    html_out=f"""<!DOCTYPE html><html lang="{lang}"><head><meta charset="UTF-8"><title>Asklepios Report — {name}</title>
+<style>*{{box-sizing:border-box;margin:0;padding:0}}body{{font-family:'Inter',sans-serif;font-size:13px;color:#1A1A2E;max-width:820px;margin:0 auto;padding:32px 40px}}
+.hdr{{display:flex;justify-content:space-between;align-items:center;border-bottom:3px solid #2D3FE7;padding-bottom:14px;margin-bottom:20px}}
+.hdr-logo{{font-size:22px;font-weight:800;color:#2D3FE7}}.hdr-date{{font-size:11px;color:#6B7280;text-align:right}}
+.patient{{background:linear-gradient(135deg,#2D3FE7,#7B2FE0);color:white;border-radius:12px;padding:18px 22px;margin-bottom:20px}}
+.patient-name{{font-size:20px;font-weight:700;margin-bottom:4px}}.patient-meta{{font-size:12px;opacity:.8}}.patient-detail{{font-size:11px;opacity:.75;margin-top:10px;line-height:1.8}}
+h2{{font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:#7B2FE0;border-bottom:1px solid #E0E5FF;padding-bottom:5px;margin:20px 0 10px}}
+p{{margin:4px 0;line-height:1.65}}ul{{margin:6px 0 6px 18px}}li{{margin:3px 0;line-height:1.6}}
+table.vitals{{width:100%;border-collapse:collapse;margin:10px 0;font-size:12px}}
+table.vitals thead tr{{background:#2D3FE7;color:white}}table.vitals th,table.vitals td{{padding:7px 12px;text-align:left;border:1px solid #E0E5FF}}
+table.vitals tbody tr:nth-child(even){{background:#F8FAFF}}
+.emergency{{background:#DC2626;color:white;border-radius:8px;padding:12px 16px;font-weight:700;margin:16px 0}}
+.disclaimer{{background:#FFFBEB;border:1px solid #FCD34D;border-radius:8px;padding:10px 14px;font-size:11px;color:#92400E;margin:12px 0}}
+.hint{{text-align:center;margin:24px 0 0;font-size:12px;color:#94A3B8;border-top:1px dashed #E0E5FF;padding-top:14px}}
+@media print{{body{{padding:16px}}.patient,.emergency{{-webkit-print-color-adjust:exact;print-color-adjust:exact}}@page{{margin:15mm}}}}</style></head><body>
+<div class="hdr"><div class="hdr-logo">🩺 Asklepios AI Nurse</div><div class="hdr-date">Κλινική Εκτίμηση<br>{ts}</div></div>
+<div class="patient"><div class="patient-name">{name}</div><div class="patient-meta">{age} ετών · {sex}</div>
+<div class="patient-detail"><strong>Ιστορικό:</strong> {hx}<br><strong>Αλλεργίες:</strong> {allg}<br><strong>Φάρμακα:</strong> {meds}</div></div>
+{vitals_sec}<h2>Κλινική Αξιολόγηση</h2>{md2h(report_text or "")}{refs_html}
+<div class="emergency">🚨 ΣΕ ΕΠΕΙΓΟΥΣΑ ΑΝΑΓΚΗ: ΚΑΛΕΣΤΕ 166 (ΕΚΑΒ) ή 112</div>
+<div class="disclaimer">⚠️ AI-generated. Δεν αποτελεί ιατρική διάγνωση. Απαιτείται επίσκεψη σε επαγγελματία υγείας.</div>
+<div class="hint">💡 Ctrl+P → Save as PDF</div></body></html>"""
+    return html_out.encode("utf-8")
+
+
+def demographic_bp_risk(age, bmi, hr, weight=None, height=None):
+    """
+    Evidence-based BP risk classification using demographic features.
+    Based on: Chowdhury et al. (2020) - top ReliefF features for BP estimation.
+    Returns: dict with risk_level, sbp_range, dbp_range, explanation
+    """
+    score = 0
+    factors = []
+
+    # Age — strongest demographic predictor (Feature #105 in paper)
+    if age >= 70:   score += 4; factors.append("age ≥70" if True else "")
+    elif age >= 60: score += 3; factors.append("age 60-69")
+    elif age >= 50: score += 2; factors.append("age 50-59")
+    elif age >= 40: score += 1; factors.append("age 40-49")
+
+    # BMI — second strongest (Feature #107)
+    if bmi:
+        if bmi >= 35:   score += 3; factors.append("BMI ≥35 (obese II)")
+        elif bmi >= 30: score += 2; factors.append("BMI 30-34 (obese I)")
+        elif bmi >= 25: score += 1; factors.append("BMI 25-29 (overweight)")
+
+    # Heart Rate — Feature #106
+    if hr:
+        if hr > 90:   score += 2; factors.append("elevated HR")
+        elif hr > 80: score += 1; factors.append("high-normal HR")
+        elif hr < 55: score -= 1; factors.append("low HR (fit/athletic)")
+
+    # Weight/Height ratio proxy if BMI not computed yet
+    if weight and height and not bmi:
+        bmi_calc = weight / ((height/100)**2)
+        if bmi_calc >= 30: score += 2
+        elif bmi_calc >= 25: score += 1
+
+    # Map score to risk level + estimated range
+    if score <= 0:
+        return {"level":"optimal","color":"#10B981","label_el":"Βέλτιστη","label_en":"Optimal",
+                "sbp":"<115","dbp":"<75","note_el":"Εξαιρετικό καρδιαγγειακό προφίλ.","note_en":"Excellent cardiovascular profile.","score":score}
+    elif score <= 2:
+        return {"level":"normal","color":"#10B981","label_el":"Φυσιολογική","label_en":"Normal",
+                "sbp":"115-129","dbp":"75-84","note_el":"Φυσιολογικά επίπεδα για το προφίλ σας.","note_en":"Normal levels for your profile.","score":score}
+    elif score <= 4:
+        return {"level":"elevated","color":"#F59E0B","label_el":"Ελαφρά Αυξημένη","label_en":"Elevated Risk",
+                "sbp":"130-144","dbp":"85-89","note_el":"Σχετικά αυξημένος κίνδυνος. Μέτρηση πίεσης συνιστάται.","note_en":"Moderately elevated risk. BP measurement advised.","score":score}
+    elif score <= 6:
+        return {"level":"high","color":"#EF4444","label_el":"Υψηλός Κίνδυνος","label_en":"High Risk",
+                "sbp":"140-159","dbp":"90-99","note_el":"Αυξημένος κίνδυνος υπέρτασης. Επισκεφθείτε γιατρό.","note_en":"Elevated hypertension risk. See a doctor.","score":score}
+    else:
+        return {"level":"very_high","color":"#DC2626","label_el":"Πολύ Υψηλός Κίνδυνος","label_en":"Very High Risk",
+                "sbp":"≥160","dbp":"≥100","note_el":"Πολύ υψηλός κίνδυνος. Απαιτείται ιατρική αξιολόγηση.","note_en":"Very high risk. Medical evaluation required.","score":score}
+
+
+KIRA_SYSTEM_EL = """Είσαι ο Asklepios — AI νοσηλευτής για Έλληνες χρήστες. Είσαι κλινικά ακριβής, άμεσος και υποστηρικτικός.
+Ρόλος: Τριάζ συμπτωμάτων (μία ερώτηση κάθε φορά), ερμηνεία ζωτικών, φάρμακα, ελληνικό σύστημα υγείας (ΕΟΠΥΥ, ΕΟΔΥ, ΕΟΦ).
+Φωτογραφία: Αν το σύμπτωμα είναι οπτικό (δέρμα/εξάνθημα, μάτι, τραύμα/πληγή, στόμα/λαιμός, νύχια, ορατή αλλοίωση), αφού κάνεις την αρχική σου εκτίμηση πρότεινε στον χρήστη να ανεβάσει φωτογραφία από την επιλογή «📷 Ανάλυση φωτογραφίας» πιο κάτω, για πιο ακριβή εκτίμηση. Για μη-οπτικά συμπτώματα (π.χ. πονοκέφαλος, ζάλη) ΜΗΝ ζητάς φωτογραφία. Η φωτογραφία είναι ΠΡΟΑΙΡΕΤΙΚΗ: αν ο χρήστης δεν ανεβάσει ή δεν θέλει, ΣΥΝΕΧΙΣΕ κανονικά την εκτίμηση χωρίς να σταματάς, να περιμένεις ή να επιμένεις.
+Κανόνες: Πάντα συστήνεις επαγγελματία. Κόκκινες σημαίες → 166/112. Όταν έχεις αρκετά: "Έχω αρκετά στοιχεία — μπορούμε να δημιουργήσουμε πλήρη αναφορά." Μία ερώτηση κάθε φορά.
+Ζωτικά: Αν τα συμπτώματα είναι καρδιακά/αυτόνομα (αίσθημα παλμών, ταχυπαλμία, πόνος/σφίξιμο στο στήθος, δύσπνοια, ζάλη, λιποθυμία, κρύος ιδρώτας/εφίδρωση), πρότεινε ήπια στον χρήστη να μετρήσει ζωτικά (καρδιακός ρυθμός/πίεση) — ΠΡΟΑΙΡΕΤΙΚΟ, συνέχισε κανονικά αν δεν το κάνει."""
+
+KIRA_SYSTEM_EN = """You are Asklepios — an AI nurse for users in Greece. Clinically accurate, direct, supportive.
+Role: Symptom triage (one question at a time), vitals interpretation, medications, Greek health system (EOPYY, EODY, EOF).
+Photo: If the symptom is visual (skin/rash, eye, wound, mouth/throat, nails, any visible lesion), after giving your initial assessment, invite the user to upload a photo via the "📷 Photo analysis" option below for a more accurate assessment. For non-visual symptoms (e.g. headache, dizziness) do NOT ask for a photo. The photo is OPTIONAL: if the user doesn't upload one or declines, CONTINUE the assessment normally — do not stop, wait, or insist.
+Rules: Always recommend a professional. Red flags → 166/112. When ready: "I have enough information — we can generate a full clinical report." One question at a time.
+Vitals: If the symptoms are cardiac/autonomic (palpitations, racing heart, chest pain/tightness, shortness of breath, dizziness, fainting, cold sweat/sweating), gently suggest the user measure vitals (heart rate/blood pressure) — OPTIONAL, continue normally if they don't."""
+
+
+def save_feedback(rating, comment=""):
+    """Store a minimal, non-medical feedback row in Supabase. No report/identifiers."""
+    sb = _supabase_client()
+    if not sb:
+        return False  # demo mode: nothing stored
+    try:
+        sb.table("feedback").insert({
+            "user_email": st.session_state.get("auth_user", ""),
+            "rating": rating,
+            "comment": (comment or "")[:1000],
+            "lang": st.session_state.lang,
+        }).execute()
+        return True
+    except Exception:
+        return False
+
+# ── NCBI HELPERS ──────────────────────────────────────────────────────────────
 
 def claude_vision_human(image_b64, image_type, prompt, system=""):
     key = get_claude_key()
@@ -267,469 +1186,14 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # ── KEYS ──────────────────────────────────────────────────────────────────────
-def _key(name, fallback=""):
-    for k in [name, name.lower(), name.upper()]:
-        v = _secret(k, "")
-        if v:
-            return v
-    return fallback
 
-def get_claude_key():  return _key("Claude_API_Key")
-def get_openai_key():  return _key("OPENAI_API_KEY")
-def get_ncbi_key():    return _key("NCBI_API_KEY")
+def convert_heic_human(img_bytes):
+    if not HEIC_OK: raise RuntimeError("pillow-heif not installed")
+    img = _Image.open(_io.BytesIO(img_bytes))
+    buf = _io.BytesIO()
+    img.convert("RGB").save(buf, format="JPEG", quality=92)
+    return buf.getvalue(), "image/jpeg"
 
-# ── AUTH (Supabase email-OTP — gates the premium report) ──────────────────────
-# Graceful degradation: if SUPABASE_URL / SUPABASE_ANON_KEY are not set (or the
-# supabase package is missing), auth stays OFF and the whole app is open — so the
-# demo keeps working. Set the secrets to switch the gate on automatically.
-def _supabase_client():
-    url = _secret("SUPABASE_URL", "")
-    key = _secret("SUPABASE_ANON_KEY", "")
-    if not url or not key:
-        return None
-    try:
-        from supabase import create_client
-        return create_client(url, key)
-    except Exception:
-        return None
-
-def auth_enabled():
-    return _supabase_client() is not None
-
-def is_logged_in():
-    return bool(st.session_state.get("auth_user"))
-
-# ── PERSISTENT LOGIN (HMAC-signed cookie — cannot be forged) ──────────────────
-CM = None  # CookieManager instance, created once per run in the router
-COOKIE_NAME = "ak_session"
-
-def _cookie_secret():
-    return (_secret("AUTH_COOKIE_SECRET","") or _secret("SUPABASE_ANON_KEY","")
-            or "asklepios-dev-cookie-secret")
-
-def _make_token(email, days=14):
-    exp = int(time.time()) + days*86400
-    body = f"{email}|{exp}"
-    sig = hmac.new(_cookie_secret().encode(), body.encode(), hashlib.sha256).hexdigest()[:32]
-    return _b64.urlsafe_b64encode(f"{body}|{sig}".encode()).decode()
-
-def _read_token(tok):
-    try:
-        raw = _b64.urlsafe_b64decode(str(tok).encode()).decode()
-        email, exp, sig = raw.rsplit("|", 2)
-        if int(exp) < time.time():
-            return None
-        good = hmac.new(_cookie_secret().encode(), f"{email}|{exp}".encode(), hashlib.sha256).hexdigest()[:32]
-        if hmac.compare_digest(sig, good):
-            return email
-    except Exception:
-        return None
-    return None
-
-def _save_login_cookie(email):
-    cm = globals().get("CM")
-    if not cm:
-        return
-    try:
-        cm.set(COOKIE_NAME, _make_token(email), key="ak_set_auth",
-               expires_at=datetime.now()+timedelta(days=14))
-    except Exception:
-        pass
-
-def _clear_login_cookie():
-    cm = globals().get("CM")
-    if not cm:
-        return
-    try:
-        cm.delete(COOKIE_NAME, key="ak_del_auth")
-    except Exception:
-        pass
-
-# ── IN-PROGRESS PROFILE DRAFT (server-side, encrypted) ────────────────────────
-# Returning from the external face scan opens a NEW browser tab → a fresh Streamlit
-# session, so the profile held in session_state is gone and intake gets re-asked.
-# We persist the profile server-side in Supabase, keyed by the user's email, and
-# ENCRYPT it (Fernet symmetric, key derived from the app secret) so the stored row
-# is ciphertext — readable only by the app, not by anyone who can see the DB.
-try:
-    from cryptography.fernet import Fernet
-    _ENC_OK = True
-except Exception:
-    _ENC_OK = False
-
-def _fernet():
-    # 32-byte urlsafe key derived from the app secret (AUTH_COOKIE_SECRET / anon key)
-    key = _b64.urlsafe_b64encode(hashlib.sha256(_cookie_secret().encode()).digest())
-    return Fernet(key)
-
-def save_draft(email, payload):
-    sb = _supabase_client()
-    if not sb or not email or not _ENC_OK:
-        return
-    try:
-        blob = _fernet().encrypt(
-            json.dumps(payload, ensure_ascii=False).encode()
-        ).decode()
-        sb.table("drafts").upsert({"user_email": email, "data": blob}, on_conflict="user_email").execute()
-    except Exception:
-        pass
-
-def load_draft(email):
-    sb = _supabase_client()
-    if not sb or not email or not _ENC_OK:
-        return None
-    try:
-        res = sb.table("drafts").select("data").eq("user_email", email).limit(1).execute()
-        rows = res.data or []
-        if rows and rows[0].get("data"):
-            dec = _fernet().decrypt(rows[0]["data"].encode()).decode()
-            return json.loads(dec)
-    except Exception:
-        return None
-    return None
-
-def delete_draft(email):
-    sb = _supabase_client()
-    if not sb or not email:
-        return
-    try:
-        sb.table("drafts").delete().eq("user_email", email).execute()
-    except Exception:
-        pass
-
-
-def send_otp(email):
-    sb = _supabase_client()
-    if not sb: return False, "Auth not configured."
-    try:
-        sb.auth.sign_in_with_otp({"email": email})
-        return True, ""
-    except Exception as e:
-        return False, str(e)
-
-def verify_otp(email, token):
-    sb = _supabase_client()
-    if not sb: return False, "Auth not configured."
-    token = str(token).strip()
-    last_err = "invalid"
-    # New users (or with "Confirm email" on) get a 'signup' token; returning users get 'email'.
-    for otp_type in ("email", "signup"):
-        try:
-            res = sb.auth.verify_otp({"email": email, "token": token, "type": otp_type})
-            if getattr(res, "user", None):
-                st.session_state["auth_user"] = email
-                return True, ""
-        except Exception as e:
-            last_err = str(e)
-    return False, last_err
-
-def logout():
-    sb = _supabase_client()
-    if sb:
-        try: sb.auth.sign_out()
-        except Exception: pass
-    delete_draft(st.session_state.get("auth_user", ""))
-    _clear_login_cookie()
-    # Clear all session state and reset to defaults
-    for key in list(st.session_state.keys()):
-        del st.session_state[key]
-    try:
-        if "pe" in st.query_params: del st.query_params["pe"]
-    except Exception:
-        pass
-
-def render_login_gate():
-    """Inline email->OTP login. Returns True once the user is logged in."""
-    lang = st.session_state.lang
-    if is_logged_in():
-        return True
-    st.markdown(f'''<div style="background:rgba(45,63,231,0.06);border:1px solid rgba(45,63,231,0.15);border-radius:14px;padding:20px 22px;text-align:center;margin:10px 0">
-        <div style="font-size:34px;margin-bottom:6px">🔒</div>
-        <div style="font-size:16px;font-weight:700;color:#1A1A2E">{"Σύνδεση" if lang=="el" else "Sign in"}</div>
-        <div style="font-size:13px;color:#6B7280;margin-top:4px">{"Βάλε το email σου και τον 6ψήφιο κωδικό που θα λάβεις για να συνεχίσεις." if lang=="el" else "Enter your email and the 6-digit code we send you to continue."}</div>
-    </div>''', unsafe_allow_html=True)
-    sent_to = st.session_state.get("otp_sent_to")
-    if not sent_to:
-        # Survive a mobile reload / new session: recover the pending email from the URL
-        pe = st.query_params.get("pe")
-        if pe:
-            st.session_state["otp_sent_to"] = pe
-            sent_to = pe
-    if not sent_to:
-        email = st.text_input("Email", key="otp_email", placeholder="you@example.com")
-        if st.button(("Στείλε κωδικό" if lang=="el" else "Send code"), type="primary", use_container_width=True, key="otp_send"):
-            if email and "@" in email:
-                ok, err = send_otp(email)
-                if ok:
-                    st.session_state["otp_sent_to"] = email
-                    st.query_params["pe"] = email
-                    st.rerun()
-                else:
-                    st.error(("Σφάλμα αποστολής: " if lang=="el" else "Send error: ") + err)
-            else:
-                st.warning("Έγκυρο email, παρακαλώ." if lang=="el" else "Please enter a valid email.")
-    else:
-        st.caption((f"Στείλαμε 6ψήφιο κωδικό στο {sent_to}" if lang=="el" else f"We sent a 6-digit code to {sent_to}"))
-        code = st.text_input(("Κωδικός" if lang=="el" else "Code"), key="otp_code", placeholder="123456")
-        c1, c2 = st.columns([2,1])
-        with c1:
-            if st.button(("Επιβεβαίωση" if lang=="el" else "Verify"), type="primary", use_container_width=True, key="otp_verify"):
-                ok, err = verify_otp(sent_to, code)
-                if ok:
-                    st.session_state.pop("otp_sent_to", None)
-                    if "pe" in st.query_params: del st.query_params["pe"]
-                    st.rerun()
-                else:
-                    st.error(("Δεν έγινε σύνδεση: " if lang=="el" else "Sign-in failed: ") + (err or ("λάθος/ληγμένος κωδικός" if lang=="el" else "wrong/expired code")))
-        with c2:
-            if st.button(("Άλλο email" if lang=="el" else "Change email"), use_container_width=True, key="otp_reset"):
-                st.session_state.pop("otp_sent_to", None)
-                if "pe" in st.query_params: del st.query_params["pe"]
-                st.rerun()
-    return is_logged_in()
-
-def render_login_screen():
-    """Full-page login shown at the very start when auth is enabled."""
-    lang = st.session_state.lang
-    c1, c2 = st.columns([6,1])
-    with c2:
-        if st.button("🇬🇧 EN" if lang=="el" else "🇬🇷 ΕΛ", key="login_lang"):
-            st.session_state.lang = "en" if lang=="el" else "el"; st.rerun()
-    st.markdown(f'''<div class="kira-hero"><div style="font-size:64px;margin-bottom:8px">🩺</div><h1>{t("title")}</h1><p>{t("subtitle")}</p><div class="kira-tagline">{t("tagline")}</div></div>''', unsafe_allow_html=True)
-    col1, col2, col3 = st.columns([1,2,1])
-    with col2:
-        render_login_gate()
-    st.markdown(f'<div class="disclaimer">{t("disclaimer_main")}</div>', unsafe_allow_html=True)
-
-def save_feedback(rating, comment=""):
-    """Store a minimal, non-medical feedback row in Supabase. No report/identifiers."""
-    sb = _supabase_client()
-    if not sb:
-        return False  # demo mode: nothing stored
-    try:
-        sb.table("feedback").insert({
-            "user_email": st.session_state.get("auth_user", ""),
-            "rating": rating,
-            "comment": (comment or "")[:1000],
-            "lang": st.session_state.lang,
-        }).execute()
-        return True
-    except Exception:
-        return False
-
-# ── NCBI HELPERS ──────────────────────────────────────────────────────────────
-def pubmed_search(query, n=3):
-    try:
-        p = urllib.parse.urlencode({"db":"pubmed","term":query,"retmax":n,"retmode":"json","api_key":get_ncbi_key()})
-        with urllib.request.urlopen(f"https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi?{p}", timeout=8) as r:
-            ids = json.loads(r.read()).get("esearchresult",{}).get("idlist",[])
-        if not ids: return []
-        p2 = urllib.parse.urlencode({"db":"pubmed","id":",".join(ids),"retmode":"json","api_key":get_ncbi_key()})
-        with urllib.request.urlopen(f"https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esummary.fcgi?{p2}", timeout=8) as r:
-            res = json.loads(r.read()).get("result",{})
-        out = []
-        for pmid in ids:
-            a = res.get(pmid,{})
-            out.append({
-                "pmid": pmid, "title": a.get("title","—"),
-                "authors": ", ".join(x.get("name","") for x in a.get("authors",[])[:2]),
-                "journal": a.get("source",""), "date": a.get("pubdate",""),
-                "url": f"https://pubmed.ncbi.nlm.nih.gov/{pmid}/"
-            })
-        return out
-    except: return []
-
-def rxnorm_interactions(names):
-    try:
-        cuis = []
-        for name in names:
-            p = urllib.parse.urlencode({"name": name.split()[0]})
-            with urllib.request.urlopen(f"https://rxnav.nlm.nih.gov/REST/rxcui.json?{p}", timeout=6) as r:
-                ids = json.loads(r.read()).get("idGroup",{}).get("rxnormId",[])
-                if ids: cuis.append(ids[0])
-        if len(cuis) < 2: return None
-        p2 = urllib.parse.urlencode({"rxcuis": " ".join(cuis)})
-        with urllib.request.urlopen(f"https://rxnav.nlm.nih.gov/REST/interaction/list.json?{p2}", timeout=8) as r:
-            data = json.loads(r.read())
-        pairs = data.get("fullInteractionTypeGroup",[])
-        if not pairs: return "\u2705 RxNorm: No known interactions found."
-        lines = []
-        for g in pairs:
-            src = g.get("sourceName","")
-            for t2 in g.get("fullInteractionType",[]):
-                for pair in t2.get("interactionPair",[]):
-                    sev  = pair.get("severity","")
-                    desc = pair.get("description","")
-                    drugs = " + ".join(c.get("minConceptItem",{}).get("name","") for c in pair.get("interactionConcept",[]))
-                    lines.append(f"- **{drugs}** [{sev}] \u2014 {desc} *({src})*")
-        return "\n".join(lines) if lines else "\u2705 RxNorm: No known interactions found."
-    except: return None
-
-# ── GPT-4o ────────────────────────────────────────────────────────────────────
-def gpt4o(prompt, system="", max_tokens=900):
-    try:
-        oai = get_openai_key()
-        if not oai: return None
-        body = json.dumps({
-            "model": "gpt-4o",
-            "max_tokens": max_tokens,
-            "messages": [{"role":"system","content":system},{"role":"user","content":prompt}] if system
-                        else [{"role":"user","content":prompt}],
-        }).encode()
-        req = urllib.request.Request(
-            "https://api.openai.com/v1/chat/completions", data=body,
-            headers={"Content-Type":"application/json","Authorization":f"Bearer {oai}"}
-        )
-        with urllib.request.urlopen(req, timeout=25) as r:
-            return json.loads(r.read())["choices"][0]["message"]["content"]
-    except Exception as e:
-        return f"GPT-4o unavailable: {e}"
-
-# ── CLAUDE ────────────────────────────────────────────────────────────────────
-def claude(messages, system="", max_tokens=1200, timeout=60):
-    """Call Claude via raw HTTP."""
-    key = get_claude_key()
-    if not key:
-        return "\u26a0\ufe0f Claude API key not set."
-    body = json.dumps({
-        "model": "claude-sonnet-4-6",
-        "max_tokens": max_tokens,
-        "system": system,
-        "messages": messages,
-    }).encode()
-    req = urllib.request.Request(
-        "https://api.anthropic.com/v1/messages",
-        data=body,
-        headers={
-            "x-api-key": key,
-            "anthropic-version": "2023-06-01",
-            "content-type": "application/json",
-        },
-    )
-    try:
-        with urllib.request.urlopen(req, timeout=timeout) as r:
-            data = json.loads(r.read())
-        return data["content"][0]["text"]
-    except urllib.error.URLError as e:
-        if "timed out" in str(e).lower() or "timeout" in str(e).lower():
-            return "\u26a0\ufe0f Request timed out. Please try again."
-        return f"\u26a0\ufe0f Claude error: {e}"
-    except Exception as e:
-        return f"\u26a0\ufe0f Claude error: {e}"
-
-# ── SESSION STATE ─────────────────────────────────────────────────────────────
-defaults = {
-    "lang": "el",
-    "screen": "home",
-    "profile": {},
-    "vitals": {},
-    "vitals_analysis": "",
-    "triage_chat": [],
-    "triage_ready": False,
-    "report": "",
-    "report_pubmed": [],
-    "report_gpt": "",
-    "medications": [],
-    "med_inputs": [],
-    "symptom_chips": [],
-    "fb_rating": "",
-    "fb_sent": False,
-}
-for k, v in defaults.items():
-    if k not in st.session_state:
-        st.session_state[k] = v
-
-# ── TRANSLATIONS ──────────────────────────────────────────────────────────────
-T = {
-    "el": {
-        "title": "Asklepios",
-        "subtitle": "\u039f AI \u039d\u03bf\u03c3\u03b7\u03bb\u03b5\u03c5\u03c4\u03ae\u03c2 \u03c3\u03bf\u03c5",
-        "tagline": "\u0388\u03b3\u03ba\u03c5\u03c1\u03b7 \u03b9\u03b1\u03c4\u03c1\u03b9\u03ba\u03ae \u03c0\u03bb\u03b7\u03c1\u03bf\u03c6\u03cc\u03c1\u03b7\u03c3\u03b7 \u00b7 \u03a0\u03ac\u03bd\u03c4\u03b1 \u03b4\u03af\u03c0\u03bb\u03b1 \u03c3\u03bf\u03c5",
-        "start": "\u039e\u03b5\u03ba\u03af\u03bd\u03b1 \u0395\u03ba\u03c4\u03af\u03bc\u03b7\u03c3\u03b7",
-        "disclaimer_main": "\u26a0\ufe0f \u039f Asklepios \u03c0\u03b1\u03c1\u03ad\u03c7\u03b5\u03b9 \u03c0\u03bb\u03b7\u03c1\u03bf\u03c6\u03bf\u03c1\u03af\u03b5\u03c2 \u03c5\u03b3\u03b5\u03af\u03b1\u03c2 \u03b1\u03c0\u03bf\u03ba\u03bb\u03b5\u03b9\u03c3\u03c4\u03b9\u03ba\u03ac \u03b3\u03b9\u03b1 \u03b5\u03bd\u03b7\u03bc\u03b5\u03c1\u03c9\u03c4\u03b9\u03ba\u03bf\u03cd\u03c2 \u03c3\u03ba\u03bf\u03c0\u03bf\u03cd\u03c2. \u0394\u03b5\u03bd \u03b1\u03bd\u03c4\u03b9\u03ba\u03b1\u03b8\u03b9\u03c3\u03c4\u03ac \u03b9\u03b1\u03c4\u03c1\u03b9\u03ba\u03ae \u03b4\u03b9\u03ac\u03b3\u03bd\u03c9\u03c3\u03b7 \u03ae \u03b8\u03b5\u03c1\u03b1\u03c0\u03b5\u03af\u03b1. \u03a3\u03b5 \u03b5\u03c0\u03b5\u03af\u03b3\u03bf\u03c5\u03c3\u03b1 \u03b1\u03bd\u03ac\u03b3\u03ba\u03b7 \u03ba\u03b1\u03bb\u03ad\u03c3\u03c4\u03b5 **166** (\u0395\u039a\u0391\u0392) \u03ae **112**.",
-        "emergency": "\U0001f6a8 \u03a3\u0395 \u0395\u03a0\u0395\u0399\u0393\u039f\u03a5\u03a3\u0391 \u0391\u039d\u0391\u0393\u039a\u0397: \u039a\u0391\u039b\u0395\u03a3\u03a4\u0395 166 (\u0395\u039a\u0391\u0392) \u03ae 112",
-        "name": "\u038c\u03bd\u03bf\u03bc\u03b1", "age": "\u0397\u03bb\u03b9\u03ba\u03af\u03b1", "sex": "\u03a6\u03cd\u03bb\u03bf",
-        "male": "\u0386\u03bd\u03b4\u03c1\u03b1\u03c2", "female": "\u0393\u03c5\u03bd\u03b1\u03af\u03ba\u03b1", "other": "\u0386\u03bb\u03bb\u03bf",
-        "history": "\u0399\u03b1\u03c4\u03c1\u03b9\u03ba\u03cc \u03b9\u03c3\u03c4\u03bf\u03c1\u03b9\u03ba\u03cc (\u03c0\u03c1\u03bf\u03b7\u03b3\u03bf\u03cd\u03bc\u03b5\u03bd\u03b5\u03c2 \u03c0\u03b1\u03b8\u03ae\u03c3\u03b5\u03b9\u03c2, \u03c7\u03b5\u03b9\u03c1\u03bf\u03c5\u03c1\u03b3\u03b5\u03af\u03b1)",
-        "allergies": "\u0391\u03bb\u03bb\u03b5\u03c1\u03b3\u03af\u03b5\u03c2",
-        "meds": "\u03a4\u03c1\u03ad\u03c7\u03bf\u03bd\u03c4\u03b1 \u03c6\u03ac\u03c1\u03bc\u03b1\u03ba\u03b1 / \u03c3\u03c5\u03bc\u03c0\u03bb\u03b7\u03c1\u03ce\u03bc\u03b1\u03c4\u03b1",
-        "next": "\u0395\u03c0\u03cc\u03bc\u03b5\u03bd\u03bf \u2192",
-        "back": "\u2190 \u03a0\u03af\u03c3\u03c9",
-        "vitals_title": "\u0396\u03c9\u03c4\u03b9\u03ba\u03ad\u03c2 \u0395\u03bd\u03b4\u03b5\u03af\u03be\u03b5\u03b9\u03c2",
-        "vitals_sub": "\u0395\u03b9\u03c3\u03ac\u03b3\u03b5\u03c4\u03b5 \u03c4\u03b9\u03c2 \u03bc\u03b5\u03c4\u03c1\u03ae\u03c3\u03b5\u03b9\u03c2 \u03c3\u03b1\u03c2.",
-        "hr": "\u039a\u03b1\u03c1\u03b4\u03b9\u03b1\u03ba\u03cc\u03c2 \u03a1\u03c5\u03b8\u03bc\u03cc\u03c2 (bpm)",
-        "bp_sys": "\u0391\u03c1\u03c4\u03b7\u03c1\u03b9\u03b1\u03ba\u03ae \u03a0\u03af\u03b5\u03c3\u03b7 \u2014 \u03a3\u03c5\u03c3\u03c4\u03bf\u03bb\u03b9\u03ba\u03ae (mmHg)",
-        "bp_dia": "\u0391\u03c1\u03c4\u03b7\u03c1\u03b9\u03b1\u03ba\u03ae \u03a0\u03af\u03b5\u03c3\u03b7 \u2014 \u0394\u03b9\u03b1\u03c3\u03c4\u03bf\u03bb\u03b9\u03ba\u03ae (mmHg)",
-        "br": "\u0391\u03bd\u03b1\u03c0\u03bd\u03b5\u03c5\u03c3\u03c4\u03b9\u03ba\u03cc\u03c2 \u03a1\u03c5\u03b8\u03bc\u03cc\u03c2 (/min)",
-        "spo2": "SpO2 (%)",
-        "temp": "\u0398\u03b5\u03c1\u03bc\u03bf\u03ba\u03c1\u03b1\u03c3\u03af\u03b1 (\u00b0C)",
-        "weight": "\u0392\u03ac\u03c1\u03bf\u03c2 (kg)",
-        "height": "\u038e\u03c8\u03bf\u03c2 (cm)",
-        "analyse_vitals": "\u0391\u03bd\u03ac\u03bb\u03c5\u03c3\u03b7 \u0396\u03c9\u03c4\u03b9\u03ba\u03ce\u03bd",
-        "triage_title": "\u0395\u03ba\u03c4\u03af\u03bc\u03b7\u03c3\u03b7 \u03a3\u03c5\u03bc\u03c0\u03c4\u03c9\u03bc\u03ac\u03c4\u03c9\u03bd",
-        "triage_sub": "\u03a0\u03b5\u03c1\u03b9\u03b3\u03c1\u03ac\u03c8\u03c4\u03b5 \u03c4\u03b1 \u03c3\u03c5\u03bc\u03c0\u03c4\u03ce\u03bc\u03b1\u03c4\u03ac \u03c3\u03b1\u03c2. \u039f Asklepios \u03b8\u03b1 \u03c3\u03b1\u03c2 \u03ba\u03ac\u03bd\u03b5\u03b9 \u03ba\u03b1\u03c4\u03b5\u03c5\u03b8\u03c5\u03bd\u03cc\u03bc\u03b5\u03bd\u03b5\u03c2 \u03b5\u03c1\u03c9\u03c4\u03ae\u03c3\u03b5\u03b9\u03c2.",
-        "triage_placeholder": "\u03a0.\u03c7. \u0388\u03c7\u03c9 \u03c0\u03bf\u03bd\u03bf\u03ba\u03ad\u03c6\u03b1\u03bb\u03bf \u03c4\u03c1\u03b9\u03ce\u03bd \u03b7\u03bc\u03b5\u03c1\u03ce\u03bd \u03bc\u03b5 \u03bd\u03b1\u03c5\u03c4\u03af\u03b1...",
-        "generate_report": "\u0394\u03b7\u03bc\u03b9\u03bf\u03c5\u03c1\u03b3\u03af\u03b1 \u03a0\u03bb\u03ae\u03c1\u03bf\u03c5\u03c2 \u0391\u03bd\u03b1\u03c6\u03bf\u03c1\u03ac\u03c2",
-        "report_title": "\u039b\u03b5\u03c0\u03c4\u03bf\u03bc\u03b5\u03c1\u03ae\u03c2 \u0395\u03ba\u03c4\u03af\u03bc\u03b7\u03c3\u03b7 \u03a5\u03b3\u03b5\u03af\u03b1\u03c2",
-        "second_opinion": "\u0394\u03b5\u03cd\u03c4\u03b5\u03c1\u03b7 \u0393\u03bd\u03ce\u03bc\u03b7 GPT-4o",
-        "pubmed": "\u0395\u03c0\u03b9\u03c3\u03c4\u03b7\u03bc\u03bf\u03bd\u03b9\u03ba\u03ad\u03c2 \u0391\u03bd\u03b1\u03c6\u03bf\u03c1\u03ad\u03c2 PubMed",
-        "skip_vitals": "\u03a0\u03b1\u03c1\u03ac\u03bb\u03b5\u03b9\u03c8\u03b7 (\u03c7\u03c9\u03c1\u03af\u03c2 \u03bc\u03b5\u03c4\u03c1\u03ae\u03c3\u03b5\u03b9\u03c2)",
-    },
-    "en": {
-        "title": "Asklepios",
-        "subtitle": "Your AI Nurse",
-        "tagline": "Evidence-based health guidance · Always by your side",
-        "start": "Start Assessment",
-        "disclaimer_main": "\u26a0\ufe0f Asklepios provides health information for informational purposes only. It does not replace medical diagnosis or treatment. In an emergency call **166** (EKAB) or **112**.",
-        "emergency": "\U0001f6a8 EMERGENCY: CALL 166 (EKAB) or 112",
-        "name": "Name", "age": "Age", "sex": "Biological Sex",
-        "male": "Male", "female": "Female", "other": "Other",
-        "history": "Medical history (conditions, surgeries)",
-        "allergies": "Allergies",
-        "meds": "Current medications / supplements",
-        "next": "Next \u2192",
-        "back": "\u2190 Back",
-        "vitals_title": "Your Vitals",
-        "vitals_sub": "Enter your measurements.",
-        "hr": "Heart Rate (bpm)",
-        "bp_sys": "Blood Pressure \u2014 Systolic (mmHg)",
-        "bp_dia": "Blood Pressure \u2014 Diastolic (mmHg)",
-        "br": "Breathing Rate (/min)",
-        "spo2": "SpO2 (%)",
-        "temp": "Temperature (\u00b0C)",
-        "weight": "Weight (kg)",
-        "height": "Height (cm)",
-        "analyse_vitals": "Analyse Vitals",
-        "triage_title": "Symptom Assessment",
-        "triage_sub": "Describe your symptoms. Asklepios will ask targeted follow-up questions.",
-        "triage_placeholder": "E.g. I have had a headache for three days with nausea...",
-        "generate_report": "Generate Full Clinical Report",
-        "report_title": "Detailed Health Assessment",
-        "second_opinion": "GPT-4o Second Opinion",
-        "pubmed": "PubMed Evidence",
-        "skip_vitals": "Skip (no measurements)",
-    }
-}
-
-def t(key): return T[st.session_state.lang].get(key, key)
-
-
-def render_stepper(current):
-    steps_el = ["1 Στοιχεία","2 Ζωτικές","3 Συμπτώματα","4 Αναφορά"]
-    steps_en = ["1 Profile","2 Vitals","3 Symptoms","4 Report"]
-    steps = steps_el if st.session_state.lang=="el" else steps_en
-    order = ["intake","vitals","triage","report"]
-    cur_i = order.index(current) if current in order else 0
-    html = '<div class="kira-stepper">'
-    for i, label in enumerate(steps):
-        cls = "done" if i < cur_i else ("active" if i == cur_i else "")
-        icon = "✓" if i < cur_i else str(i+1)
-        html += f'<div class="kira-step {cls}"><div class="kira-step-circle">{icon}</div><div class="kira-step-label">{label}</div></div>'
-        if i < len(steps)-1:
-            line_cls = "done" if i < cur_i else ""
-            html += f'<div class="kira-step-line {line_cls}"></div>'
-    html += "</div>"
-    st.markdown(html, unsafe_allow_html=True)
 
 def classify_vitals(v):
     status = {}
@@ -767,78 +1231,7 @@ def classify_vitals(v):
         else: status["bmi"]="red"
     return status
 
-def demographic_bp_risk(age, bmi, hr, weight=None, height=None):
-    """
-    Evidence-based BP risk classification using demographic features.
-    Based on: Chowdhury et al. (2020) - top ReliefF features for BP estimation.
-    Returns: dict with risk_level, sbp_range, dbp_range, explanation
-    """
-    score = 0
-    factors = []
 
-    # Age — strongest demographic predictor (Feature #105 in paper)
-    if age >= 70:   score += 4; factors.append("age ≥70" if True else "")
-    elif age >= 60: score += 3; factors.append("age 60-69")
-    elif age >= 50: score += 2; factors.append("age 50-59")
-    elif age >= 40: score += 1; factors.append("age 40-49")
-
-    # BMI — second strongest (Feature #107)
-    if bmi:
-        if bmi >= 35:   score += 3; factors.append("BMI ≥35 (obese II)")
-        elif bmi >= 30: score += 2; factors.append("BMI 30-34 (obese I)")
-        elif bmi >= 25: score += 1; factors.append("BMI 25-29 (overweight)")
-
-    # Heart Rate — Feature #106
-    if hr:
-        if hr > 90:   score += 2; factors.append("elevated HR")
-        elif hr > 80: score += 1; factors.append("high-normal HR")
-        elif hr < 55: score -= 1; factors.append("low HR (fit/athletic)")
-
-    # Weight/Height ratio proxy if BMI not computed yet
-    if weight and height and not bmi:
-        bmi_calc = weight / ((height/100)**2)
-        if bmi_calc >= 30: score += 2
-        elif bmi_calc >= 25: score += 1
-
-    # Map score to risk level + estimated range
-    if score <= 0:
-        return {"level":"optimal","color":"#10B981","label_el":"Βέλτιστη","label_en":"Optimal",
-                "sbp":"<115","dbp":"<75","note_el":"Εξαιρετικό καρδιαγγειακό προφίλ.","note_en":"Excellent cardiovascular profile.","score":score}
-    elif score <= 2:
-        return {"level":"normal","color":"#10B981","label_el":"Φυσιολογική","label_en":"Normal",
-                "sbp":"115-129","dbp":"75-84","note_el":"Φυσιολογικά επίπεδα για το προφίλ σας.","note_en":"Normal levels for your profile.","score":score}
-    elif score <= 4:
-        return {"level":"elevated","color":"#F59E0B","label_el":"Ελαφρά Αυξημένη","label_en":"Elevated Risk",
-                "sbp":"130-144","dbp":"85-89","note_el":"Σχετικά αυξημένος κίνδυνος. Μέτρηση πίεσης συνιστάται.","note_en":"Moderately elevated risk. BP measurement advised.","score":score}
-    elif score <= 6:
-        return {"level":"high","color":"#EF4444","label_el":"Υψηλός Κίνδυνος","label_en":"High Risk",
-                "sbp":"140-159","dbp":"90-99","note_el":"Αυξημένος κίνδυνος υπέρτασης. Επισκεφθείτε γιατρό.","note_en":"Elevated hypertension risk. See a doctor.","score":score}
-    else:
-        return {"level":"very_high","color":"#DC2626","label_el":"Πολύ Υψηλός Κίνδυνος","label_en":"Very High Risk",
-                "sbp":"≥160","dbp":"≥100","note_el":"Πολύ υψηλός κίνδυνος. Απαιτείται ιατρική αξιολόγηση.","note_en":"Very high risk. Medical evaluation required.","score":score}
-
-
-KIRA_SYSTEM_EL = """Είσαι ο Asklepios — AI νοσηλευτής για Έλληνες χρήστες. Είσαι κλινικά ακριβής, άμεσος και υποστηρικτικός.
-Ρόλος: Τριάζ συμπτωμάτων (μία ερώτηση κάθε φορά), ερμηνεία ζωτικών, φάρμακα, ελληνικό σύστημα υγείας (ΕΟΠΥΥ, ΕΟΔΥ, ΕΟΦ).
-Φωτογραφία: Αν το σύμπτωμα είναι οπτικό (δέρμα/εξάνθημα, μάτι, τραύμα/πληγή, στόμα/λαιμός, νύχια, ορατή αλλοίωση), αφού κάνεις την αρχική σου εκτίμηση πρότεινε στον χρήστη να ανεβάσει φωτογραφία από την επιλογή «📷 Ανάλυση φωτογραφίας» πιο κάτω, για πιο ακριβή εκτίμηση. Για μη-οπτικά συμπτώματα (π.χ. πονοκέφαλος, ζάλη) ΜΗΝ ζητάς φωτογραφία. Η φωτογραφία είναι ΠΡΟΑΙΡΕΤΙΚΗ: αν ο χρήστης δεν ανεβάσει ή δεν θέλει, ΣΥΝΕΧΙΣΕ κανονικά την εκτίμηση χωρίς να σταματάς, να περιμένεις ή να επιμένεις.
-Κανόνες: Πάντα συστήνεις επαγγελματία. Κόκκινες σημαίες → 166/112. Όταν έχεις αρκετά: "Έχω αρκετά στοιχεία — μπορούμε να δημιουργήσουμε πλήρη αναφορά." Μία ερώτηση κάθε φορά.
-Ζωτικά: Αν τα συμπτώματα είναι καρδιακά/αυτόνομα (αίσθημα παλμών, ταχυπαλμία, πόνος/σφίξιμο στο στήθος, δύσπνοια, ζάλη, λιποθυμία, κρύος ιδρώτας/εφίδρωση), πρότεινε ήπια στον χρήστη να μετρήσει ζωτικά (καρδιακός ρυθμός/πίεση) — ΠΡΟΑΙΡΕΤΙΚΟ, συνέχισε κανονικά αν δεν το κάνει."""
-
-KIRA_SYSTEM_EN = """You are Asklepios — an AI nurse for users in Greece. Clinically accurate, direct, supportive.
-Role: Symptom triage (one question at a time), vitals interpretation, medications, Greek health system (EOPYY, EODY, EOF).
-Photo: If the symptom is visual (skin/rash, eye, wound, mouth/throat, nails, any visible lesion), after giving your initial assessment, invite the user to upload a photo via the "📷 Photo analysis" option below for a more accurate assessment. For non-visual symptoms (e.g. headache, dizziness) do NOT ask for a photo. The photo is OPTIONAL: if the user doesn't upload one or declines, CONTINUE the assessment normally — do not stop, wait, or insist.
-Rules: Always recommend a professional. Red flags → 166/112. When ready: "I have enough information — we can generate a full clinical report." One question at a time.
-Vitals: If the symptoms are cardiac/autonomic (palpitations, racing heart, chest pain/tightness, shortness of breath, dizziness, fainting, cold sweat/sweating), gently suggest the user measure vitals (heart rate/blood pressure) — OPTIONAL, continue normally if they don't."""
-
-def kira_system(): return KIRA_SYSTEM_EL if st.session_state.lang=="el" else KIRA_SYSTEM_EN
-
-# Symptoms where measuring a specific vital genuinely adds value → surface the
-# relevant measurement contextually instead of forcing vitals on everyone.
-def _strip_accents(s):
-    return "".join(c for c in unicodedata.normalize("NFD", s.lower())
-                   if unicodedata.category(c) != "Mn")
-# Each category maps symptom roots → the vital that helps. "scan"=True only where
-# the camera face-scan can actually produce the value (heart rate → cardiac only).
 _VITAL_CATEGORIES = [
     {"key":"cardio","scan":True,
      "el":"καρδιακός ρυθμός / πίεση","en":"heart rate / blood pressure",
@@ -860,14 +1253,7 @@ _VITAL_CATEGORIES = [
               "cough","wheez","asthma","pneumonia","breathless","short of breath",
               "shortness of breath","respiratory","oxygen"]},
 ]
-def _relevant_vitals():
-    txt = _strip_accents(" ".join(m["content"] for m in st.session_state.triage_chat if m["role"]=="user"))
-    return [c for c in _VITAL_CATEGORIES if any(_strip_accents(r) in txt for r in c["roots"])]
 
-# A photo only helps for VISUAL complaints (skin/rash, eye, wound/swelling, mouth/
-# throat, nails, lesions...). For non-visual ones (e.g. chest pain, dizziness) the
-# camera adds nothing and just confuses, so the photo option is hidden unless the
-# conversation is about something visible.
 _VISUAL_ROOTS = [
     # Greek (accent-insensitive)
     "δερμα","εξανθημ","σπυρ","πληγ","τραυμ","κοψιμ","εκδορ","εξογκωμ","πρηξ","πρησμ",
@@ -880,127 +1266,254 @@ _VISUAL_ROOTS = [
     "swollen","bruise","mole","melanoma","eye","throat","tonsil","tongue","nail",
     "burn","bite","itch","blister","eczema","psoriasis","ulcer","pimple","cyst","wart",
 ]
-def _visual_relevant():
-    txt = _strip_accents(" ".join(m["content"] for m in st.session_state.triage_chat))
-    return any(r in txt for r in _VISUAL_ROOTS)
 
-# Quick-select symptom chips, tailored to the person (age + sex from the profile).
-# These are common PRESENTING COMPLAINTS per group — not diagnoses — to speed up the
-# first message. Age takes precedence over sex (a child gets paediatric chips). The
-# user can always type freely or tap "Άλλο/Other".
-_CHIP_SETS = {
-    "female": {
-        "el": (["Πονοκέφαλος/Ημικρανία","Κοιλιακός/πυελικός πόνος","Διαταραχές περιόδου",
-                "Ούρα: καύσος/συχνουρία","Κόπωση","Ναυτία","Ζάλη","Πόνος στήθους",
-                "Δύσπνοια","Πόνος μέσης","Εξάνθημα/δέρμα","Άλλο"], "συχνά σε γυναίκες"),
-        "en": (["Headache/Migraine","Abdominal/pelvic pain","Menstrual changes",
-                "Urinary burning/frequency","Fatigue","Nausea","Dizziness","Chest pain",
-                "Shortness of breath","Back pain","Rash/skin","Other"], "common in women"),
-    },
-    "male": {
-        "el": (["Πόνος στήθους","Δύσπνοια","Κοιλιακός πόνος","Πόνος μέσης",
-                "Ούρα: δυσουρία/συχνουρία","Πονοκέφαλος","Ζάλη","Κόπωση","Βήχας",
-                "Πόνος αρθρώσεων","Εξάνθημα/δέρμα","Άλλο"], "συχνά σε άνδρες"),
-        "en": (["Chest pain","Shortness of breath","Abdominal pain","Back pain",
-                "Urinary problems","Headache","Dizziness","Fatigue","Cough",
-                "Joint pain","Rash/skin","Other"], "common in men"),
-    },
-    "infant": {
-        "el": (["Πυρετός","Ανήσυχο/κλάματα","Εμετός/αναγωγές","Διάρροια","Βήχας/συνάχι",
-                "Δυσκολία αναπνοής","Εξάνθημα","Δυσκολία σίτισης","Δυσκοιλιότητα",
-                "Ίκτερος (κιτρίνισμα)","Άλλο"], "συχνά σε βρέφη"),
-        "en": (["Fever","Irritable/crying","Vomiting/spit-up","Diarrhoea","Cough/congestion",
-                "Breathing difficulty","Rash","Feeding difficulty","Constipation",
-                "Jaundice","Other"], "common in infants"),
-    },
-    "child": {
-        "el": (["Πυρετός","Βήχας","Πονόλαιμος","Πόνος αυτιού","Κοιλιακός πόνος","Εμετός",
-                "Διάρροια","Εξάνθημα","Πονοκέφαλος","Δυσκολία αναπνοής","Άλλο"],
-               "συχνά σε παιδιά/εφήβους"),
-        "en": (["Fever","Cough","Sore throat","Ear pain","Abdominal pain","Vomiting",
-                "Diarrhoea","Rash","Headache","Breathing difficulty","Other"],
-               "common in children/teens"),
-    },
-    "adult": {
-        "el": (["Πονοκέφαλος","Πυρετός","Βήχας","Δύσπνοια","Ναυτία","Πόνος στήθους",
-                "Κοιλιακός πόνος","Ζάλη","Κόπωση","Πόνος πλάτης","Διάρροια","Άλλο"], ""),
-        "en": (["Headache","Fever","Cough","Shortness of breath","Nausea","Chest pain",
-                "Abdominal pain","Dizziness","Fatigue","Back pain","Diarrhoea","Other"], ""),
-    },
-}
-def _symptom_chips(profile, lang):
-    """Return (chips, group_label) for the person's age/sex group."""
-    age = profile.get("age", 0) or 0
-    sex = profile.get("sex", "")
-    if age <= 16:
-        g = "infant" if age < 2 else "child"
-    elif sex in ("Γυναίκα", "Female"):
-        g = "female"
-    elif sex in ("Άνδρας", "Male"):
-        g = "male"
-    else:
-        g = "adult"
-    return _CHIP_SETS[g]["el" if lang == "el" else "en"]
-
-def generate_html_report(profile, vitals, report_text, pubmed_refs, lang="el"):
-    import re as _re, html as _html
-    name=_html.escape(str(profile.get("name","—"))); age=str(profile.get("age","—"))
-    sex=_html.escape(str(profile.get("sex",""))); hx=_html.escape(str(profile.get("history","") or "—"))
-    allg=_html.escape(str(profile.get("allergies","") or "—")); meds=_html.escape(str(profile.get("meds_raw","") or "—"))
-    ts=datetime.now().strftime("%d %B %Y  %H:%M")
-    VLABELS={"hr":("Καρδιακός Ρυθμός","bpm"),"bp_sys":("ΑΠ Συστολική","mmHg"),"bp_dia":("ΑΠ Διαστολική","mmHg"),"br":("Αναπνευστικός Ρυθμός","/min"),"spo2":("SpO2","%"),"temp":("Θερμοκρασία","°C"),"weight":("Βάρος","kg"),"height":("Ύψος","cm"),"bmi":("ΔΜΣ","kg/m²"),"hrv":("HRV","ms"),"stress":("Δείκτης Στρες","/100")}
-    vitals_rows="".join(f"<tr><td>{VLABELS.get(k,(k,''))[0]}</td><td><strong>{_html.escape(str(val))}</strong> {VLABELS.get(k,(k,''))[1]}</td></tr>" for k,val in (vitals or {}).items())
-    vitals_sec=f"<h2>Ζωτικές Ενδείξεις</h2><table class='vitals'><thead><tr><th>Παράμετρος</th><th>Τιμή</th></tr></thead><tbody>{vitals_rows}</tbody></table>" if vitals_rows else ""
-    def md2h(text):
-        out=[]
-        for line in text.splitlines():
-            l=line.strip()
-            if not l: out.append("<br>"); continue
-            if l.startswith("## ") or l.startswith("# "): out.append(f"<h2>{_html.escape(l.lstrip('#').strip())}</h2>")
-            elif l.startswith(("- ","* ","• ")): out.append(f"<li>{_re.sub(r'\*\*(.*?)\*\*',r'<strong>\1</strong>',_html.escape(l[2:]))}</li>")
-            else: out.append(f"<p>{_re.sub(r'\*\*(.*?)\*\*',r'<strong>\1</strong>',_html.escape(l))}</p>")
-        r="\n".join(out)
-        return _re.sub(r"(<li>.*?</li>\n)+",lambda m:"<ul>"+m.group(0)+"</ul>",r,flags=_re.DOTALL)
-    refs_html=""
-    if pubmed_refs:
-        refs_html="<h2>Βιβλιογραφία</h2><ol>"+"".join(f'<li>{_html.escape(a.get("title","—"))} — {_html.escape(a.get("authors",""))}. <em>{_html.escape(a.get("journal",""))}</em>, {_html.escape(a.get("date",""))}. <a href="{_html.escape(a.get("url",""))}">{_html.escape(a.get("url",""))}</a></li>' for a in pubmed_refs)+"</ol>"
-    html_out=f"""<!DOCTYPE html><html lang="{lang}"><head><meta charset="UTF-8"><title>Asklepios Report — {name}</title>
-<style>*{{box-sizing:border-box;margin:0;padding:0}}body{{font-family:'Inter',sans-serif;font-size:13px;color:#1A1A2E;max-width:820px;margin:0 auto;padding:32px 40px}}
-.hdr{{display:flex;justify-content:space-between;align-items:center;border-bottom:3px solid #2D3FE7;padding-bottom:14px;margin-bottom:20px}}
-.hdr-logo{{font-size:22px;font-weight:800;color:#2D3FE7}}.hdr-date{{font-size:11px;color:#6B7280;text-align:right}}
-.patient{{background:linear-gradient(135deg,#2D3FE7,#7B2FE0);color:white;border-radius:12px;padding:18px 22px;margin-bottom:20px}}
-.patient-name{{font-size:20px;font-weight:700;margin-bottom:4px}}.patient-meta{{font-size:12px;opacity:.8}}.patient-detail{{font-size:11px;opacity:.75;margin-top:10px;line-height:1.8}}
-h2{{font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:#7B2FE0;border-bottom:1px solid #E0E5FF;padding-bottom:5px;margin:20px 0 10px}}
-p{{margin:4px 0;line-height:1.65}}ul{{margin:6px 0 6px 18px}}li{{margin:3px 0;line-height:1.6}}
-table.vitals{{width:100%;border-collapse:collapse;margin:10px 0;font-size:12px}}
-table.vitals thead tr{{background:#2D3FE7;color:white}}table.vitals th,table.vitals td{{padding:7px 12px;text-align:left;border:1px solid #E0E5FF}}
-table.vitals tbody tr:nth-child(even){{background:#F8FAFF}}
-.emergency{{background:#DC2626;color:white;border-radius:8px;padding:12px 16px;font-weight:700;margin:16px 0}}
-.disclaimer{{background:#FFFBEB;border:1px solid #FCD34D;border-radius:8px;padding:10px 14px;font-size:11px;color:#92400E;margin:12px 0}}
-.hint{{text-align:center;margin:24px 0 0;font-size:12px;color:#94A3B8;border-top:1px dashed #E0E5FF;padding-top:14px}}
-@media print{{body{{padding:16px}}.patient,.emergency{{-webkit-print-color-adjust:exact;print-color-adjust:exact}}@page{{margin:15mm}}}}</style></head><body>
-<div class="hdr"><div class="hdr-logo">🩺 Asklepios AI Nurse</div><div class="hdr-date">Κλινική Εκτίμηση<br>{ts}</div></div>
-<div class="patient"><div class="patient-name">{name}</div><div class="patient-meta">{age} ετών · {sex}</div>
-<div class="patient-detail"><strong>Ιστορικό:</strong> {hx}<br><strong>Αλλεργίες:</strong> {allg}<br><strong>Φάρμακα:</strong> {meds}</div></div>
-{vitals_sec}<h2>Κλινική Αξιολόγηση</h2>{md2h(report_text or "")}{refs_html}
-<div class="emergency">🚨 ΣΕ ΕΠΕΙΓΟΥΣΑ ΑΝΑΓΚΗ: ΚΑΛΕΣΤΕ 166 (ΕΚΑΒ) ή 112</div>
-<div class="disclaimer">⚠️ AI-generated. Δεν αποτελεί ιατρική διάγνωση. Απαιτείται επίσκεψη σε επαγγελματία υγείας.</div>
-<div class="hint">💡 Ctrl+P → Save as PDF</div></body></html>"""
-    return html_out.encode("utf-8")
-
-def _save_session_for_external_nav():
-    """Save session to Supabase ONLY when user leaves for facescan or photo picker.
-    Deleted immediately on return. GDPR: minimal data, single-use, auto-deleted."""
-    if not (auth_enabled() and is_logged_in()):
-        return
-    payload = {
-        "profile":         st.session_state.profile,
-        "lang":            st.session_state.lang,
-        "triage_chat":     st.session_state.triage_chat,
-        "medications":     st.session_state.medications,
-        "vitals_analysis": st.session_state.vitals_analysis,
+def render_ad_banner(lang):
+    el = (lang == "el")
+    tx = {
+        "el": {"h1":"Ο νοσηλευτής<br>στην <em>τσέπη</em> σου.",
+               "sub":"Γρήγορη εκτίμηση υγείας, στα ελληνικά — όποτε τη χρειαστείς.",
+               "bub":"«Περίγραψέ μου τι νιώθεις και θα σε καθοδηγήσω — <strong>βήμα-βήμα.</strong>»",
+               "f1":"Πρώτη εκτίμηση σε ~2 λεπτά",
+               "f2":"Στα ελληνικά, διαθέσιμος 24/7",
+               "f3":"Με επιστημονική τεκμηρίωση",
+               "cta":"Δοκίμασέ το δωρεάν →",
+               "disc":"Ενημερωτικό εργαλείο. Δεν αντικαθιστά ιατρική διάγνωση ή θεραπεία."},
+        "en": {"h1":"The nurse<br>in your <em>pocket.</em>",
+               "sub":"Quick health assessment, in your language — whenever you need it.",
+               "bub":"Tell me how you feel and I will guide you — <strong>step by step.</strong>",
+               "f1":"First assessment in ~2 minutes",
+               "f2":"In Greek & English, available 24/7",
+               "f3":"Evidence-based, powered by PubMed",
+               "cta":"Try it for free →",
+               "disc":"Informational tool only. Does not replace medical diagnosis or treatment."},
     }
-    save_draft(st.session_state.get("auth_user", ""), payload)
+    d = tx.get(lang, tx["el"])
+    css = (
+        "*{box-sizing:border-box;margin:0;padding:0}"
+        "body{background:transparent;font-family:sans-serif}"
+        ".ad{width:100%;border-radius:24px;overflow:hidden;"
+        "background:linear-gradient(160deg,#3D2FE7 0%,#7B2FE0 55%,#9B3FFF 100%);"
+        "padding:28px 24px 24px}"
+        ".lo{width:40px;height:40px;border-radius:12px;background:rgba(255,255,255,.18);"
+        "display:flex;align-items:center;justify-content:center}"
+        ".lo i,.av i{color:#fff}"
+        ".lo i{font-size:20px}"
+        ".nm{font-size:15px;font-weight:700;color:#fff;line-height:1}"
+        ".sm{font-size:11px;color:rgba(255,255,255,.65);letter-spacing:.06em;"
+        "text-transform:uppercase;margin-top:2px}"
+        "h1{font-size:34px;font-weight:800;color:#fff;line-height:1.15;margin:18px 0 8px}"
+        "h1 em{color:#F9C846;font-style:italic}"
+        ".su{font-size:14px;color:rgba(255,255,255,.75);line-height:1.55;margin-bottom:18px}"
+        ".cb{background:rgba(255,255,255,.13);border:1px solid rgba(255,255,255,.2);"
+        "border-radius:14px;padding:12px 14px;margin-bottom:18px;display:flex;gap:10px}"
+        ".av{width:28px;height:28px;border-radius:50%;background:rgba(255,255,255,.25);"
+        "display:flex;align-items:center;justify-content:center;flex-shrink:0}"
+        ".av i{font-size:14px}"
+        ".bt{font-size:12px;color:#fff;line-height:1.55;font-style:italic}"
+        ".bt strong{font-style:normal;font-weight:700}"
+        ".ar{text-align:center;color:rgba(255,255,255,.45);font-size:18px;margin:-4px 0 10px}"
+        ".fe{display:flex;flex-direction:column;gap:9px;margin-bottom:20px}"
+        ".fr{display:flex;align-items:center;gap:11px}"
+        ".fi{width:32px;height:32px;border-radius:10px;background:rgba(255,255,255,.14);"
+        "display:flex;align-items:center;justify-content:center;flex-shrink:0}"
+        ".fi i{font-size:16px;color:#fff}"
+        ".ft{font-size:13px;color:rgba(255,255,255,.9);line-height:1.3}"
+        ".ct{width:100%;padding:15px;border-radius:16px;"
+        "background:linear-gradient(135deg,#3D2FE7,#7B2FE0);"
+        "border:2px solid rgba(255,255,255,.4);cursor:pointer;"
+        "font-size:15px;font-weight:700;color:#fff;"
+        "transition:background .25s,color .25s}"
+        ".ct:hover{background:#fff;color:#1a1a1a;border-color:#fff}"
+        ".ct:active{transform:scale(.98)}"
+        ".di{font-size:11px;color:rgba(255,255,255,.45);text-align:center;"
+        "margin-top:10px;line-height:1.5}"
+    )
+    js = (
+        "function scrollToStart(){"
+        "try{var p=window.parent.document,t=null;"
+        "p.querySelectorAll(\"button\").forEach(function(b){"
+        "if(b.innerText&&(b.innerText.indexOf(\"\\u0388\\u03bd\\u03b1\\u03c1\\u03be\\u03b7\")>=0"
+        "||b.innerText.indexOf(\"Start\")>=0))t=b;});"
+        "if(t){t.scrollIntoView({behavior:\"smooth\",block:\"center\"});"
+        "setTimeout(function(){t.focus();},600);}"
+        "else window.parent.scrollTo({top:99999,behavior:\"smooth\"});}"
+        "catch(e){try{window.parent.scrollTo({top:99999,behavior:\"smooth\"});}catch(e2){}}}"
+    )
+    html = (
+        "<html><head><meta charset=\"UTF-8\">"
+        "<link rel=\"stylesheet\" href=\"https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.19.0/tabler-icons.min.css\">"
+        "<link href=\"https://fonts.googleapis.com/css2?family=DM+Sans:ital,wght@0,700;0,800;1,700&display=swap\" rel=\"stylesheet\">"
+        "<style>" + css + "</style></head><body>"
+        "<div class=\"ad\">"
+        "<div style=\"display:flex;align-items:center;gap:10px\">"
+        "<div class=\"lo\"><i class=\"ti ti-stethoscope\"></i></div>"
+        "<div><div class=\"nm\">Asklepios</div><div class=\"sm\">AI Nurse</div></div>"
+        "</div>"
+        "<h1>" + d["h1"] + "</h1>"
+        "<p class=\"su\">" + d["sub"] + "</p>"
+        "<div class=\"cb\"><div class=\"av\"><i class=\"ti ti-robot\"></i></div>"
+        "<div class=\"bt\">" + d["bub"] + "</div></div>"
+        "<div class=\"ar\">&#8964;</div>"
+        "<div class=\"fe\">"
+        "<div class=\"fr\"><div class=\"fi\"><i class=\"ti ti-clock\"></i></div><div class=\"ft\">" + d["f1"] + "</div></div>"
+        "<div class=\"fr\"><div class=\"fi\"><i class=\"ti ti-flag\"></i></div><div class=\"ft\">" + d["f2"] + "</div></div>"
+        "<div class=\"fr\"><div class=\"fi\"><i class=\"ti ti-microscope\"></i></div><div class=\"ft\">" + d["f3"] + "</div></div>"
+        "</div>"
+        "<button class=\"ct\" onclick=\"scrollToStart()\">" + d["cta"] + "</button>"
+        "<p class=\"di\">" + d["disc"] + "</p>"
+        "</div>"
+        "<script>" + js + "</script>"
+        "</body></html>"
+    )
+    components.html(html, height=560, scrolling=False)
+
+
+def render_explainer_video(lang):
+    el = (lang == "el")
+    C = {
+        "el": {
+            "steps": ["asklepios", "βήμα 1", "βήμα 2", "βήμα 3",
+                      "προαιρετικό", "ai πρόταση", "βήμα 4"],
+            "titles": ["Ο ψηφιακός σου νοσηλευτής",
+                       "Σύνδεση με email",
+                       "Συμπλήρωσε το προφίλ σου",
+                       "Περίγραψε τα συμπτώματα σου",
+                       "Μέτρηση ζωτικών — 3 επιλογές",
+                       "Φωτό ή σάρωση — μόνο αν χρειαστεί",
+                       "Αναλυτική αναφορά υγείας"],
+            "subs": ["Αξιολόγηση συμπτωμάτων με AI — γρήγορα, στα ελληνικά.",
+                     "Εισάγεις το email σου, λαμβάνεις OTP. Χωρίς password.",
+                     "Όνομα, ηλικία, φύλο, ιστορικό, αλλεργίες, φάρμακα.",
+                     "Ο Asklepios κάνει στοχευμένες ερωτήσεις — μία κάθε φορά.",
+                     "", "",
+                     "Κλινική εκτίμηση με PubMed + GPT-4o. PDF για τον γιατρό σου."],
+        },
+        "en": {
+            "steps": ["asklepios", "step 1", "step 2", "step 3", "optional", "ai suggestion", "step 4"],
+            "titles": ["Your digital nurse", "Sign in with email", "Fill in your profile",
+                       "Describe your symptoms", "Measure vitals — 3 options",
+                       "Photo or scan — only when needed", "Detailed health report"],
+            "subs": ["AI-powered symptom assessment — fast, in your language.",
+                     "Enter your email, receive OTP. No password needed.",
+                     "Name, age, sex, history, allergies, medications.",
+                     "Asklepios asks targeted questions — one at a time.",
+                     "", "",
+                     "Clinical assessment with PubMed + GPT-4o. PDF for your doctor."],
+        },
+    }
+    d = C.get(lang, C["el"])
+    TOTAL = 7
+    icons = ["ti-stethoscope","ti-login","ti-user-circle","ti-message-chatbot",
+             "ti-heart-rate-monitor","ti-camera","ti-report-medical"]
+    ic_cls = ["ic-b","ic-p","ic-t","ic-b","ic-a","ic-c","ic-t"]
+    slides_html = ""
+    for i in range(TOTAL):
+        active = " active" if i == 0 else ""
+        sub_html = ("<p class=\"s-sub\">" + d["subs"][i] + "</p>") if d["subs"][i] else ""
+        slides_html += (
+            "<div class=\"slide" + active + "\" id=\"s" + str(i) + "\">"
+            "<div class=\"s-icon " + ic_cls[i] + "\"><i class=\"ti " + icons[i] + "\"></i></div>"
+            "<div class=\"s-step\">" + d["steps"][i] + "</div>"
+            "<div class=\"s-title\">" + d["titles"][i] + "</div>"
+            + sub_html + "</div>"
+        )
+    dots_html = "".join(
+        "<button class=\"dot" + (" on" if i==0 else "") + "\" onclick=\"go(" + str(i) + ")\"></button>"
+        for i in range(TOTAL)
+    )
+    css = (
+        "*{box-sizing:border-box;margin:0;padding:0}"
+        "body{background:transparent;font-family:sans-serif}"
+        ".ex{width:100%;border:1px solid #e5e7eb;border-radius:14px;overflow:hidden;background:#fff}"
+        ".stage{position:relative;width:100%;height:340px;overflow:hidden;background:#F8F9FF}"
+        ".slide{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;"
+        "justify-content:center;padding:24px 32px;opacity:0;transform:translateY(14px);"
+        "transition:opacity .4s,transform .4s;pointer-events:none}"
+        ".slide.active{opacity:1;transform:translateY(0);pointer-events:auto}"
+        ".slide.exit{opacity:0;transform:translateY(-14px);transition:opacity .25s,transform .25s}"
+        ".s-icon{width:52px;height:52px;border-radius:50%;display:flex;align-items:center;"
+        "justify-content:center;margin-bottom:14px;font-size:22px}"
+        ".ic-b{background:#EFF6FF;color:#1D4ED8}.ic-p{background:#EEEDFE;color:#534AB7}"
+        ".ic-t{background:#ECFDF5;color:#065F46}.ic-a{background:#FFFBEB;color:#92400E}"
+        ".ic-c{background:#FEF2F2;color:#991B1B}"
+        ".s-step{font-size:10px;font-weight:600;letter-spacing:.09em;color:#9CA3AF;"
+        "margin-bottom:6px;text-transform:uppercase}"
+        ".s-title{font-size:17px;font-weight:600;color:#1A1A2E;text-align:center;"
+        "margin-bottom:7px;line-height:1.3}"
+        ".s-sub{font-size:12px;color:#6B7280;text-align:center;line-height:1.6;max-width:380px}"
+        ".prog{height:2px;background:#F3F4F6}"
+        ".pfill{height:100%;background:#2D3FE7;border-radius:1px;transition:width .3s}"
+        ".ctrl{display:flex;align-items:center;justify-content:space-between;"
+        "padding:9px 13px;border-top:1px solid #F3F4F6;background:#fff}"
+        ".dots{display:flex;gap:5px;align-items:center}"
+        ".dot{width:5px;height:5px;border-radius:50%;background:#E5E7EB;"
+        "cursor:pointer;border:none;padding:0;transition:all .25s}"
+        ".dot.on{width:14px;border-radius:3px;background:#2D3FE7}"
+        ".ibtn{width:28px;height:28px;border-radius:50%;border:1px solid #E5E7EB;"
+        "background:#fff;cursor:pointer;font-size:13px;color:#6B7280}"
+        ".ibtn:disabled{opacity:.3;cursor:default}"
+        ".pbtn{width:28px;height:28px;border-radius:50%;border:1px solid #D1D5DB;"
+        "background:#fff;cursor:pointer;font-size:13px;color:#1A1A2E}"
+        ".sc{font-size:10px;color:#9CA3AF;min-width:28px;text-align:center}"
+        ".lbar{display:flex;justify-content:center;gap:7px;padding:7px 13px 11px;"
+        "border-top:1px solid #F3F4F6;background:#fff}"
+        ".lbtn{font-size:11px;padding:3px 11px;border-radius:20px;"
+        "border:1px solid #E5E7EB;background:#fff;cursor:pointer;color:#6B7280}"
+        ".lbtn.on{border-color:#2D3FE7;color:#2D3FE7;font-weight:600}"
+    )
+    js = (
+        "var T=" + str(TOTAL) + ",cur=0,play=false,tim=null;"
+        "function mkDots(){var d=document.getElementById(\"dots\");d.innerHTML=\"\";"
+        "for(var i=0;i<T;i++){var b=document.createElement(\"button\");"
+        "b.className=\"dot\"+(i===cur?\" on\":\"\");"
+        "b.onclick=(function(x){return function(){go(x);};})(i);d.appendChild(b);}}"
+        "function go(idx){var sl=document.querySelectorAll(\".slide\");"
+        "sl[cur].classList.remove(\"active\");sl[cur].classList.add(\"exit\");"
+        "setTimeout(function(){sl[cur].classList.remove(\"exit\");},280);"
+        "cur=idx;sl[cur].classList.add(\"active\");"
+        "document.getElementById(\"pf\").style.width=((cur+1)/T*100)+\"%\";"
+        "document.getElementById(\"sc\").textContent=(cur+1)+\" / \"+T;"
+        "document.getElementById(\"pb\").disabled=(cur===0);"
+        "document.getElementById(\"nb\").disabled=(cur===T-1);mkDots();}"
+        "function nav(d){var n=cur+d;if(n>=0&&n<T)go(n);"
+        "if(play&&n===T-1){clearInterval(tim);play=false;"
+        "document.getElementById(\"pli\").className=\"ti ti-player-play\";}}"
+        "function togPlay(){play=!play;"
+        "document.getElementById(\"pli\").className=play?\"ti ti-player-pause\":\"ti ti-player-play\";"
+        "if(play){if(cur===T-1)go(0);tim=setInterval(function(){if(cur<T-1)nav(1);"
+        "else{clearInterval(tim);play=false;"
+        "document.getElementById(\"pli\").className=\"ti ti-player-play\";}},3500);}"
+        "else clearInterval(tim);}"
+        "mkDots();setTimeout(function(){togPlay();},800);"
+    )
+    html = (
+        "<html><head><meta charset=\"UTF-8\">"
+        "<link rel=\"stylesheet\" href=\"https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.19.0/tabler-icons.min.css\">"
+        "<link href=\"https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600&display=swap\" rel=\"stylesheet\">"
+        "<style>" + css + "</style></head><body>"
+        "<div class=\"ex\">"
+        "<div class=\"stage\">" + slides_html + "</div>"
+        "<div class=\"prog\"><div class=\"pfill\" id=\"pf\" style=\"width:14.3%\"></div></div>"
+        "<div class=\"ctrl\">"
+        "<button class=\"ibtn\" id=\"pb\" onclick=\"nav(-1)\" disabled><i class=\"ti ti-chevron-left\"></i></button>"
+        "<div style=\"display:flex;align-items:center;gap:8px\">"
+        "<div class=\"dots\" id=\"dots\">" + dots_html + "</div>"
+        "<button class=\"pbtn\" onclick=\"togPlay()\"><i class=\"ti ti-player-play\" id=\"pli\"></i></button>"
+        "</div>"
+        "<div style=\"display:flex;align-items:center;gap:5px\">"
+        "<span class=\"sc\" id=\"sc\">1 / " + str(TOTAL) + "</span>"
+        "<button class=\"ibtn\" id=\"nb\" onclick=\"nav(1)\"><i class=\"ti ti-chevron-right\"></i></button>"
+        "</div></div>"
+        "<div class=\"lbar\">"
+        "<button class=\"lbtn" + (" on" if el else "") + "\" onclick=\"\">&#127468;&#127479; &#917;&#923;</button>"
+        "<button class=\"lbtn" + ("" if el else " on") + "\" onclick=\"\">&#127468;&#127463; EN</button>"
+        "</div></div>"
+        "<script>" + js + "</script>"
+        "</body></html>"
+    )
+    components.html(html, height=560, scrolling=False)
+
+
 
 def render_home():
     c1,c2,c3=st.columns([5,1,1])
@@ -1335,7 +1848,6 @@ def render_vitals_summary():
     if st.session_state.vitals_analysis:
         with st.expander("📋 Ανάλυση ζωτικών" if st.session_state.lang=="el" else "📋 Vitals analysis"):
             st.markdown(st.session_state.vitals_analysis)
-
 def render_photo_scan():
     """Photo health analysis (Florence-2 + Claude Vision). Lives inside the assessment."""
     p = st.session_state.profile
@@ -1462,6 +1974,8 @@ def render_photo_scan():
     else:
         st.info("👆 " + ("Ανεβάστε φωτογραφία για να ξεκινήσει η ανάλυση" if lang=="el"
                         else "Upload a photo to begin analysis"))
+
+
 
 def render_triage():
     render_stepper("triage")
@@ -1598,6 +2112,7 @@ def render_report():
         pubmed_ctx="\n".join(f"- {a['title']} ({a['journal']}, {a['date']}) {a['url']}" for a in refs) if refs else "None found."
         pp=p.get
         report_prompt=f"""Generate a concise clinical assessment for:
+
 PATIENT: {pp('name')}, {pp('age')}yo {pp('sex')}
 HISTORY: {pp('history','none')} | ALLERGIES: {pp('allergies','none')} | MEDS: {pp('meds_raw','none')}
 VITALS: {vitals_text}
