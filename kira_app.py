@@ -345,51 +345,58 @@ def _clear_login_cookie():
     except Exception:
         pass
 
-# ── IN-PROGRESS PROFILE DRAFT (signed cookie) ─────────────────────────────────
+# ── IN-PROGRESS PROFILE DRAFT (server-side, encrypted) ────────────────────────
 # Returning from the external face scan opens a NEW browser tab → a fresh Streamlit
 # session, so the profile held in session_state is gone and intake gets re-asked.
-# We persist the profile in a short-lived signed cookie and restore it on the new
-# session. Signed (tamper-proof) but NOT encrypted — fine on the user's own device
-# for now; for production this should move server-side (Supabase, keyed by email).
-DRAFT_COOKIE = "ak_draft"
+# We persist the profile server-side in Supabase, keyed by the user's email, and
+# ENCRYPT it (Fernet symmetric, key derived from the app secret) so the stored row
+# is ciphertext — readable only by the app, not by anyone who can see the DB.
+try:
+    from cryptography.fernet import Fernet
+    _ENC_OK = True
+except Exception:
+    _ENC_OK = False
 
-def _make_draft(payload_str, days=1):
-    exp = int(time.time()) + days*86400
-    body = f"{exp}|{payload_str}"
-    sig = hmac.new(_cookie_secret().encode(), body.encode(), hashlib.sha256).hexdigest()[:32]
-    return _b64.urlsafe_b64encode(f"{sig}|{body}".encode()).decode()
+def _fernet():
+    # 32-byte urlsafe key derived from the app secret (AUTH_COOKIE_SECRET / anon key)
+    key = _b64.urlsafe_b64encode(hashlib.sha256(_cookie_secret().encode()).digest())
+    return Fernet(key)
 
-def _read_draft(tok):
+def save_draft(email, payload):
+    sb = _supabase_client()
+    if not sb or not email or not _ENC_OK:
+        return
     try:
-        raw = _b64.urlsafe_b64decode(str(tok).encode()).decode()
-        sig, exp, payload = raw.split("|", 2)
-        if int(exp) < time.time():
-            return None
-        good = hmac.new(_cookie_secret().encode(), f"{exp}|{payload}".encode(), hashlib.sha256).hexdigest()[:32]
-        if hmac.compare_digest(sig, good):
-            return json.loads(payload)
+        blob = _fernet().encrypt(
+            json.dumps(payload, ensure_ascii=False).encode()
+        ).decode()
+        sb.table("drafts").upsert({"user_email": email, "data": blob}, on_conflict="user_email").execute()
+    except Exception:
+        pass
+
+def load_draft(email):
+    sb = _supabase_client()
+    if not sb or not email or not _ENC_OK:
+        return None
+    try:
+        res = sb.table("drafts").select("data").eq("user_email", email).limit(1).execute()
+        rows = res.data or []
+        if rows and rows[0].get("data"):
+            dec = _fernet().decrypt(rows[0]["data"].encode()).decode()
+            return json.loads(dec)
     except Exception:
         return None
     return None
 
-def _save_draft_cookie(payload_str):
-    cm = globals().get("CM")
-    if not cm:
+def delete_draft(email):
+    sb = _supabase_client()
+    if not sb or not email:
         return
     try:
-        cm.set(DRAFT_COOKIE, _make_draft(payload_str), key="ak_set_draft",
-               expires_at=datetime.now()+timedelta(days=1))
+        sb.table("drafts").delete().eq("user_email", email).execute()
     except Exception:
         pass
 
-def _clear_draft_cookie():
-    cm = globals().get("CM")
-    if not cm:
-        return
-    try:
-        cm.delete(DRAFT_COOKIE, key="ak_del_draft")
-    except Exception:
-        pass
 
 def send_otp(email):
     sb = _supabase_client()
@@ -421,12 +428,13 @@ def logout():
     if sb:
         try: sb.auth.sign_out()
         except Exception: pass
+    delete_draft(st.session_state.get("auth_user", ""))
     _clear_login_cookie()
-    _clear_draft_cookie()
     st.session_state.pop("auth_user", None)
     st.session_state.pop("otp_sent_to", None)
     st.session_state.pop("_cookie_synced", None)
     st.session_state.pop("_draft_hash", None)
+    st.session_state.pop("_draft_loaded", None)
     try:
         if "pe" in st.query_params: del st.query_params["pe"]
     except Exception:
@@ -1509,9 +1517,11 @@ def render_triage():
     last_kira=next((m["content"].lower() for m in reversed(st.session_state.triage_chat) if m["role"]=="assistant"),"")
     triage_ready=any(ph in last_kira for ph in ready_phrases)
     user_input=st.chat_input(t("triage_placeholder"),key="triage_input")
-    if user_input:
-        st.session_state.pop("photo_added", None)
-        st.session_state.triage_chat.append({"role":"user","content":user_input})
+    _auto_reply = st.session_state.pop("_scan_reply_pending", False)
+    if user_input or _auto_reply:
+        if user_input:
+            st.session_state.pop("photo_added", None)
+            st.session_state.triage_chat.append({"role":"user","content":user_input})
         with st.spinner("Asklepios..."):
             pp=p.get
             profile_ctx=f"Patient: {pp('name')}, {pp('age')}yo {pp('sex')}, Hx: {pp('history','none')}, Allergies: {pp('allergies','none')}, Meds: {pp('meds_raw','none')}"
@@ -1632,8 +1642,10 @@ Language: {"Greek" if lang=="el" else "English"}. Be direct. End with a one-line
     c1,c2,c3,c4=st.columns(4)
     with c1:
         if st.button("← "+("Νέα Αξιολόγηση" if lang=="el" else "New Assessment"),use_container_width=True):
+            delete_draft(st.session_state.get("auth_user",""))
             for k,vv in defaults.items(): st.session_state[k]=vv
-            for fbk in ("fb_comment","fb_rating","fb_sent","photo_added","photo_findings"): st.session_state.pop(fbk, None)
+            for fbk in ("fb_comment","fb_rating","fb_sent","photo_added","photo_findings",
+                        "_draft_hash","_from_facescan","_scan_injected","_vitals_nudge_off"): st.session_state.pop(fbk, None)
             st.rerun()
     with c2:
         st.download_button("📄 TXT",data=st.session_state.report,file_name=fname+".txt",mime="text/plain",use_container_width=True)
@@ -1671,9 +1683,7 @@ if _STX_OK and auth_enabled():
     except Exception:
         CM = None
 
-# Read ALL cookies in ONE component call. (stx's .get() internally re-renders the
-# component; calling it twice in a run raises a duplicate-key error, so we read
-# once via get_all() and index the dict.)
+# Read the login cookie (single component call).
 _all_cookies = {}
 if CM is not None:
     try:
@@ -1689,18 +1699,48 @@ if auth_enabled() and not is_logged_in():
     if _em:
         st.session_state["auth_user"] = _em
 
-# Restore the in-progress profile draft so returning from the face scan does NOT
-# force re-entering the intake form.
-if CM is not None and not st.session_state.profile.get("name"):
-    _dtok = _all_cookies.get(DRAFT_COOKIE)
-    _dd = _read_draft(_dtok) if _dtok else None
+# Restore the in-progress assessment from the ENCRYPTED server-side draft (Supabase,
+# keyed by email): profile AND the conversation, so returning from the face scan
+# resumes the SAME assessment instead of starting over. Synchronous fetch — once the
+# email is known this is deterministic (no cookie race).
+if (auth_enabled() and is_logged_in() and not st.session_state.profile.get("name")
+        and not st.session_state.get("_draft_loaded")):
+    st.session_state["_draft_loaded"] = True
+    _dd = load_draft(st.session_state.get("auth_user", ""))
     if _dd and (_dd.get("profile") or {}).get("name"):
         st.session_state.profile = _dd["profile"]
         if _dd.get("lang"):
             st.session_state.lang = _dd["lang"]
-        _mr = st.session_state.profile.get("meds_raw", "")
-        st.session_state.medications = [{"name": m.strip(), "freq": "", "notes": ""}
-                                        for m in _mr.split(",") if m.strip()] if _mr else []
+        if _dd.get("triage_chat"):
+            st.session_state.triage_chat = _dd["triage_chat"]
+        if _dd.get("vitals_analysis"):
+            st.session_state.vitals_analysis = _dd["vitals_analysis"]
+        if _dd.get("medications"):
+            st.session_state.medications = _dd["medications"]
+        else:
+            _mr = st.session_state.profile.get("meds_raw", "")
+            st.session_state.medications = [{"name": m.strip(), "freq": "", "notes": ""}
+                                            for m in _mr.split(",") if m.strip()] if _mr else []
+
+# If we came back from the face scan during an ongoing conversation, drop the
+# measurement into the chat so Asklepios continues the SAME assessment with it
+# (instead of the result just sitting silently in the vitals badge).
+if (st.session_state.get("_from_facescan") and st.session_state.triage_chat
+        and not st.session_state.get("_scan_injected")):
+    _v = st.session_state.vitals
+    _bits = []
+    if _v.get("hr"):
+        _bits.append((f"καρδιακός ρυθμός {_v['hr']} bpm" if st.session_state.lang=="el"
+                      else f"heart rate {_v['hr']} bpm"))
+    if _v.get("br"):
+        _bits.append((f"αναπνοές {_v['br']}/min" if st.session_state.lang=="el"
+                      else f"breathing {_v['br']}/min"))
+    if _bits:
+        _m = (("Μέτρησα τα ζωτικά μου με τη σάρωση: " if st.session_state.lang=="el"
+               else "I measured my vitals with the scan: ") + ", ".join(_bits) + ".")
+        st.session_state.triage_chat.append({"role": "user", "content": _m})
+        st.session_state["_scan_injected"] = True
+        st.session_state["_scan_reply_pending"] = True
 
 # ── FACESCAN INTERCEPTION ─────────────────────────────────────────────────────
 try:
@@ -1718,6 +1758,7 @@ try:
                 st.session_state.vitals = _clean
                 st.session_state["_from_facescan"] = True
                 st.session_state["_fs_banner"] = True
+                st.session_state["_scan_injected"] = False
                 st.session_state.screen = "triage" if st.session_state.profile.get("name") else "intake"
             st.query_params.clear()
             st.rerun()
@@ -1738,19 +1779,26 @@ if auth_enabled() and not is_logged_in():
     render_login_screen()
     st.stop()
 
-# ── PERSIST cookies on a CLEAN render pass ────────────────────────────────────
-# Writing on the verify *click* + immediate st.rerun() aborts the stx component's
-# browser write; a normal render that completes lands the cookie reliably. The two
-# .set calls use distinct keys so they never collide in the same render.
+# ── PERSIST on a CLEAN render pass ────────────────────────────────────────────
+# The login cookie write on the verify *click* + immediate st.rerun() is unreliable
+# (the rerun aborts the stx browser write); a normal render that completes lands it.
 if CM is not None and is_logged_in() and not st.session_state.get("_cookie_synced"):
     _save_login_cookie(st.session_state.get("auth_user", ""))
     st.session_state["_cookie_synced"] = True
-if CM is not None and st.session_state.profile.get("name"):
-    _payload = json.dumps({"profile": st.session_state.profile, "lang": st.session_state.lang},
-                          ensure_ascii=False, sort_keys=True)
-    if st.session_state.get("_draft_hash") != _payload:
-        _save_draft_cookie(_payload)
-        st.session_state["_draft_hash"] = _payload
+# Save the encrypted draft server-side, only when it actually changed. Includes the
+# conversation so the face-scan round-trip (new tab) resumes the same assessment.
+if auth_enabled() and is_logged_in() and st.session_state.profile.get("name"):
+    _payload = {
+        "profile": st.session_state.profile,
+        "lang": st.session_state.lang,
+        "triage_chat": st.session_state.triage_chat,
+        "medications": st.session_state.medications,
+        "vitals_analysis": st.session_state.vitals_analysis,
+    }
+    _ph = json.dumps(_payload, ensure_ascii=False, sort_keys=True)
+    if st.session_state.get("_draft_hash") != _ph:
+        save_draft(st.session_state.get("auth_user", ""), _payload)
+        st.session_state["_draft_hash"] = _ph
 
 screen=st.session_state.screen
 if st.session_state.pop("_fs_banner", False):
