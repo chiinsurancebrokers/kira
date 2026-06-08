@@ -990,6 +990,192 @@ table.vitals tbody tr:nth-child(even){{background:#F8FAFF}}
 <div class="hint">💡 Ctrl+P → Save as PDF</div></body></html>"""
     return html_out.encode("utf-8")
 
+def render_explainer_video(lang):
+    """Embedded how-it-works explainer — shown on home screen."""
+    import streamlit.components.v1 as components
+    html = '''
+<style>
+@import url(\'https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600&display=swap\');
+@import url(\'https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.19.0/tabler-icons.min.css\');
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:transparent;font-family:\'DM Sans\',sans-serif}
+.ex{width:100%;border:1px solid rgba(0,0,0,.1);border-radius:14px;overflow:hidden;background:#fff}
+.stage{position:relative;width:100%;height:290px;overflow:hidden;background:#F8F9FF}
+.slide{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px 32px;opacity:0;transform:translateY(14px);transition:opacity .4s,transform .4s;pointer-events:none}
+.slide.active{opacity:1;transform:translateY(0);pointer-events:auto}
+.slide.exit{opacity:0;transform:translateY(-14px);transition:opacity .25s,transform .25s}
+.s-icon{width:52px;height:52px;border-radius:50%;display:flex;align-items:center;justify-content:center;margin-bottom:14px;font-size:22px;flex-shrink:0}
+.ic-b{background:#EFF6FF;color:#1D4ED8}.ic-p{background:#EEEDFE;color:#534AB7}
+.ic-t{background:#ECFDF5;color:#065F46}.ic-a{background:#FFFBEB;color:#92400E}.ic-c{background:#FEF2F2;color:#991B1B}
+.s-step{font-size:10px;font-weight:600;letter-spacing:.09em;color:#9CA3AF;margin-bottom:6px;text-transform:uppercase}
+.s-title{font-size:17px;font-weight:600;color:#1A1A2E;text-align:center;margin-bottom:7px;line-height:1.3}
+.s-sub{font-size:12px;color:#6B7280;text-align:center;line-height:1.6;max-width:380px}
+.chips{display:flex;gap:7px;flex-wrap:wrap;justify-content:center;margin-top:12px}
+.chip{font-size:11px;font-weight:500;padding:4px 11px;border-radius:20px;border:1px solid #E5E7EB;color:#374151;background:#fff}
+.chip.hi{background:#EFF6FF;color:#1D4ED8;border-color:transparent}
+.opt-row{display:flex;gap:9px;margin-top:14px;flex-wrap:wrap;justify-content:center}
+.opt{display:flex;align-items:flex-start;gap:7px;padding:9px 12px;border-radius:10px;border:1px solid #E5E7EB;background:#fff;max-width:148px}
+.num{width:18px;height:18px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;flex-shrink:0;margin-top:1px}
+.n1{background:#F3F4F6;color:#6B7280}.n2{background:#EFF6FF;color:#1D4ED8}.n3{background:#EEEDFE;color:#534AB7}
+.ot{font-size:11px;font-weight:600;color:#1A1A2E;margin-bottom:2px}.os{font-size:10px;color:#9CA3AF;line-height:1.4}
+.ai-box{margin-top:14px;padding:10px 14px;border-radius:10px;background:#fff;border:1px solid #E5E7EB;max-width:360px;width:100%}
+.ai-row{display:flex;align-items:flex-start;gap:7px}
+.ai-av{width:24px;height:24px;border-radius:50%;background:#EFF6FF;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.ai-bub{font-size:11px;color:#6B7280;line-height:1.55}
+.ai-sug{margin-top:7px;padding:5px 9px;background:#F9FAFB;border-radius:8px;font-size:11px;color:#1D4ED8;display:flex;align-items:center;gap:5px;border:1px solid #E5E7EB}
+.prog{height:2px;background:#F3F4F6}
+.pfill{height:100%;background:#2D3FE7;border-radius:1px;transition:width .3s}
+.ctrl{display:flex;align-items:center;justify-content:space-between;padding:9px 13px;border-top:1px solid #F3F4F6;background:#fff}
+.dots{display:flex;gap:5px;align-items:center}
+.dot{width:5px;height:5px;border-radius:50%;background:#E5E7EB;cursor:pointer;border:none;padding:0;transition:all .25s}
+.dot.on{width:14px;border-radius:3px;background:#2D3FE7}
+.ibtn{width:28px;height:28px;border-radius:50%;border:1px solid #E5E7EB;background:#fff;cursor:pointer;display:flex;align-items:center;justify-content:center;color:#6B7280;font-size:13px;transition:background .15s}
+.ibtn:hover{background:#F9FAFB}.ibtn:disabled{opacity:.3;cursor:default}
+.pbtn{width:28px;height:28px;border-radius:50%;border:1px solid #D1D5DB;background:#fff;cursor:pointer;display:flex;align-items:center;justify-content:center;color:#1A1A2E;font-size:13px}
+.pbtn:hover{background:#F9FAFB}
+.sc{font-size:10px;color:#9CA3AF;min-width:28px;text-align:center}
+.lbar{display:flex;justify-content:center;gap:7px;padding:7px 13px 11px;border-top:1px solid #F3F4F6;background:#fff}
+.lbtn{font-size:11px;padding:3px 11px;border-radius:20px;border:1px solid #E5E7EB;background:#fff;cursor:pointer;color:#6B7280;transition:.15s}
+.lbtn.on{border-color:#2D3FE7;color:#2D3FE7;font-weight:600}
+</style>
+<div class="ex">
+<div class="stage">
+<div class="slide active" id="s0">
+  <div class="s-icon ic-b"><i class="ti ti-stethoscope"></i></div>
+  <div class="s-step" id="p0">asklepios · ai nurse</div>
+  <div class="s-title" id="h0">Ο ψηφιακός σου νοσηλευτής</div>
+  <div class="s-sub" id="b0">Αξιολόγηση συμπτωμάτων με AI — γρήγορα, στα ελληνικά, πάντα δίπλα σου.</div>
+</div>
+<div class="slide" id="s1">
+  <div class="s-icon ic-p"><i class="ti ti-login"></i></div>
+  <div class="s-step" id="p1">βήμα 1</div>
+  <div class="s-title" id="h1">Σύνδεση με email</div>
+  <div class="s-sub" id="b1">Εισάγεις το email σου, λαμβάνεις κωδικό OTP. Χωρίς password, χωρίς λογαριασμό.</div>
+</div>
+<div class="slide" id="s2">
+  <div class="s-icon ic-t"><i class="ti ti-user-circle"></i></div>
+  <div class="s-step" id="p2">βήμα 2</div>
+  <div class="s-title" id="h2">Συμπλήρωσε το προφίλ σου</div>
+  <div class="s-sub" id="b2">Όνομα, ηλικία, φύλο, ιστορικό, αλλεργίες, φάρμακα. Αποθηκεύεται κρυπτογραφημένο.</div>
+  <div class="chips"><span class="chip hi" id="c2a">Ηλικία</span><span class="chip hi" id="c2b">Ιστορικό</span><span class="chip hi" id="c2c">Φάρμακα</span><span class="chip hi" id="c2d">Αλλεργίες</span></div>
+</div>
+<div class="slide" id="s3">
+  <div class="s-icon ic-b"><i class="ti ti-message-chatbot"></i></div>
+  <div class="s-step" id="p3">βήμα 3</div>
+  <div class="s-title" id="h3">Περίγραψε τα συμπτώματά σου</div>
+  <div class="s-sub" id="b3">Ο Asklepios κάνει στοχευμένες ερωτήσεις — μία κάθε φορά. Chips ή ελεύθερο κείμενο.</div>
+  <div class="chips"><span class="chip" id="c3a">Πονοκέφαλος</span><span class="chip" id="c3b">Δύσπνοια</span><span class="chip" id="c3c">Τραύμα</span><span class="chip" id="c3d">Άλλο</span></div>
+</div>
+<div class="slide" id="s4">
+  <div class="s-icon ic-a"><i class="ti ti-heart-rate-monitor"></i></div>
+  <div class="s-step" id="p4">προαιρετικό · ζωτικά</div>
+  <div class="s-title" id="h4">Μέτρηση ζωτικών — 3 επιλογές</div>
+  <div class="opt-row">
+    <div class="opt"><div class="num n1">1</div><div><div class="ot" id="o1t">Παράλειψη</div><div class="os" id="o1s">Συνέχισε χωρίς μέτρηση</div></div></div>
+    <div class="opt"><div class="num n2">2</div><div><div class="ot" id="o2t">Χειροκίνητη</div><div class="os" id="o2s">Καταχώρισε μόνος σου</div></div></div>
+    <div class="opt"><div class="num n3">3</div><div><div class="ot" id="o3t">Σάρωση</div><div class="os" id="o3s">Κάμερα · 2 γύροι 60\'\'</div></div></div>
+  </div>
+</div>
+<div class="slide" id="s5">
+  <div class="s-icon ic-c"><i class="ti ti-camera"></i></div>
+  <div class="s-step" id="p5">ai πρόταση · εφόσον χρειαστεί</div>
+  <div class="s-title" id="h5">Φωτό ή σάρωση — μόνο αν χρειαστεί</div>
+  <div class="ai-box">
+    <div class="ai-row"><div class="ai-av"><i class="ti ti-robot" style="font-size:12px;color:#1D4ED8"></i></div><div class="ai-bub" id="aib">Βλέπω ότι έχεις χτύπημα — μπορείς να ανεβάσεις φωτογραφία για πιο ακριβή εκτίμηση.</div></div>
+    <div class="ai-sug"><i class="ti ti-camera" style="font-size:12px"></i><span id="tag1">📷 Ανάλυση φωτογραφίας</span></div>
+    <div class="ai-sug" style="margin-top:4px"><i class="ti ti-scan" style="font-size:12px"></i><span id="tag2">📡 Σάρωση για δύσπνοια / καρδιά</span></div>
+  </div>
+</div>
+<div class="slide" id="s6">
+  <div class="s-icon ic-t"><i class="ti ti-report-medical"></i></div>
+  <div class="s-step" id="p6">βήμα 4</div>
+  <div class="s-title" id="h6">Αναλυτική αναφορά υγείας</div>
+  <div class="s-sub" id="b6">Κλινική εκτίμηση με PubMed + GPT-4o. Εκτύπωσε ή αποθήκευσε ως PDF για τον γιατρό σου.</div>
+  <div class="chips"><span class="chip hi" id="c6a">PubMed</span><span class="chip hi" id="c6b">Dual AI</span><span class="chip hi" id="c6c">PDF</span></div>
+</div>
+</div>
+<div class="prog"><div class="pfill" id="pf" style="width:14.3%"></div></div>
+<div class="ctrl">
+  <button class="ibtn" id="pb" onclick="nav(-1)" disabled><i class="ti ti-chevron-left"></i></button>
+  <div style="display:flex;align-items:center;gap:8px">
+    <div class="dots" id="dots"></div>
+    <button class="pbtn" id="plb" onclick="togPlay()"><i class="ti ti-player-play" id="pli"></i></button>
+  </div>
+  <div style="display:flex;align-items:center;gap:5px">
+    <span class="sc" id="sc">1 / 7</span>
+    <button class="ibtn" id="nb" onclick="nav(1)"><i class="ti ti-chevron-right"></i></button>
+  </div>
+</div>
+<div class="lbar">
+  <button class="lbtn on" id="lel" onclick="setL(\'el\')">🇬🇷 Ελληνικά</button>
+  <button class="lbtn" id="len" onclick="setL(\'en\')">🇬🇧 English</button>
+</div>
+</div>
+<script>
+const T=7;let cur=0,lg=\'el\',play=false,tim=null;
+const D={
+  el:{p:[\'asklepios · ai nurse\',\'βήμα 1\',\'βήμα 2\',\'βήμα 3\',\'προαιρετικό · ζωτικά\',\'ai πρόταση · εφόσον χρειαστεί\',\'βήμα 4\'],
+  h:[\'Ο ψηφιακός σου νοσηλευτής\',\'Σύνδεση με email\',\'Συμπλήρωσε το προφίλ σου\',\'Περίγραψε τα συμπτώματά σου\',\'Μέτρηση ζωτικών — 3 επιλογές\',\'Φωτό ή σάρωση — μόνο αν χρειαστεί\',\'Αναλυτική αναφορά υγείας\'],
+  b:[\'Αξιολόγηση συμπτωμάτων με AI — γρήγορα, στα ελληνικά, πάντα δίπλα σου.\',\'Εισάγεις το email σου, λαμβάνεις κωδικό OTP. Χωρίς password, χωρίς λογαριασμό.\',\'Όνομα, ηλικία, φύλο, ιστορικό, αλλεργίες, φάρμακα. Αποθηκεύεται κρυπτογραφημένο.\',\'Ο Asklepios κάνει στοχευμένες ερωτήσεις — μία κάθε φορά. Chips ή ελεύθερο κείμενο.\',\'\',\'\',\'Κλινική εκτίμηση με PubMed + GPT-4o. Εκτύπωσε ή αποθήκευσε ως PDF για τον γιατρό σου.\'],
+  c2:[\'Ηλικία\',\'Ιστορικό\',\'Φάρμακα\',\'Αλλεργίες\'],c3:[\'Πονοκέφαλος\',\'Δύσπνοια\',\'Τραύμα\',\'Άλλο\'],c6:[\'PubMed\',\'Dual AI\',\'PDF\'],
+  o1t:\'Παράλειψη\',o1s:\'Συνέχισε χωρίς μέτρηση\',o2t:\'Χειροκίνητη\',o2s:\'Καταχώρισε μόνος σου\',o3t:\'Σάρωση\',o3s:"Κάμερα · 2 γύροι 60\'\'",
+  aib:"Βλέπω ότι έχεις χτύπημα — μπορείς να ανεβάσεις φωτογραφία για πιο ακριβή εκτίμηση.",
+  t1:\'📷 Ανάλυση φωτογραφίας\',t2:\'📡 Σάρωση για δύσπνοια / καρδιά\'},
+  en:{p:[\'asklepios · ai nurse\',\'step 1\',\'step 2\',\'step 3\',\'optional · vitals\',\'ai suggestion · when needed\',\'step 4\'],
+  h:[\'Your digital nurse\',\'Sign in with email\',\'Fill in your profile\',\'Describe your symptoms\',\'Measure vitals — 3 options\',\'Photo or scan — only when needed\',\'Detailed health report\'],
+  b:[\'AI-powered symptom assessment — fast, in your language, always by your side.\',\'Enter your email, receive an OTP code. No password, no account needed.\',\'Name, age, sex, history, allergies, medications. Stored encrypted.\',\'Asklepios asks targeted questions — one at a time. Chips or free text.\',\'\',\'\',\'Clinical assessment with PubMed + GPT-4o. Print or save as PDF for your doctor.\'],
+  c2:[\'Age\',\'History\',\'Meds\',\'Allergies\'],c3:[\'Headache\',\'Dyspnoea\',\'Injury\',\'Other\'],c6:[\'PubMed\',\'Dual AI\',\'PDF\'],
+  o1t:\'Skip\',o1s:\'Continue without measuring\',o2t:\'Manual\',o2s:\'Enter values yourself\',o3t:\'Scan\',o3s:"Camera · 2 rounds 60\'\'",
+  aib:\'I see you have an injury — you can upload a photo for a more accurate assessment.\',
+  t1:\'📷 Photo analysis\',t2:\'📡 Scan for dyspnoea / heart\'}
+};
+function ap(l){
+  const d=D[l];
+  for(let i=0;i<T;i++){
+    const pe=document.getElementById(\'p\'+i),he=document.getElementById(\'h\'+i),be=document.getElementById(\'b\'+i);
+    if(pe)pe.textContent=d.p[i];if(he)he.textContent=d.h[i];if(be&&d.b[i])be.textContent=d.b[i];
+  }
+  [\'a\',\'b\',\'c\',\'d\'].forEach((x,i)=>{const e=document.getElementById(\'c2\'+x);if(e)e.textContent=d.c2[i];});
+  [\'a\',\'b\',\'c\',\'d\'].forEach((x,i)=>{const e=document.getElementById(\'c3\'+x);if(e)e.textContent=d.c3[i];});
+  [\'a\',\'b\',\'c\'].forEach((x,i)=>{const e=document.getElementById(\'c6\'+x);if(e)e.textContent=d.c6[i];});
+  const m={o1t:d.o1t,o1s:d.o1s,o2t:d.o2t,o2s:d.o2s,o3t:d.o3t,o3s:d.o3s,aib:d.aib,tag1:d.t1,tag2:d.t2};
+  Object.entries(m).forEach(([k,v])=>{const e=document.getElementById(k);if(e)e.textContent=v;});
+  document.getElementById(\'lel\').className=\'lbtn\'+(l===\'el\'?\' on\':\'\');
+  document.getElementById(\'len\').className=\'lbtn\'+(l===\'en\'?\' on\':\'\');
+}
+function setL(l){lg=l;ap(l);}
+function mkDots(){
+  const d=document.getElementById(\'dots\');d.innerHTML=\'\';
+  for(let i=0;i<T;i++){
+    const b=document.createElement(\'button\');b.className=\'dot\'+(i===cur?\' on\':\'\');
+    b.onclick=(idx=>()=>go(idx))(i);d.appendChild(b);
+  }
+}
+function go(idx){
+  const sl=document.querySelectorAll(\'.slide\');
+  sl[cur].classList.remove(\'active\');sl[cur].classList.add(\'exit\');
+  setTimeout(()=>sl[cur].classList.remove(\'exit\'),280);
+  cur=idx;sl[cur].classList.add(\'active\');
+  document.getElementById(\'pf\').style.width=((cur+1)/T*100)+\'%\';
+  document.getElementById(\'sc\').textContent=(cur+1)+\' / \'+T;
+  document.getElementById(\'pb\').disabled=cur===0;
+  document.getElementById(\'nb\').disabled=cur===T-1;
+  mkDots();
+}
+function nav(d){
+  const n=cur+d;if(n>=0&&n<T)go(n);
+  if(play&&n===T-1){clearInterval(tim);play=false;document.getElementById(\'pli\').className=\'ti ti-player-play\';}
+}
+function togPlay(){
+  play=!play;document.getElementById(\'pli\').className=play?\'ti ti-player-pause\':\'ti ti-player-play\';
+  if(play){if(cur===T-1)go(0);tim=setInterval(()=>{if(cur<T-1)nav(1);else{clearInterval(tim);play=false;document.getElementById(\'pli\').className=\'ti ti-player-play\';}},3500);}
+  else clearInterval(tim);
+}
+mkDots();ap(\'el\');
+</script>
+\'\'\'
+    components.html(html, height=420, scrolling=False)
+
 def render_home():
     c1,c2,c3=st.columns([5,1,1])
     with c2:
@@ -1001,6 +1187,13 @@ def render_home():
                 logout(); st.rerun()
     st.markdown(f'''<div class="kira-hero"><div style="font-size:64px;margin-bottom:8px">🩺</div><h1>{t("title")}</h1><p>{t("subtitle")}</p><div class="kira-tagline">{t("tagline")}</div></div>''',unsafe_allow_html=True)
     st.markdown(f'<div class="disclaimer">{t("disclaimer_main")}</div>',unsafe_allow_html=True)
+    # Explainer video: always visible on home, but collapsible for returning users
+    _has_history = bool(st.session_state.triage_chat or st.session_state.profile.get("name"))
+    if not _has_history:
+        render_explainer_video(st.session_state.lang)
+    else:
+        with st.expander("▶ " + ("Πώς λειτουργεί;" if st.session_state.lang=="el" else "How does it work?"), expanded=False):
+            render_explainer_video(st.session_state.lang)
     col1,col2,col3=st.columns([1,2,1])
     with col2:
         if st.button(t("start"),type="primary",use_container_width=True):
