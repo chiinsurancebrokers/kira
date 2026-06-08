@@ -430,11 +430,9 @@ def logout():
         except Exception: pass
     delete_draft(st.session_state.get("auth_user", ""))
     _clear_login_cookie()
-    st.session_state.pop("auth_user", None)
-    st.session_state.pop("otp_sent_to", None)
-    st.session_state.pop("_cookie_synced", None)
-    st.session_state.pop("_draft_hash", None)
-    st.session_state.pop("_draft_loaded", None)
+    # Clear all session state and reset to defaults
+    for key in list(st.session_state.keys()):
+        del st.session_state[key]
     try:
         if "pe" in st.query_params: del st.query_params["pe"]
     except Exception:
@@ -991,16 +989,34 @@ table.vitals tbody tr:nth-child(even){{background:#F8FAFF}}
     return html_out.encode("utf-8")
 
 def render_home():
-    c1,c2=st.columns([6,1])
+    c1,c2,c3=st.columns([5,1,1])
     with c2:
         if st.button("🇬🇧 EN" if st.session_state.lang=="el" else "🇬🇷 ΕΛ"):
             st.session_state.lang="en" if st.session_state.lang=="el" else "el"; st.rerun()
+    with c3:
+        if is_logged_in():
+            if st.button("🚪 " + ("Έξοδος" if st.session_state.lang=="el" else "Logout"), use_container_width=True, key="logout_home"):
+                logout(); st.rerun()
     st.markdown(f'''<div class="kira-hero"><div style="font-size:64px;margin-bottom:8px">🩺</div><h1>{t("title")}</h1><p>{t("subtitle")}</p><div class="kira-tagline">{t("tagline")}</div></div>''',unsafe_allow_html=True)
     st.markdown(f'<div class="disclaimer">{t("disclaimer_main")}</div>',unsafe_allow_html=True)
     col1,col2,col3=st.columns([1,2,1])
     with col2:
         if st.button(t("start"),type="primary",use_container_width=True):
             st.session_state.screen="intake"; st.rerun()
+        # Show "New Chat" button if a previous conversation exists
+        if st.session_state.triage_chat or st.session_state.profile.get("name"):
+            if st.button(("🔄 Νέα Συνομιλία" if st.session_state.lang=="el" else "🔄 New Chat"), use_container_width=True, key="new_chat_home"):
+                # Clear conversation and profile but keep login
+                reset_keys = ["triage_chat","profile","vitals","vitals_analysis","report",
+                              "report_pubmed","report_gpt","medications","med_inputs",
+                              "symptom_chips","fb_rating","fb_sent","triage_ready",
+                              "_draft_loaded","_draft_hash","_from_facescan","_scan_injected",
+                              "_scan_reply_pending","_vitals_nudge_off","_fs_banner"]
+                for rk in reset_keys:
+                    st.session_state.pop(rk, None)
+                if is_logged_in():
+                    delete_draft(st.session_state.get("auth_user", ""))
+                st.rerun()
     st.markdown("---")
     f1,f2,f3=st.columns(3)
     with f1: st.markdown('<div class="card"><div style="font-size:32px">🔬</div><h3 style="margin-top:12px">PubMed Evidence</h3><p style="font-size:13px;color:#6B7280">Κάθε εκτίμηση υποστηρίζεται από επιστημονική βιβλιογραφία NCBI.</p></div>',unsafe_allow_html=True)
@@ -1530,13 +1546,17 @@ def render_triage():
             reply=claude([{"role":m["role"],"content":m["content"]} for m in st.session_state.triage_chat],system=system_ctx,max_tokens=1500)
             if reply and reply.strip() and reply.strip()[-1] not in ".!?»)": reply=reply.rstrip()+" ..."
         st.session_state.triage_chat.append({"role":"assistant","content":reply}); st.rerun()
-    col_b,col_r=st.columns([1,2])
+    col_b,col_r,col_lo=st.columns([1,2,1])
     with col_b:
         if st.button(t("back")): st.session_state.screen="vitals"; st.rerun()
     with col_r:
         enabled=triage_ready or len(st.session_state.triage_chat)>=6
         if st.button(t("generate_report"),type="primary",use_container_width=True,disabled=not enabled):
             st.session_state.screen="report"; st.rerun()
+    with col_lo:
+        if is_logged_in():
+            if st.button("🚪 " + ("Έξοδος" if st.session_state.lang=="el" else "Logout"), use_container_width=True, key="logout_triage"):
+                logout(); st.rerun()
     if not enabled:
         st.caption("Συνεχίστε — ο Asklepios θα σας ειδοποιήσει όταν έχει αρκετά." if st.session_state.lang=="el" else "Continue — Asklepios will let you know when it has enough.")
 
