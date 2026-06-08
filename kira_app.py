@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 """
 ASKLEPIOS — AI Nurse
 Bilingual AI health assistant for the Greek market.
@@ -495,7 +496,7 @@ def render_login_screen():
     with c2:
         if st.button("🇬🇧 EN" if lang=="el" else "🇬🇷 ΕΛ", key="login_lang"):
             st.session_state.lang = "en" if lang=="el" else "el"; st.rerun()
-    st.markdown(f'''<div class="kira-hero"><div style="font-size:64px;margin-bottom:8px">🩺</div><h1>{t("title")}</h1><p>{t("subtitle")}</p><div class="kira-tagline">{t("tagline")}</div></div>''', unsafe_allow_html=True)
+    st.markdown(f'''<div class="kira-hero"><div style="font-size:64px;margin-bottom:8px">&#x1FA7A;</div><h1>{t("title")}</h1><p>{t("subtitle")}</p><div class="kira-tagline">{t("tagline")}</div></div>''', unsafe_allow_html=True)
     col1, col2, col3 = st.columns([1,2,1])
     with col2:
         render_login_gate()
@@ -991,276 +992,251 @@ table.vitals tbody tr:nth-child(even){{background:#F8FAFF}}
     return html_out.encode("utf-8")
 
 def render_ad_banner(lang):
-    """Promotional ad banner shown above the disclaimer on home screen."""
     import streamlit.components.v1 as components
-    html = """<!DOCTYPE html><html><head>
-<meta charset="UTF-8">
-<style>
-@import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,wght@0,400;0,500;0,700;0,800;1,700&display=swap');
-@import url('https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.19.0/tabler-icons.min.css');
-*{box-sizing:border-box;margin:0;padding:0}
-body{background:transparent;font-family:'DM Sans',sans-serif}
-.ad{width:100%;max-width:480px;margin:0 auto;border-radius:24px;overflow:hidden;background:linear-gradient(160deg,#3D2FE7 0%,#7B2FE0 55%,#9B3FFF 100%);padding:28px 24px 24px;position:relative}
-.ad::before{content:'';position:absolute;top:-60px;right:-40px;width:200px;height:200px;border-radius:50%;background:rgba(255,255,255,.06)}
-.ad::after{content:'';position:absolute;bottom:-40px;left:-30px;width:160px;height:160px;border-radius:50%;background:rgba(255,255,255,.04)}
-.topbar{display:flex;align-items:center;gap:10px;margin-bottom:24px;position:relative;z-index:1}
-.logo-box{width:40px;height:40px;border-radius:12px;background:rgba(255,255,255,.18);display:flex;align-items:center;justify-content:center}
-.logo-box i{font-size:20px;color:#fff}
-.brand-text .name{font-size:15px;font-weight:700;color:#fff;line-height:1}
-.brand-text .sub{font-size:11px;color:rgba(255,255,255,.65);letter-spacing:.06em;text-transform:uppercase;margin-top:2px}
-.headline{position:relative;z-index:1;margin-bottom:10px}
-.headline h1{font-size:36px;font-weight:800;color:#fff;line-height:1.15;letter-spacing:-0.5px}
-.headline h1 em{color:#F9C846;font-style:italic}
-.subline{font-size:14px;color:rgba(255,255,255,.75);line-height:1.55;margin-bottom:20px;position:relative;z-index:1}
-.chat-bubble{background:rgba(255,255,255,.13);border:1px solid rgba(255,255,255,.2);border-radius:14px;padding:12px 14px;margin-bottom:20px;display:flex;align-items:flex-start;gap:10px;position:relative;z-index:1}
-.bubble-av{width:28px;height:28px;border-radius:50%;background:rgba(255,255,255,.25);display:flex;align-items:center;justify-content:center;flex-shrink:0}
-.bubble-av i{font-size:14px;color:#fff}
-.bubble-text{font-size:12.5px;color:#fff;line-height:1.55;font-style:italic}
-.bubble-text strong{font-style:normal;font-weight:700}
-.arrow-down{text-align:center;color:rgba(255,255,255,.45);font-size:18px;margin:-8px 0 12px;position:relative;z-index:1}
-.features{display:flex;flex-direction:column;gap:9px;margin-bottom:22px;position:relative;z-index:1}
-.feat{display:flex;align-items:center;gap:11px}
-.feat-icon{width:32px;height:32px;border-radius:10px;background:rgba(255,255,255,.14);display:flex;align-items:center;justify-content:center;flex-shrink:0}
-.feat-icon i{font-size:16px;color:#fff}
-.feat-text{font-size:13px;color:rgba(255,255,255,.9);line-height:1.3}
-.cta-btn{width:100%;padding:16px;border-radius:16px;background:linear-gradient(135deg,#3D2FE7,#7B2FE0);border:none;cursor:pointer;font-family:'DM Sans',sans-serif;font-size:15px;font-weight:700;color:#ffffff;letter-spacing:.01em;position:relative;z-index:1;transition:background .25s,color .25s;outline:none}
-.cta-btn:hover{background:#ffffff;color:#1a1a1a}
-.cta-btn:active{transform:scale(.98)}
-.disc{font-size:11px;color:rgba(255,255,255,.45);text-align:center;margin-top:10px;line-height:1.5;position:relative;z-index:1}
-</style></head><body>
-<div class="ad">
-  <div class="topbar">
-    <div class="logo-box"><i class="ti ti-stethoscope"></i></div>
-    <div class="brand-text"><div class="name">Asklepios</div><div class="sub">AI Nurse</div></div>
-  </div>
-  <div class="headline"><h1 id="h1"></h1></div>
-  <p class="subline" id="sub"></p>
-  <div class="chat-bubble">
-    <div class="bubble-av"><i class="ti ti-robot"></i></div>
-    <div class="bubble-text" id="bubble"></div>
-  </div>
-  <div class="arrow-down">⌄</div>
-  <div class="features">
-    <div class="feat"><div class="feat-icon"><i class="ti ti-clock"></i></div><div class="feat-text" id="f1"></div></div>
-    <div class="feat"><div class="feat-icon"><i class="ti ti-flag"></i></div><div class="feat-text" id="f2"></div></div>
-    <div class="feat"><div class="feat-icon"><i class="ti ti-microscope"></i></div><div class="feat-text" id="f3"></div></div>
-  </div>
-  <button class="cta-btn" id="cta" onclick="scrollToStart()"></button>
-  <p class="disc" id="disc"></p>
-</div>
-<script>
-var lg="'+lang+'";
-var T={
-  el:{h1:"O νοσηλευτής<br>στην <em>τσέπη</em> σου.",sub:"Γρήγορη εκτίμηση υγείας, στα ελληνικά — όποτε τη χρειαστείς.",bubble:"«Περίγραψέ μου τι νιώθεις και θα σε καθοδηγήσω — <strong>βήμα-βήμα.</strong>»",f1:"Πρώτη εκτίμηση σε ~2 λεπτά",f2:"Στα ελληνικά, διαθέσιμος 24/7",f3:"Με επιστημονική τεκμηρίωση",cta:"Δοκίμασέ το δωρεάν →",disc:"Ενημερωτικό εργαλείο. Δεν αντικαθιστά ιατρική διάγνωση ή θεραπεία."},
-  en:{h1:"The nurse<br>in your <em>pocket.</em>",sub:"Quick health assessment, in your language — whenever you need it.",bubble:"«Tell me how you feel and I will guide you — <strong>step by step.</strong>»",f1:"First assessment in ~2 minutes",f2:"In Greek & English, available 24/7",f3:"Evidence-based, powered by PubMed",cta:"Try it for free →",disc:"Informational tool only. Does not replace medical diagnosis or treatment."}
-};
-function apply(l){
-  var d=T[l]||T.el;
-  document.getElementById("h1").innerHTML=d.h1;
-  document.getElementById("sub").textContent=d.sub;
-  document.getElementById("bubble").innerHTML=d.bubble;
-  ["f1","f2","f3","disc"].forEach(function(id){document.getElementById(id).textContent=d[id];});
-  document.getElementById("cta").textContent=d.cta;
-}
-function scrollToStart(){
-  try{
-    var p=window.parent.document;
-    var btns=p.querySelectorAll("button");
-    var target=null;
-    btns.forEach(function(b){if(b.innerText&&(b.innerText.includes("Έναρξη")||b.innerText.includes("Start")||b.innerText.includes("Εναρξη")))target=b;});
-    if(target){target.scrollIntoView({behavior:"smooth",block:"center"});setTimeout(function(){target.focus();},600);}
-    else window.parent.scrollTo({top:window.parent.document.body.scrollHeight,behavior:"smooth"});
-  }catch(e){try{window.parent.scrollTo({top:9999,behavior:"smooth"});}catch(e2){}}
-}
-apply(lg);
-</script></body></html>"""
-    html = html.replace('"{LANG}"', '"'+ lang + '"')
-    components.html(html, height=580, scrolling=False)
+    el = (lang == "el")
+    tx = {
+        "el": {
+            "h1":   "O \u03bd\u03bf\u03c3\u03b7\u03bb\u03b5\u03c5\u03c4\u03ae\u03c2<br>\u03c3\u03c4\u03b7\u03bd <em>\u03c4\u03c3\u03ad\u03c0\u03b7</em> \u03c3\u03bf\u03c5.",
+            "sub":  "\u0393\u03c1\u03ae\u03b3\u03bf\u03c1\u03b7 \u03b5\u03ba\u03c4\u03af\u03bc\u03b7\u03c3\u03b7 \u03c5\u03b3\u03b5\u03af\u03b1\u03c2, \u03c3\u03c4\u03b1 \u03b5\u03bb\u03bb\u03b7\u03bd\u03b9\u03ba\u03ac \u2014 \u03cc\u03c0\u03bf\u03c4\u03b5 \u03c4\u03b7 \u03c7\u03c1\u03b5\u03b9\u03b1\u03c3\u03c4\u03b5\u03af\u03c2.",
+            "bub":  "\u00ab\u03a0\u03b5\u03c1\u03af\u03b3\u03c1\u03b1\u03c8\u03ad \u03bc\u03bf\u03c5 \u03c4\u03b9 \u03bd\u03b9\u03ce\u03b8\u03b5\u03b9\u03c2 \u03ba\u03b1\u03b9 \u03b8\u03b1 \u03c3\u03b5 \u03ba\u03b1\u03b8\u03bf\u03b4\u03b7\u03b3\u03ae\u03c3\u03c9 \u2014 <strong>\u03b2\u03ae\u03bc\u03b1-\u03b2\u03ae\u03bc\u03b1.</strong>\u00bb",
+            "f1":   "\u03a0\u03c1\u03ce\u03c4\u03b7 \u03b5\u03ba\u03c4\u03af\u03bc\u03b7\u03c3\u03b7 \u03c3\u03b5 ~2 \u03bb\u03b5\u03c0\u03c4\u03ac",
+            "f2":   "\u03a3\u03c4\u03b1 \u03b5\u03bb\u03bb\u03b7\u03bd\u03b9\u03ba\u03ac, \u03b4\u03b9\u03b1\u03b8\u03ad\u03c3\u03b9\u03bc\u03bf\u03c2 24/7",
+            "f3":   "\u039c\u03b5 \u03b5\u03c0\u03b9\u03c3\u03c4\u03b7\u03bc\u03bf\u03bd\u03b9\u03ba\u03ae \u03c4\u03b5\u03ba\u03bc\u03b7\u03c1\u03af\u03c9\u03c3\u03b7",
+            "cta":  "\u0394\u03bf\u03ba\u03af\u03bc\u03b1\u03c3\u03ad \u03c4\u03bf \u03b4\u03c9\u03c1\u03b5\u03ac\u03bd \u2192",
+            "disc": "\u0395\u03bd\u03b7\u03bc\u03b5\u03c1\u03c9\u03c4\u03b9\u03ba\u03cc \u03b5\u03c1\u03b3\u03b1\u03bb\u03b5\u03af\u03bf. \u0394\u03b5\u03bd \u03b1\u03bd\u03c4\u03b9\u03ba\u03b1\u03b8\u03b9\u03c3\u03c4\u03ac \u03b9\u03b1\u03c4\u03c1\u03b9\u03ba\u03ae \u03b4\u03b9\u03ac\u03b3\u03bd\u03c9\u03c3\u03b7 \u03ae \u03b8\u03b5\u03c1\u03b1\u03c0\u03b5\u03af\u03b1.",
+        },
+        "en": {
+            "h1":   "The nurse<br>in your <em>pocket.</em>",
+            "sub":  "Quick health assessment, in your language \u2014 whenever you need it.",
+            "bub":  "Tell me how you feel and I will guide you \u2014 <strong>step by step.</strong>",
+            "f1":   "First assessment in ~2 minutes",
+            "f2":   "In Greek & English, available 24/7",
+            "f3":   "Evidence-based, powered by PubMed",
+            "cta":  "Try it for free \u2192",
+            "disc": "Informational tool only. Does not replace medical diagnosis or treatment.",
+        },
+    }
+    d = tx.get(lang, tx["el"])
+    css = (
+        "*{box-sizing:border-box;margin:0;padding:0}"
+        "body{background:transparent;font-family:sans-serif}"
+        ".ad{width:100%;border-radius:24px;overflow:hidden;"
+        "background:linear-gradient(160deg,#3D2FE7 0%,#7B2FE0 55%,#9B3FFF 100%);"
+        "padding:28px 24px 24px}"
+        ".lo{width:40px;height:40px;border-radius:12px;background:rgba(255,255,255,.18);"
+        "display:flex;align-items:center;justify-content:center}"
+        ".lo i,.av i{color:#fff}"
+        ".lo i{font-size:20px}"
+        ".nm{font-size:15px;font-weight:700;color:#fff;line-height:1}"
+        ".sm{font-size:11px;color:rgba(255,255,255,.65);letter-spacing:.06em;"
+        "text-transform:uppercase;margin-top:2px}"
+        "h1{font-size:34px;font-weight:800;color:#fff;line-height:1.15;margin:18px 0 8px}"
+        "h1 em{color:#F9C846;font-style:italic}"
+        ".su{font-size:14px;color:rgba(255,255,255,.75);line-height:1.55;margin-bottom:18px}"
+        ".cb{background:rgba(255,255,255,.13);border:1px solid rgba(255,255,255,.2);"
+        "border-radius:14px;padding:12px 14px;margin-bottom:18px;display:flex;gap:10px}"
+        ".av{width:28px;height:28px;border-radius:50%;background:rgba(255,255,255,.25);"
+        "display:flex;align-items:center;justify-content:center;flex-shrink:0}"
+        ".av i{font-size:14px}"
+        ".bt{font-size:12px;color:#fff;line-height:1.55;font-style:italic}"
+        ".bt strong{font-style:normal;font-weight:700}"
+        ".ar{text-align:center;color:rgba(255,255,255,.45);font-size:18px;margin:-4px 0 10px}"
+        ".fe{display:flex;flex-direction:column;gap:9px;margin-bottom:20px}"
+        ".fr{display:flex;align-items:center;gap:11px}"
+        ".fi{width:32px;height:32px;border-radius:10px;background:rgba(255,255,255,.14);"
+        "display:flex;align-items:center;justify-content:center;flex-shrink:0}"
+        ".fi i{font-size:16px;color:#fff}"
+        ".ft{font-size:13px;color:rgba(255,255,255,.9);line-height:1.3}"
+        ".ct{width:100%;padding:15px;border-radius:16px;"
+        "background:linear-gradient(135deg,#3D2FE7,#7B2FE0);"
+        "border:2px solid rgba(255,255,255,.4);cursor:pointer;"
+        "font-size:15px;font-weight:700;color:#fff;"
+        "transition:background .25s,color .25s}"
+        ".ct:hover{background:#fff;color:#1a1a1a;border-color:#fff}"
+        ".ct:active{transform:scale(.98)}"
+        ".di{font-size:11px;color:rgba(255,255,255,.45);text-align:center;"
+        "margin-top:10px;line-height:1.5}"
+    )
+    js = (
+        "function scrollToStart(){"
+        "try{var p=window.parent.document,t=null;"
+        "p.querySelectorAll(\"button\").forEach(function(b){"
+        "if(b.innerText&&(b.innerText.indexOf(\"\\u0388\\u03bd\\u03b1\\u03c1\\u03be\\u03b7\")>=0"
+        "||b.innerText.indexOf(\"Start\")>=0))t=b;});"
+        "if(t){t.scrollIntoView({behavior:\"smooth\",block:\"center\"});"
+        "setTimeout(function(){t.focus();},600);}"
+        "else window.parent.scrollTo({top:99999,behavior:\"smooth\"});}"
+        "catch(e){try{window.parent.scrollTo({top:99999,behavior:\"smooth\"});}catch(e2){}}}"
+    )
+    html = (
+        "<html><head><meta charset=\"UTF-8\">"
+        "<link rel=\"stylesheet\" href=\"https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.19.0/tabler-icons.min.css\">"
+        "<link href=\"https://fonts.googleapis.com/css2?family=DM+Sans:ital,wght@0,700;0,800;1,700&display=swap\" rel=\"stylesheet\">"
+        "<style>" + css + "</style></head><body>"
+        "<div class=\"ad\">"
+        "<div style=\"display:flex;align-items:center;gap:10px\">"
+        "<div class=\"lo\"><i class=\"ti ti-stethoscope\"></i></div>"
+        "<div><div class=\"nm\">Asklepios</div><div class=\"sm\">AI Nurse</div></div>"
+        "</div>"
+        "<h1>" + d["h1"] + "</h1>"
+        "<p class=\"su\">" + d["sub"] + "</p>"
+        "<div class=\"cb\"><div class=\"av\"><i class=\"ti ti-robot\"></i></div>"
+        "<div class=\"bt\">" + d["bub"] + "</div></div>"
+        "<div class=\"ar\">&#8964;</div>"
+        "<div class=\"fe\">"
+        "<div class=\"fr\"><div class=\"fi\"><i class=\"ti ti-clock\"></i></div><div class=\"ft\">" + d["f1"] + "</div></div>"
+        "<div class=\"fr\"><div class=\"fi\"><i class=\"ti ti-flag\"></i></div><div class=\"ft\">" + d["f2"] + "</div></div>"
+        "<div class=\"fr\"><div class=\"fi\"><i class=\"ti ti-microscope\"></i></div><div class=\"ft\">" + d["f3"] + "</div></div>"
+        "</div>"
+        "<button class=\"ct\" onclick=\"scrollToStart()\">" + d["cta"] + "</button>"
+        "<p class=\"di\">" + d["disc"] + "</p>"
+        "</div>"
+        "<script>" + js + "</script>"
+        "</body></html>"
+    )
+    components.html(html, height=560, scrolling=False)
 
 def render_explainer_video(lang):
-    """Embedded how-it-works explainer — shown on home screen."""
     import streamlit.components.v1 as components
-    html = '''
-<style>
-@import url(\'https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600&display=swap\');
-@import url(\'https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.19.0/tabler-icons.min.css\');
-*{box-sizing:border-box;margin:0;padding:0}
-body{background:transparent;font-family:\'DM Sans\',sans-serif}
-.ex{width:100%;border:1px solid rgba(0,0,0,.1);border-radius:14px;overflow:hidden;background:#fff}
-.stage{position:relative;width:100%;height:290px;overflow:hidden;background:#F8F9FF}
-.slide{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px 32px;opacity:0;transform:translateY(14px);transition:opacity .4s,transform .4s;pointer-events:none}
-.slide.active{opacity:1;transform:translateY(0);pointer-events:auto}
-.slide.exit{opacity:0;transform:translateY(-14px);transition:opacity .25s,transform .25s}
-.s-icon{width:52px;height:52px;border-radius:50%;display:flex;align-items:center;justify-content:center;margin-bottom:14px;font-size:22px;flex-shrink:0}
-.ic-b{background:#EFF6FF;color:#1D4ED8}.ic-p{background:#EEEDFE;color:#534AB7}
-.ic-t{background:#ECFDF5;color:#065F46}.ic-a{background:#FFFBEB;color:#92400E}.ic-c{background:#FEF2F2;color:#991B1B}
-.s-step{font-size:10px;font-weight:600;letter-spacing:.09em;color:#9CA3AF;margin-bottom:6px;text-transform:uppercase}
-.s-title{font-size:17px;font-weight:600;color:#1A1A2E;text-align:center;margin-bottom:7px;line-height:1.3}
-.s-sub{font-size:12px;color:#6B7280;text-align:center;line-height:1.6;max-width:380px}
-.chips{display:flex;gap:7px;flex-wrap:wrap;justify-content:center;margin-top:12px}
-.chip{font-size:11px;font-weight:500;padding:4px 11px;border-radius:20px;border:1px solid #E5E7EB;color:#374151;background:#fff}
-.chip.hi{background:#EFF6FF;color:#1D4ED8;border-color:transparent}
-.opt-row{display:flex;gap:9px;margin-top:14px;flex-wrap:wrap;justify-content:center}
-.opt{display:flex;align-items:flex-start;gap:7px;padding:9px 12px;border-radius:10px;border:1px solid #E5E7EB;background:#fff;max-width:148px}
-.num{width:18px;height:18px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;flex-shrink:0;margin-top:1px}
-.n1{background:#F3F4F6;color:#6B7280}.n2{background:#EFF6FF;color:#1D4ED8}.n3{background:#EEEDFE;color:#534AB7}
-.ot{font-size:11px;font-weight:600;color:#1A1A2E;margin-bottom:2px}.os{font-size:10px;color:#9CA3AF;line-height:1.4}
-.ai-box{margin-top:14px;padding:10px 14px;border-radius:10px;background:#fff;border:1px solid #E5E7EB;max-width:360px;width:100%}
-.ai-row{display:flex;align-items:flex-start;gap:7px}
-.ai-av{width:24px;height:24px;border-radius:50%;background:#EFF6FF;display:flex;align-items:center;justify-content:center;flex-shrink:0}
-.ai-bub{font-size:11px;color:#6B7280;line-height:1.55}
-.ai-sug{margin-top:7px;padding:5px 9px;background:#F9FAFB;border-radius:8px;font-size:11px;color:#1D4ED8;display:flex;align-items:center;gap:5px;border:1px solid #E5E7EB}
-.prog{height:2px;background:#F3F4F6}
-.pfill{height:100%;background:#2D3FE7;border-radius:1px;transition:width .3s}
-.ctrl{display:flex;align-items:center;justify-content:space-between;padding:9px 13px;border-top:1px solid #F3F4F6;background:#fff}
-.dots{display:flex;gap:5px;align-items:center}
-.dot{width:5px;height:5px;border-radius:50%;background:#E5E7EB;cursor:pointer;border:none;padding:0;transition:all .25s}
-.dot.on{width:14px;border-radius:3px;background:#2D3FE7}
-.ibtn{width:28px;height:28px;border-radius:50%;border:1px solid #E5E7EB;background:#fff;cursor:pointer;display:flex;align-items:center;justify-content:center;color:#6B7280;font-size:13px;transition:background .15s}
-.ibtn:hover{background:#F9FAFB}.ibtn:disabled{opacity:.3;cursor:default}
-.pbtn{width:28px;height:28px;border-radius:50%;border:1px solid #D1D5DB;background:#fff;cursor:pointer;display:flex;align-items:center;justify-content:center;color:#1A1A2E;font-size:13px}
-.pbtn:hover{background:#F9FAFB}
-.sc{font-size:10px;color:#9CA3AF;min-width:28px;text-align:center}
-.lbar{display:flex;justify-content:center;gap:7px;padding:7px 13px 11px;border-top:1px solid #F3F4F6;background:#fff}
-.lbtn{font-size:11px;padding:3px 11px;border-radius:20px;border:1px solid #E5E7EB;background:#fff;cursor:pointer;color:#6B7280;transition:.15s}
-.lbtn.on{border-color:#2D3FE7;color:#2D3FE7;font-weight:600}
-</style>
-<div class="ex">
-<div class="stage">
-<div class="slide active" id="s0">
-  <div class="s-icon ic-b"><i class="ti ti-stethoscope"></i></div>
-  <div class="s-step" id="p0">asklepios · ai nurse</div>
-  <div class="s-title" id="h0">Ο ψηφιακός σου νοσηλευτής</div>
-  <div class="s-sub" id="b0">Αξιολόγηση συμπτωμάτων με AI — γρήγορα, στα ελληνικά, πάντα δίπλα σου.</div>
-</div>
-<div class="slide" id="s1">
-  <div class="s-icon ic-p"><i class="ti ti-login"></i></div>
-  <div class="s-step" id="p1">βήμα 1</div>
-  <div class="s-title" id="h1">Σύνδεση με email</div>
-  <div class="s-sub" id="b1">Εισάγεις το email σου, λαμβάνεις κωδικό OTP. Χωρίς password, χωρίς λογαριασμό.</div>
-</div>
-<div class="slide" id="s2">
-  <div class="s-icon ic-t"><i class="ti ti-user-circle"></i></div>
-  <div class="s-step" id="p2">βήμα 2</div>
-  <div class="s-title" id="h2">Συμπλήρωσε το προφίλ σου</div>
-  <div class="s-sub" id="b2">Όνομα, ηλικία, φύλο, ιστορικό, αλλεργίες, φάρμακα. Αποθηκεύεται κρυπτογραφημένο.</div>
-  <div class="chips"><span class="chip hi" id="c2a">Ηλικία</span><span class="chip hi" id="c2b">Ιστορικό</span><span class="chip hi" id="c2c">Φάρμακα</span><span class="chip hi" id="c2d">Αλλεργίες</span></div>
-</div>
-<div class="slide" id="s3">
-  <div class="s-icon ic-b"><i class="ti ti-message-chatbot"></i></div>
-  <div class="s-step" id="p3">βήμα 3</div>
-  <div class="s-title" id="h3">Περίγραψε τα συμπτώματά σου</div>
-  <div class="s-sub" id="b3">Ο Asklepios κάνει στοχευμένες ερωτήσεις — μία κάθε φορά. Chips ή ελεύθερο κείμενο.</div>
-  <div class="chips"><span class="chip" id="c3a">Πονοκέφαλος</span><span class="chip" id="c3b">Δύσπνοια</span><span class="chip" id="c3c">Τραύμα</span><span class="chip" id="c3d">Άλλο</span></div>
-</div>
-<div class="slide" id="s4">
-  <div class="s-icon ic-a"><i class="ti ti-heart-rate-monitor"></i></div>
-  <div class="s-step" id="p4">προαιρετικό · ζωτικά</div>
-  <div class="s-title" id="h4">Μέτρηση ζωτικών — 3 επιλογές</div>
-  <div class="opt-row">
-    <div class="opt"><div class="num n1">1</div><div><div class="ot" id="o1t">Παράλειψη</div><div class="os" id="o1s">Συνέχισε χωρίς μέτρηση</div></div></div>
-    <div class="opt"><div class="num n2">2</div><div><div class="ot" id="o2t">Χειροκίνητη</div><div class="os" id="o2s">Καταχώρισε μόνος σου</div></div></div>
-    <div class="opt"><div class="num n3">3</div><div><div class="ot" id="o3t">Σάρωση</div><div class="os" id="o3s">Κάμερα · 2 γύροι 60\'\'</div></div></div>
-  </div>
-</div>
-<div class="slide" id="s5">
-  <div class="s-icon ic-c"><i class="ti ti-camera"></i></div>
-  <div class="s-step" id="p5">ai πρόταση · εφόσον χρειαστεί</div>
-  <div class="s-title" id="h5">Φωτό ή σάρωση — μόνο αν χρειαστεί</div>
-  <div class="ai-box">
-    <div class="ai-row"><div class="ai-av"><i class="ti ti-robot" style="font-size:12px;color:#1D4ED8"></i></div><div class="ai-bub" id="aib">Βλέπω ότι έχεις χτύπημα — μπορείς να ανεβάσεις φωτογραφία για πιο ακριβή εκτίμηση.</div></div>
-    <div class="ai-sug"><i class="ti ti-camera" style="font-size:12px"></i><span id="tag1">📷 Ανάλυση φωτογραφίας</span></div>
-    <div class="ai-sug" style="margin-top:4px"><i class="ti ti-scan" style="font-size:12px"></i><span id="tag2">📡 Σάρωση για δύσπνοια / καρδιά</span></div>
-  </div>
-</div>
-<div class="slide" id="s6">
-  <div class="s-icon ic-t"><i class="ti ti-report-medical"></i></div>
-  <div class="s-step" id="p6">βήμα 4</div>
-  <div class="s-title" id="h6">Αναλυτική αναφορά υγείας</div>
-  <div class="s-sub" id="b6">Κλινική εκτίμηση με PubMed + GPT-4o. Εκτύπωσε ή αποθήκευσε ως PDF για τον γιατρό σου.</div>
-  <div class="chips"><span class="chip hi" id="c6a">PubMed</span><span class="chip hi" id="c6b">Dual AI</span><span class="chip hi" id="c6c">PDF</span></div>
-</div>
-</div>
-<div class="prog"><div class="pfill" id="pf" style="width:14.3%"></div></div>
-<div class="ctrl">
-  <button class="ibtn" id="pb" onclick="nav(-1)" disabled><i class="ti ti-chevron-left"></i></button>
-  <div style="display:flex;align-items:center;gap:8px">
-    <div class="dots" id="dots"></div>
-    <button class="pbtn" id="plb" onclick="togPlay()"><i class="ti ti-player-play" id="pli"></i></button>
-  </div>
-  <div style="display:flex;align-items:center;gap:5px">
-    <span class="sc" id="sc">1 / 7</span>
-    <button class="ibtn" id="nb" onclick="nav(1)"><i class="ti ti-chevron-right"></i></button>
-  </div>
-</div>
-<div class="lbar">
-  <button class="lbtn on" id="lel" onclick="setL(\'el\')">🇬🇷 Ελληνικά</button>
-  <button class="lbtn" id="len" onclick="setL(\'en\')">🇬🇧 English</button>
-</div>
-</div>
-<script>
-const T=7;let cur=0,lg=\'el\',play=false,tim=null;
-const D={
-  el:{p:[\'asklepios · ai nurse\',\'βήμα 1\',\'βήμα 2\',\'βήμα 3\',\'προαιρετικό · ζωτικά\',\'ai πρόταση · εφόσον χρειαστεί\',\'βήμα 4\'],
-  h:[\'Ο ψηφιακός σου νοσηλευτής\',\'Σύνδεση με email\',\'Συμπλήρωσε το προφίλ σου\',\'Περίγραψε τα συμπτώματά σου\',\'Μέτρηση ζωτικών — 3 επιλογές\',\'Φωτό ή σάρωση — μόνο αν χρειαστεί\',\'Αναλυτική αναφορά υγείας\'],
-  b:[\'Αξιολόγηση συμπτωμάτων με AI — γρήγορα, στα ελληνικά, πάντα δίπλα σου.\',\'Εισάγεις το email σου, λαμβάνεις κωδικό OTP. Χωρίς password, χωρίς λογαριασμό.\',\'Όνομα, ηλικία, φύλο, ιστορικό, αλλεργίες, φάρμακα. Αποθηκεύεται κρυπτογραφημένο.\',\'Ο Asklepios κάνει στοχευμένες ερωτήσεις — μία κάθε φορά. Chips ή ελεύθερο κείμενο.\',\'\',\'\',\'Κλινική εκτίμηση με PubMed + GPT-4o. Εκτύπωσε ή αποθήκευσε ως PDF για τον γιατρό σου.\'],
-  c2:[\'Ηλικία\',\'Ιστορικό\',\'Φάρμακα\',\'Αλλεργίες\'],c3:[\'Πονοκέφαλος\',\'Δύσπνοια\',\'Τραύμα\',\'Άλλο\'],c6:[\'PubMed\',\'Dual AI\',\'PDF\'],
-  o1t:\'Παράλειψη\',o1s:\'Συνέχισε χωρίς μέτρηση\',o2t:\'Χειροκίνητη\',o2s:\'Καταχώρισε μόνος σου\',o3t:\'Σάρωση\',o3s:"Κάμερα · 2 γύροι 60\'\'",
-  aib:"Βλέπω ότι έχεις χτύπημα — μπορείς να ανεβάσεις φωτογραφία για πιο ακριβή εκτίμηση.",
-  t1:\'📷 Ανάλυση φωτογραφίας\',t2:\'📡 Σάρωση για δύσπνοια / καρδιά\'},
-  en:{p:[\'asklepios · ai nurse\',\'step 1\',\'step 2\',\'step 3\',\'optional · vitals\',\'ai suggestion · when needed\',\'step 4\'],
-  h:[\'Your digital nurse\',\'Sign in with email\',\'Fill in your profile\',\'Describe your symptoms\',\'Measure vitals — 3 options\',\'Photo or scan — only when needed\',\'Detailed health report\'],
-  b:[\'AI-powered symptom assessment — fast, in your language, always by your side.\',\'Enter your email, receive an OTP code. No password, no account needed.\',\'Name, age, sex, history, allergies, medications. Stored encrypted.\',\'Asklepios asks targeted questions — one at a time. Chips or free text.\',\'\',\'\',\'Clinical assessment with PubMed + GPT-4o. Print or save as PDF for your doctor.\'],
-  c2:[\'Age\',\'History\',\'Meds\',\'Allergies\'],c3:[\'Headache\',\'Dyspnoea\',\'Injury\',\'Other\'],c6:[\'PubMed\',\'Dual AI\',\'PDF\'],
-  o1t:\'Skip\',o1s:\'Continue without measuring\',o2t:\'Manual\',o2s:\'Enter values yourself\',o3t:\'Scan\',o3s:"Camera · 2 rounds 60\'\'",
-  aib:\'I see you have an injury — you can upload a photo for a more accurate assessment.\',
-  t1:\'📷 Photo analysis\',t2:\'📡 Scan for dyspnoea / heart\'}
-};
-function ap(l){
-  const d=D[l];
-  for(let i=0;i<T;i++){
-    const pe=document.getElementById(\'p\'+i),he=document.getElementById(\'h\'+i),be=document.getElementById(\'b\'+i);
-    if(pe)pe.textContent=d.p[i];if(he)he.textContent=d.h[i];if(be&&d.b[i])be.textContent=d.b[i];
-  }
-  [\'a\',\'b\',\'c\',\'d\'].forEach((x,i)=>{const e=document.getElementById(\'c2\'+x);if(e)e.textContent=d.c2[i];});
-  [\'a\',\'b\',\'c\',\'d\'].forEach((x,i)=>{const e=document.getElementById(\'c3\'+x);if(e)e.textContent=d.c3[i];});
-  [\'a\',\'b\',\'c\'].forEach((x,i)=>{const e=document.getElementById(\'c6\'+x);if(e)e.textContent=d.c6[i];});
-  const m={o1t:d.o1t,o1s:d.o1s,o2t:d.o2t,o2s:d.o2s,o3t:d.o3t,o3s:d.o3s,aib:d.aib,tag1:d.t1,tag2:d.t2};
-  Object.entries(m).forEach(([k,v])=>{const e=document.getElementById(k);if(e)e.textContent=v;});
-  document.getElementById(\'lel\').className=\'lbtn\'+(l===\'el\'?\' on\':\'\');
-  document.getElementById(\'len\').className=\'lbtn\'+(l===\'en\'?\' on\':\'\');
-}
-function setL(l){lg=l;ap(l);}
-function mkDots(){
-  const d=document.getElementById(\'dots\');d.innerHTML=\'\';
-  for(let i=0;i<T;i++){
-    const b=document.createElement(\'button\');b.className=\'dot\'+(i===cur?\' on\':\'\');
-    b.onclick=(idx=>()=>go(idx))(i);d.appendChild(b);
-  }
-}
-function go(idx){
-  const sl=document.querySelectorAll(\'.slide\');
-  sl[cur].classList.remove(\'active\');sl[cur].classList.add(\'exit\');
-  setTimeout(()=>sl[cur].classList.remove(\'exit\'),280);
-  cur=idx;sl[cur].classList.add(\'active\');
-  document.getElementById(\'pf\').style.width=((cur+1)/T*100)+\'%\';
-  document.getElementById(\'sc\').textContent=(cur+1)+\' / \'+T;
-  document.getElementById(\'pb\').disabled=cur===0;
-  document.getElementById(\'nb\').disabled=cur===T-1;
-  mkDots();
-}
-function nav(d){
-  const n=cur+d;if(n>=0&&n<T)go(n);
-  if(play&&n===T-1){clearInterval(tim);play=false;document.getElementById(\'pli\').className=\'ti ti-player-play\';}
-}
-function togPlay(){
-  play=!play;document.getElementById(\'pli\').className=play?\'ti ti-player-pause\':\'ti ti-player-play\';
-  if(play){if(cur===T-1)go(0);tim=setInterval(()=>{if(cur<T-1)nav(1);else{clearInterval(tim);play=false;document.getElementById(\'pli\').className=\'ti ti-player-play\';}},3500);}
-  else clearInterval(tim);
-}
-mkDots();ap(\'el\');
-</script>
-\'\'\'
+    el = (lang == "el")
+    C = {
+        "el": {
+            "steps": ["asklepios", "\u03b2\u03ae\u03bc\u03b1 1", "\u03b2\u03ae\u03bc\u03b1 2", "\u03b2\u03ae\u03bc\u03b1 3",
+                      "\u03c0\u03c1\u03bf\u03b1\u03b9\u03c1\u03b5\u03c4\u03b9\u03ba\u03cc", "ai \u03c0\u03c1\u03cc\u03c4\u03b1\u03c3\u03b7", "\u03b2\u03ae\u03bc\u03b1 4"],
+            "titles": ["\u039f \u03c8\u03b7\u03c6\u03b9\u03b1\u03ba\u03cc\u03c2 \u03c3\u03bf\u03c5 \u03bd\u03bf\u03c3\u03b7\u03bb\u03b5\u03c5\u03c4\u03ae\u03c2",
+                       "\u03a3\u03cd\u03bd\u03b4\u03b5\u03c3\u03b7 \u03bc\u03b5 email",
+                       "\u03a3\u03c5\u03bc\u03c0\u03bb\u03ae\u03c1\u03c9\u03c3\u03b5 \u03c4\u03bf \u03c0\u03c1\u03bf\u03c6\u03af\u03bb \u03c3\u03bf\u03c5",
+                       "\u03a0\u03b5\u03c1\u03af\u03b3\u03c1\u03b1\u03c8\u03b5 \u03c4\u03b1 \u03c3\u03c5\u03bc\u03c0\u03c4\u03ce\u03bc\u03b1\u03c4\u03ac \u03c3\u03bf\u03c5",
+                       "\u039c\u03ad\u03c4\u03c1\u03b7\u03c3\u03b7 \u03b6\u03c9\u03c4\u03b9\u03ba\u03ce\u03bd \u2014 3 \u03b5\u03c0\u03b9\u03bb\u03bf\u03b3\u03ad\u03c2",
+                       "\u03a6\u03c9\u03c4\u03cc \u03ae \u03c3\u03ac\u03c1\u03c9\u03c3\u03b7 \u2014 \u03bc\u03cc\u03bd\u03bf \u03b1\u03bd \u03c7\u03c1\u03b5\u03b9\u03b1\u03c3\u03c4\u03b5\u03af",
+                       "\u0391\u03bd\u03b1\u03bb\u03c5\u03c4\u03b9\u03ba\u03ae \u03b1\u03bd\u03b1\u03c6\u03bf\u03c1\u03ac \u03c5\u03b3\u03b5\u03af\u03b1\u03c2"],
+            "subs": ["\u0391\u03be\u03b9\u03bf\u03bb\u03cc\u03b3\u03b7\u03c3\u03b7 \u03c3\u03c5\u03bc\u03c0\u03c4\u03c9\u03bc\u03ac\u03c4\u03c9\u03bd \u03bc\u03b5 AI \u2014 \u03b3\u03c1\u03ae\u03b3\u03bf\u03c1\u03b1, \u03c3\u03c4\u03b1 \u03b5\u03bb\u03bb\u03b7\u03bd\u03b9\u03ba\u03ac.",
+                     "\u0395\u03b9\u03c3\u03ac\u03b3\u03b5\u03b9\u03c2 \u03c4\u03bf email \u03c3\u03bf\u03c5, \u03bb\u03b1\u03bc\u03b2\u03ac\u03bd\u03b5\u03b9\u03c2 OTP. \u03a7\u03c9\u03c1\u03af\u03c2 password.",
+                     "\u038c\u03bd\u03bf\u03bc\u03b1, \u03b7\u03bb\u03b9\u03ba\u03af\u03b1, \u03c6\u03cd\u03bb\u03bf, \u03b9\u03c3\u03c4\u03bf\u03c1\u03b9\u03ba\u03cc, \u03b1\u03bb\u03bb\u03b5\u03c1\u03b3\u03af\u03b5\u03c2, \u03c6\u03ac\u03c1\u03bc\u03b1\u03ba\u03b1.",
+                     "\u039f Asklepios \u03ba\u03ac\u03bd\u03b5\u03b9 \u03c3\u03c4\u03bf\u03c7\u03b5\u03c5\u03bc\u03ad\u03bd\u03b5\u03c2 \u03b5\u03c1\u03c9\u03c4\u03ae\u03c3\u03b5\u03b9\u03c2 \u2014 \u03bc\u03af\u03b1 \u03ba\u03ac\u03b8\u03b5 \u03c6\u03bf\u03c1\u03ac.",
+                     "", "",
+                     "\u039a\u03bb\u03b9\u03bd\u03b9\u03ba\u03ae \u03b5\u03ba\u03c4\u03af\u03bc\u03b7\u03c3\u03b7 \u03bc\u03b5 PubMed + GPT-4o. PDF \u03b3\u03b9\u03b1 \u03c4\u03bf\u03bd \u03b3\u03b9\u03b1\u03c4\u03c1\u03cc \u03c3\u03bf\u03c5."],
+        },
+        "en": {
+            "steps": ["asklepios", "step 1", "step 2", "step 3", "optional", "ai suggestion", "step 4"],
+            "titles": ["Your digital nurse", "Sign in with email", "Fill in your profile",
+                       "Describe your symptoms", "Measure vitals — 3 options",
+                       "Photo or scan — only when needed", "Detailed health report"],
+            "subs": ["AI-powered symptom assessment — fast, in your language.",
+                     "Enter your email, receive OTP. No password needed.",
+                     "Name, age, sex, history, allergies, medications.",
+                     "Asklepios asks targeted questions — one at a time.",
+                     "", "",
+                     "Clinical assessment with PubMed + GPT-4o. PDF for your doctor."],
+        },
+    }
+    d = C.get(lang, C["el"])
+    TOTAL = 7
+    slides_html = ""
+    icons = ["ti-stethoscope","ti-login","ti-user-circle","ti-message-chatbot",
+             "ti-heart-rate-monitor","ti-camera","ti-report-medical"]
+    ic_cls = ["ic-b","ic-p","ic-t","ic-b","ic-a","ic-c","ic-t"]
+    for i in range(TOTAL):
+        active = " active" if i == 0 else ""
+        sub_html = ("<p class=\"s-sub\">" + d["subs"][i] + "</p>") if d["subs"][i] else ""
+        slides_html += (
+            "<div class=\"slide" + active + "\" id=\"s" + str(i) + "\">"
+            "<div class=\"s-icon " + ic_cls[i] + "\"><i class=\"ti " + icons[i] + "\"></i></div>"
+            "<div class=\"s-step\" id=\"p" + str(i) + "\">" + d["steps"][i] + "</div>"
+            "<div class=\"s-title\" id=\"h" + str(i) + "\">" + d["titles"][i] + "</div>"
+            + sub_html +
+            "</div>"
+        )
+    css = (
+        "@import url(\'https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600&display=swap\');"
+        "*{box-sizing:border-box;margin:0;padding:0}"
+        "body{background:transparent;font-family:\'DM Sans\',sans-serif}"
+        ".ex{width:100%;border:1px solid #e5e7eb;border-radius:14px;overflow:hidden;background:#fff}"
+        ".stage{position:relative;width:100%;height:290px;overflow:hidden;background:#F8F9FF}"
+        ".slide{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;"
+        "justify-content:center;padding:24px 32px;opacity:0;transform:translateY(14px);"
+        "transition:opacity .4s,transform .4s;pointer-events:none}"
+        ".slide.active{opacity:1;transform:translateY(0);pointer-events:auto}"
+        ".slide.exit{opacity:0;transform:translateY(-14px);transition:opacity .25s,transform .25s}"
+        ".s-icon{width:52px;height:52px;border-radius:50%;display:flex;align-items:center;"
+        "justify-content:center;margin-bottom:14px;font-size:22px}"
+        ".ic-b{background:#EFF6FF;color:#1D4ED8}.ic-p{background:#EEEDFE;color:#534AB7}"
+        ".ic-t{background:#ECFDF5;color:#065F46}.ic-a{background:#FFFBEB;color:#92400E}"
+        ".ic-c{background:#FEF2F2;color:#991B1B}"
+        ".s-step{font-size:10px;font-weight:600;letter-spacing:.09em;color:#9CA3AF;margin-bottom:6px;text-transform:uppercase}"
+        ".s-title{font-size:17px;font-weight:600;color:#1A1A2E;text-align:center;margin-bottom:7px;line-height:1.3}"
+        ".s-sub{font-size:12px;color:#6B7280;text-align:center;line-height:1.6;max-width:380px}"
+        ".prog{height:2px;background:#F3F4F6}"
+        ".pfill{height:100%;background:#2D3FE7;border-radius:1px;transition:width .3s}"
+        ".ctrl{display:flex;align-items:center;justify-content:space-between;padding:9px 13px;"
+        "border-top:1px solid #F3F4F6;background:#fff}"
+        ".dots{display:flex;gap:5px;align-items:center}"
+        ".dot{width:5px;height:5px;border-radius:50%;background:#E5E7EB;cursor:pointer;border:none;padding:0;transition:all .25s}"
+        ".dot.on{width:14px;border-radius:3px;background:#2D3FE7}"
+        ".ibtn{width:28px;height:28px;border-radius:50%;border:1px solid #E5E7EB;background:#fff;"
+        "cursor:pointer;display:flex;align-items:center;justify-content:center;color:#6B7280;font-size:13px}"
+        ".ibtn:disabled{opacity:.3;cursor:default}"
+        ".pbtn{width:28px;height:28px;border-radius:50%;border:1px solid #D1D5DB;background:#fff;"
+        "cursor:pointer;display:flex;align-items:center;justify-content:center;color:#1A1A2E;font-size:13px}"
+        ".sc{font-size:10px;color:#9CA3AF;min-width:28px;text-align:center}"
+        ".lbar{display:flex;justify-content:center;gap:7px;padding:7px 13px 11px;border-top:1px solid #F3F4F6;background:#fff}"
+        ".lbtn{font-size:11px;padding:3px 11px;border-radius:20px;border:1px solid #E5E7EB;"
+        "background:#fff;cursor:pointer;color:#6B7280}"
+        ".lbtn.on{border-color:#2D3FE7;color:#2D3FE7;font-weight:600}"
+    )
+    js = (
+        "var T=" + str(TOTAL) + ",cur=0,play=false,tim=null;"
+        "function mkDots(){var d=document.getElementById(\"dots\");d.innerHTML=\"\";for(var i=0;i<T;i++){"
+        "var b=document.createElement(\"button\");b.className=\"dot\"+(i===cur?\" on\":\"\");"
+        "b.onclick=(function(x){return function(){go(x);};})(i);d.appendChild(b);}}"
+        "function go(idx){var sl=document.querySelectorAll(\".slide\");"
+        "sl[cur].classList.remove(\"active\");sl[cur].classList.add(\"exit\");"
+        "setTimeout(function(){sl[cur].classList.remove(\"exit\");},280);"
+        "cur=idx;sl[cur].classList.add(\"active\");"
+        "document.getElementById(\"pf\").style.width=((cur+1)/T*100)+\"%\";"
+        "document.getElementById(\"sc\").textContent=(cur+1)+\" / \"+T;"
+        "document.getElementById(\"pb\").disabled=(cur===0);"
+        "document.getElementById(\"nb\").disabled=(cur===T-1);mkDots();}"
+        "function nav(d){var n=cur+d;if(n>=0&&n<T)go(n);"
+        "if(play&&n===T-1){clearInterval(tim);play=false;"
+        "document.getElementById(\"pli\").className=\"ti ti-player-play\";} }"
+        "function togPlay(){play=!play;"
+        "document.getElementById(\"pli\").className=play?\"ti ti-player-pause\":\"ti ti-player-play\";"
+        "if(play){if(cur===T-1)go(0);tim=setInterval(function(){if(cur<T-1)nav(1);else{"
+        "clearInterval(tim);play=false;"
+        "document.getElementById(\"pli\").className=\"ti ti-player-play\";}},3500);}"
+        "else clearInterval(tim);}"
+        "mkDots();"
+    )
+    dots_html = "".join(
+        "<button class=\"dot" + (" on" if i == 0 else "") + "\" onclick=\"go(" + str(i) + ")\"></button>"
+        for i in range(TOTAL)
+    )
+    html = (
+        "<html><head><meta charset=\"UTF-8\">"
+        "<link rel=\"stylesheet\" href=\"https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.19.0/tabler-icons.min.css\">"
+        "<link href=\"https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600&display=swap\" rel=\"stylesheet\">"
+        "<style>" + css + "</style></head><body>"
+        "<div class=\"ex\">"
+        "<div class=\"stage\">" + slides_html + "</div>"
+        "<div class=\"prog\"><div class=\"pfill\" id=\"pf\" style=\"width:14.3%\"></div></div>"
+        "<div class=\"ctrl\">"
+        "<button class=\"ibtn\" id=\"pb\" onclick=\"nav(-1)\" disabled><i class=\"ti ti-chevron-left\"></i></button>"
+        "<div style=\"display:flex;align-items:center;gap:8px\">"
+        "<div class=\"dots\" id=\"dots\">" + dots_html + "</div>"
+        "<button class=\"pbtn\" onclick=\"togPlay()\"><i class=\"ti ti-player-play\" id=\"pli\"></i></button>"
+        "</div>"
+        "<div style=\"display:flex;align-items:center;gap:5px\">"
+        "<span class=\"sc\" id=\"sc\">1 / " + str(TOTAL) + "</span>"
+        "<button class=\"ibtn\" id=\"nb\" onclick=\"nav(1)\"><i class=\"ti ti-chevron-right\"></i></button>"
+        "</div></div>"
+        "<div class=\"lbar\">"
+        "<button class=\"lbtn" + (" on" if el else "") + "\" onclick=\"\">&#127468;&#127479; &#917;&#923;</button>"
+        "<button class=\"lbtn" + ("" if el else " on") + "\" onclick=\"\">&#127468;&#127463; EN</button>"
+        "</div></div>"
+        "<script>" + js + "</script>"
+        "</body></html>"
+    )
     components.html(html, height=420, scrolling=False)
 
 def render_home():
@@ -1272,7 +1248,7 @@ def render_home():
         if is_logged_in():
             if st.button("🚪 " + ("Έξοδος" if st.session_state.lang=="el" else "Logout"), use_container_width=True, key="logout_home"):
                 logout(); st.rerun()
-    st.markdown(f'''<div class="kira-hero"><div style="font-size:64px;margin-bottom:8px">🩺</div><h1>{t("title")}</h1><p>{t("subtitle")}</p><div class="kira-tagline">{t("tagline")}</div></div>''',unsafe_allow_html=True)
+    st.markdown(f'''<div class="kira-hero"><div style="font-size:64px;margin-bottom:8px">&#x1FA7A;</div><h1>{t("title")}</h1><p>{t("subtitle")}</p><div class="kira-tagline">{t("tagline")}</div></div>''',unsafe_allow_html=True)
     render_ad_banner(st.session_state.lang)
     st.markdown(f'<div class="disclaimer">{t("disclaimer_main")}</div>',unsafe_allow_html=True)
     # Explainer video: always visible on home, but collapsible for returning users
