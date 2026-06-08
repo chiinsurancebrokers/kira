@@ -5,6 +5,7 @@ Standalone Streamlit app · Real data only · No placeholders.
 """
 
 import streamlit as st
+import streamlit.components.v1 as components
 import os
 import json
 import io
@@ -509,6 +510,241 @@ def render_login_gate():
                 st.rerun()
     return is_logged_in()
 
+def render_ad_banner(lang):
+    """Hero / value-prop banner shown on the login screen. Replaces a plain hero
+    with an information-rich card explaining what the app does."""
+    tx = {
+        "el": {"h1":"Ο νοσηλευτής<br>στην <em>τσέπη</em> σου.",
+               "sub":"Γρήγορη εκτίμηση υγείας, στα ελληνικά — όποτε τη χρειαστείς.",
+               "bub":"«Περίγραψέ μου τι νιώθεις και θα σε καθοδηγήσω — <strong>βήμα-βήμα.</strong>»",
+               "f1":"Πρώτη εκτίμηση σε ~2 λεπτά",
+               "f2":"Στα ελληνικά, διαθέσιμος 24/7",
+               "f3":"Με επιστημονική τεκμηρίωση",
+               "cta":"Συνδέσου δωρεάν ↓",
+               "disc":"Ενημερωτικό εργαλείο. Δεν αντικαθιστά ιατρική διάγνωση ή θεραπεία."},
+        "en": {"h1":"The nurse<br>in your <em>pocket.</em>",
+               "sub":"Quick health assessment, in your language — whenever you need it.",
+               "bub":"Tell me how you feel and I will guide you — <strong>step by step.</strong>",
+               "f1":"First assessment in ~2 minutes",
+               "f2":"In Greek & English, available 24/7",
+               "f3":"Evidence-based, powered by PubMed",
+               "cta":"Sign in free ↓",
+               "disc":"Informational tool only. Does not replace medical diagnosis or treatment."},
+    }
+    d = tx.get(lang, tx["el"])
+    css = (
+        "*{box-sizing:border-box;margin:0;padding:0}"
+        "body{background:transparent;font-family:sans-serif}"
+        ".ad{width:100%;border-radius:24px;overflow:hidden;"
+        "background:linear-gradient(160deg,#3D2FE7 0%,#7B2FE0 55%,#9B3FFF 100%);"
+        "padding:28px 24px 24px}"
+        ".lo{width:40px;height:40px;border-radius:12px;background:rgba(255,255,255,.18);"
+        "display:flex;align-items:center;justify-content:center}"
+        ".lo i,.av i{color:#fff}"
+        ".lo i{font-size:20px}"
+        ".nm{font-size:15px;font-weight:700;color:#fff;line-height:1}"
+        ".sm{font-size:11px;color:rgba(255,255,255,.65);letter-spacing:.06em;"
+        "text-transform:uppercase;margin-top:2px}"
+        "h1{font-size:34px;font-weight:800;color:#fff;line-height:1.15;margin:18px 0 8px}"
+        "h1 em{color:#F9C846;font-style:italic}"
+        ".su{font-size:14px;color:rgba(255,255,255,.75);line-height:1.55;margin-bottom:18px}"
+        ".cb{background:rgba(255,255,255,.13);border:1px solid rgba(255,255,255,.2);"
+        "border-radius:14px;padding:12px 14px;margin-bottom:18px;display:flex;gap:10px}"
+        ".av{width:28px;height:28px;border-radius:50%;background:rgba(255,255,255,.25);"
+        "display:flex;align-items:center;justify-content:center;flex-shrink:0}"
+        ".av i{font-size:14px}"
+        ".bt{font-size:12px;color:#fff;line-height:1.55;font-style:italic}"
+        ".bt strong{font-style:normal;font-weight:700}"
+        ".ar{text-align:center;color:rgba(255,255,255,.45);font-size:18px;margin:-4px 0 10px}"
+        ".fe{display:flex;flex-direction:column;gap:9px;margin-bottom:20px}"
+        ".fr{display:flex;align-items:center;gap:11px}"
+        ".fi{width:32px;height:32px;border-radius:10px;background:rgba(255,255,255,.14);"
+        "display:flex;align-items:center;justify-content:center;flex-shrink:0}"
+        ".fi i{font-size:16px;color:#fff}"
+        ".ft{font-size:13px;color:rgba(255,255,255,.9);line-height:1.3}"
+        ".ct{width:100%;padding:15px;border-radius:16px;"
+        "background:linear-gradient(135deg,#3D2FE7,#7B2FE0);"
+        "border:2px solid rgba(255,255,255,.4);cursor:pointer;"
+        "font-size:15px;font-weight:700;color:#fff;"
+        "transition:background .25s,color .25s}"
+        ".ct:hover{background:#fff;color:#1a1a1a;border-color:#fff}"
+        ".ct:active{transform:scale(.98)}"
+        ".di{font-size:11px;color:rgba(255,255,255,.45);text-align:center;"
+        "margin-top:10px;line-height:1.5}"
+    )
+    # CTA scrolls the parent window down to bring the login form into view.
+    js = (
+        "function scrollToLogin(){"
+        "try{window.parent.scrollBy({top:560,behavior:'smooth'});}catch(e){}}"
+    )
+    html = (
+        "<html><head><meta charset=\"UTF-8\">"
+        "<link rel=\"stylesheet\" href=\"https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.19.0/tabler-icons.min.css\">"
+        "<link href=\"https://fonts.googleapis.com/css2?family=DM+Sans:ital,wght@0,700;0,800;1,700&display=swap\" rel=\"stylesheet\">"
+        "<style>" + css + "</style></head><body>"
+        "<div class=\"ad\">"
+        "<div style=\"display:flex;align-items:center;gap:10px\">"
+        "<div class=\"lo\"><i class=\"ti ti-stethoscope\"></i></div>"
+        "<div><div class=\"nm\">Asklepios</div><div class=\"sm\">AI Nurse</div></div>"
+        "</div>"
+        "<h1>" + d["h1"] + "</h1>"
+        "<p class=\"su\">" + d["sub"] + "</p>"
+        "<div class=\"cb\"><div class=\"av\"><i class=\"ti ti-robot\"></i></div>"
+        "<div class=\"bt\">" + d["bub"] + "</div></div>"
+        "<div class=\"ar\">&#8964;</div>"
+        "<div class=\"fe\">"
+        "<div class=\"fr\"><div class=\"fi\"><i class=\"ti ti-clock\"></i></div><div class=\"ft\">" + d["f1"] + "</div></div>"
+        "<div class=\"fr\"><div class=\"fi\"><i class=\"ti ti-flag\"></i></div><div class=\"ft\">" + d["f2"] + "</div></div>"
+        "<div class=\"fr\"><div class=\"fi\"><i class=\"ti ti-microscope\"></i></div><div class=\"ft\">" + d["f3"] + "</div></div>"
+        "</div>"
+        "<button class=\"ct\" onclick=\"scrollToLogin()\">" + d["cta"] + "</button>"
+        "<p class=\"di\">" + d["disc"] + "</p>"
+        "</div>"
+        "<script>" + js + "</script>"
+        "</body></html>"
+    )
+    components.html(html, height=560, scrolling=False)
+
+
+def render_explainer_video(lang):
+    """Auto-playing 7-step slideshow explaining how the app works. Shown on the
+    login screen below the login form, for visitors who want more detail."""
+    el = (lang == "el")
+    C = {
+        "el": {
+            "steps": ["asklepios", "βήμα 1", "βήμα 2", "βήμα 3",
+                      "προαιρετικό", "ai πρόταση", "βήμα 4"],
+            "titles": ["Ο ψηφιακός σου νοσηλευτής",
+                       "Σύνδεση με email",
+                       "Συμπλήρωσε το προφίλ σου",
+                       "Περίγραψε τα συμπτώματα σου",
+                       "Μέτρηση ζωτικών — 3 επιλογές",
+                       "Φωτό ή σάρωση — μόνο αν χρειαστεί",
+                       "Αναλυτική αναφορά υγείας"],
+            "subs": ["Αξιολόγηση συμπτωμάτων με AI — γρήγορα, στα ελληνικά.",
+                     "Εισάγεις το email σου, λαμβάνεις OTP. Χωρίς password.",
+                     "Όνομα, ηλικία, φύλο, ιστορικό, αλλεργίες, φάρμακα.",
+                     "Ο Asklepios κάνει στοχευμένες ερωτήσεις — μία κάθε φορά.",
+                     "", "",
+                     "Κλινική εκτίμηση με PubMed + GPT-4o. PDF για τον γιατρό σου."],
+        },
+        "en": {
+            "steps": ["asklepios", "step 1", "step 2", "step 3", "optional", "ai suggestion", "step 4"],
+            "titles": ["Your digital nurse", "Sign in with email", "Fill in your profile",
+                       "Describe your symptoms", "Measure vitals — 3 options",
+                       "Photo or scan — only when needed", "Detailed health report"],
+            "subs": ["AI-powered symptom assessment — fast, in your language.",
+                     "Enter your email, receive OTP. No password needed.",
+                     "Name, age, sex, history, allergies, medications.",
+                     "Asklepios asks targeted questions — one at a time.",
+                     "", "",
+                     "Clinical assessment with PubMed + GPT-4o. PDF for your doctor."],
+        },
+    }
+    d = C.get(lang, C["el"])
+    TOTAL = 7
+    icons = ["ti-stethoscope","ti-login","ti-user-circle","ti-message-chatbot",
+             "ti-heart-rate-monitor","ti-camera","ti-report-medical"]
+    ic_cls = ["ic-b","ic-p","ic-t","ic-b","ic-a","ic-c","ic-t"]
+    slides_html = ""
+    for i in range(TOTAL):
+        active = " active" if i == 0 else ""
+        sub_html = ("<p class=\"s-sub\">" + d["subs"][i] + "</p>") if d["subs"][i] else ""
+        slides_html += (
+            "<div class=\"slide" + active + "\" id=\"s" + str(i) + "\">"
+            "<div class=\"s-icon " + ic_cls[i] + "\"><i class=\"ti " + icons[i] + "\"></i></div>"
+            "<div class=\"s-step\">" + d["steps"][i] + "</div>"
+            "<div class=\"s-title\">" + d["titles"][i] + "</div>"
+            + sub_html + "</div>"
+        )
+    dots_html = "".join(
+        "<button class=\"dot" + (" on" if i==0 else "") + "\" onclick=\"go(" + str(i) + ")\"></button>"
+        for i in range(TOTAL)
+    )
+    css = (
+        "*{box-sizing:border-box;margin:0;padding:0}"
+        "body{background:transparent;font-family:sans-serif}"
+        ".ex{width:100%;border:1px solid #e5e7eb;border-radius:14px;overflow:hidden;background:#fff}"
+        ".stage{position:relative;width:100%;height:340px;overflow:hidden;background:#F8F9FF}"
+        ".slide{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;"
+        "justify-content:center;padding:24px 32px;opacity:0;transform:translateY(14px);"
+        "transition:opacity .4s,transform .4s;pointer-events:none}"
+        ".slide.active{opacity:1;transform:translateY(0);pointer-events:auto}"
+        ".slide.exit{opacity:0;transform:translateY(-14px);transition:opacity .25s,transform .25s}"
+        ".s-icon{width:52px;height:52px;border-radius:50%;display:flex;align-items:center;"
+        "justify-content:center;margin-bottom:14px;font-size:22px}"
+        ".ic-b{background:#EFF6FF;color:#1D4ED8}.ic-p{background:#EEEDFE;color:#534AB7}"
+        ".ic-t{background:#ECFDF5;color:#065F46}.ic-a{background:#FFFBEB;color:#92400E}"
+        ".ic-c{background:#FEF2F2;color:#991B1B}"
+        ".s-step{font-size:10px;font-weight:600;letter-spacing:.09em;color:#9CA3AF;"
+        "margin-bottom:6px;text-transform:uppercase}"
+        ".s-title{font-size:17px;font-weight:600;color:#1A1A2E;text-align:center;"
+        "margin-bottom:7px;line-height:1.3}"
+        ".s-sub{font-size:12px;color:#6B7280;text-align:center;line-height:1.6;max-width:380px}"
+        ".prog{height:2px;background:#F3F4F6}"
+        ".pfill{height:100%;background:#2D3FE7;border-radius:1px;transition:width .3s}"
+        ".ctrl{display:flex;align-items:center;justify-content:space-between;"
+        "padding:9px 13px;border-top:1px solid #F3F4F6;background:#fff}"
+        ".dots{display:flex;gap:5px;align-items:center}"
+        ".dot{width:5px;height:5px;border-radius:50%;background:#E5E7EB;"
+        "cursor:pointer;border:none;padding:0;transition:all .25s}"
+        ".dot.on{width:14px;border-radius:3px;background:#2D3FE7}"
+        ".ibtn{width:28px;height:28px;border-radius:50%;border:1px solid #E5E7EB;"
+        "background:#fff;cursor:pointer;font-size:13px;color:#6B7280}"
+        ".ibtn:disabled{opacity:.3;cursor:default}"
+        ".pbtn{width:28px;height:28px;border-radius:50%;border:1px solid #D1D5DB;"
+        "background:#fff;cursor:pointer;font-size:13px;color:#1A1A2E}"
+        ".sc{font-size:10px;color:#9CA3AF;min-width:28px;text-align:center}"
+    )
+    js = (
+        "var T=" + str(TOTAL) + ",cur=0,play=false,tim=null;"
+        "function mkDots(){var d=document.getElementById('dots');d.innerHTML='';"
+        "for(var i=0;i<T;i++){var b=document.createElement('button');"
+        "b.className='dot'+(i===cur?' on':'');"
+        "b.onclick=(function(x){return function(){go(x);};})(i);d.appendChild(b);}}"
+        "function go(idx){var sl=document.querySelectorAll('.slide');"
+        "sl[cur].classList.remove('active');sl[cur].classList.add('exit');"
+        "setTimeout(function(){sl[cur].classList.remove('exit');},280);"
+        "cur=idx;sl[cur].classList.add('active');"
+        "document.getElementById('pf').style.width=((cur+1)/T*100)+'%';"
+        "document.getElementById('sc').textContent=(cur+1)+' / '+T;"
+        "document.getElementById('pb').disabled=(cur===0);"
+        "document.getElementById('nb').disabled=(cur===T-1);mkDots();}"
+        "function nav(d){var n=cur+d;if(n>=0&&n<T)go(n);"
+        "if(play&&n===T-1){clearInterval(tim);play=false;"
+        "document.getElementById('pli').className='ti ti-player-play';}}"
+        "function togPlay(){play=!play;"
+        "document.getElementById('pli').className=play?'ti ti-player-pause':'ti ti-player-play';"
+        "if(play){if(cur===T-1)go(0);tim=setInterval(function(){if(cur<T-1)nav(1);"
+        "else{clearInterval(tim);play=false;"
+        "document.getElementById('pli').className='ti ti-player-play';}},3500);}"
+        "else clearInterval(tim);}"
+        "mkDots();setTimeout(function(){togPlay();},800);"
+    )
+    html = (
+        "<html><head><meta charset=\"UTF-8\">"
+        "<link rel=\"stylesheet\" href=\"https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.19.0/tabler-icons.min.css\">"
+        "<link href=\"https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600&display=swap\" rel=\"stylesheet\">"
+        "<style>" + css + "</style></head><body>"
+        "<div class=\"ex\">"
+        "<div class=\"stage\">" + slides_html + "</div>"
+        "<div class=\"prog\"><div class=\"pfill\" id=\"pf\" style=\"width:14.3%\"></div></div>"
+        "<div class=\"ctrl\">"
+        "<button class=\"ibtn\" id=\"pb\" onclick=\"nav(-1)\" disabled><i class=\"ti ti-chevron-left\"></i></button>"
+        "<div style=\"display:flex;align-items:center;gap:8px\">"
+        "<div class=\"dots\" id=\"dots\">" + dots_html + "</div>"
+        "<button class=\"pbtn\" onclick=\"togPlay()\"><i class=\"ti ti-player-play\" id=\"pli\"></i></button>"
+        "</div>"
+        "<div style=\"display:flex;align-items:center;gap:5px\">"
+        "<span class=\"sc\" id=\"sc\">1 / " + str(TOTAL) + "</span>"
+        "<button class=\"ibtn\" id=\"nb\" onclick=\"nav(1)\"><i class=\"ti ti-chevron-right\"></i></button>"
+        "</div></div></div>"
+        "<script>" + js + "</script>"
+        "</body></html>"
+    )
+    components.html(html, height=420, scrolling=False)
+
+
 def render_login_screen():
     """Full-page login shown at the very start when auth is enabled."""
     lang = st.session_state.lang
@@ -516,10 +752,17 @@ def render_login_screen():
     with c2:
         if st.button("🇬🇧 EN" if lang=="el" else "🇬🇷 ΕΛ", key="login_lang"):
             st.session_state.lang = "en" if lang=="el" else "el"; st.rerun()
-    st.markdown(f'''<div class="kira-hero"><div style="font-size:64px;margin-bottom:8px">🩺</div><h1>{t("title")}</h1><p>{t("subtitle")}</p><div class="kira-tagline">{t("tagline")}</div></div>''', unsafe_allow_html=True)
+    # Value-prop banner: tells new visitors what the app does at a glance.
+    render_ad_banner(lang)
+    # Login form
     col1, col2, col3 = st.columns([1,2,1])
     with col2:
         render_login_gate()
+    # "How it works" explainer — collapsed by default so the page stays compact.
+    # Users who want to learn more before signing in can expand it.
+    with st.expander(("Πώς λειτουργεί (1 λεπτό)" if lang=="el" else "How it works (1 min)"),
+                     expanded=False):
+        render_explainer_video(lang)
     st.markdown(f'<div class="disclaimer">{t("disclaimer_main")}</div>', unsafe_allow_html=True)
 
 def save_feedback(rating, comment=""):
@@ -920,7 +1163,11 @@ _VISUAL_ROOTS = [
     "burn","bite","itch","blister","eczema","psoriasis","ulcer","pimple","cyst","wart",
 ]
 def _visual_relevant():
-    txt = _strip_accents(" ".join(m["content"] for m in st.session_state.triage_chat))
+    # USER messages only — so when Asklepios asks differential questions like
+    # "any rash on the skin?" during a chest-pain workup, the photo option does
+    # NOT appear. The photo expander is for things the USER is complaining about.
+    txt = _strip_accents(" ".join(m["content"] for m in st.session_state.triage_chat
+                                  if m["role"] == "user"))
     return any(r in txt for r in _VISUAL_ROOTS)
 
 # Quick-select symptom chips, tailored to the person (age + sex from the profile).
