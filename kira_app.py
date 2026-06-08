@@ -377,6 +377,7 @@ def logout():
     _clear_login_cookie()
     st.session_state.pop("auth_user", None)
     st.session_state.pop("otp_sent_to", None)
+    st.session_state.pop("_cookie_synced", None)
     try:
         if "pe" in st.query_params: del st.query_params["pe"]
     except Exception:
@@ -420,7 +421,6 @@ def render_login_gate():
             if st.button(("Επιβεβαίωση" if lang=="el" else "Verify"), type="primary", use_container_width=True, key="otp_verify"):
                 ok, err = verify_otp(sent_to, code)
                 if ok:
-                    _save_login_cookie(sent_to)
                     st.session_state.pop("otp_sent_to", None)
                     if "pe" in st.query_params: del st.query_params["pe"]
                     st.rerun()
@@ -809,6 +809,64 @@ def _relevant_vitals():
     txt = _strip_accents(" ".join(m["content"] for m in st.session_state.triage_chat if m["role"]=="user"))
     return [c for c in _VITAL_CATEGORIES if any(_strip_accents(r) in txt for r in c["roots"])]
 
+# Quick-select symptom chips, tailored to the person (age + sex from the profile).
+# These are common PRESENTING COMPLAINTS per group — not diagnoses — to speed up the
+# first message. Age takes precedence over sex (a child gets paediatric chips). The
+# user can always type freely or tap "Άλλο/Other".
+_CHIP_SETS = {
+    "female": {
+        "el": (["Πονοκέφαλος/Ημικρανία","Κοιλιακός/πυελικός πόνος","Διαταραχές περιόδου",
+                "Ούρα: καύσος/συχνουρία","Κόπωση","Ναυτία","Ζάλη","Πόνος στήθους",
+                "Δύσπνοια","Πόνος μέσης","Εξάνθημα/δέρμα","Άλλο"], "συχνά σε γυναίκες"),
+        "en": (["Headache/Migraine","Abdominal/pelvic pain","Menstrual changes",
+                "Urinary burning/frequency","Fatigue","Nausea","Dizziness","Chest pain",
+                "Shortness of breath","Back pain","Rash/skin","Other"], "common in women"),
+    },
+    "male": {
+        "el": (["Πόνος στήθους","Δύσπνοια","Κοιλιακός πόνος","Πόνος μέσης",
+                "Ούρα: δυσουρία/συχνουρία","Πονοκέφαλος","Ζάλη","Κόπωση","Βήχας",
+                "Πόνος αρθρώσεων","Εξάνθημα/δέρμα","Άλλο"], "συχνά σε άνδρες"),
+        "en": (["Chest pain","Shortness of breath","Abdominal pain","Back pain",
+                "Urinary problems","Headache","Dizziness","Fatigue","Cough",
+                "Joint pain","Rash/skin","Other"], "common in men"),
+    },
+    "infant": {
+        "el": (["Πυρετός","Ανήσυχο/κλάματα","Εμετός/αναγωγές","Διάρροια","Βήχας/συνάχι",
+                "Δυσκολία αναπνοής","Εξάνθημα","Δυσκολία σίτισης","Δυσκοιλιότητα",
+                "Ίκτερος (κιτρίνισμα)","Άλλο"], "συχνά σε βρέφη"),
+        "en": (["Fever","Irritable/crying","Vomiting/spit-up","Diarrhoea","Cough/congestion",
+                "Breathing difficulty","Rash","Feeding difficulty","Constipation",
+                "Jaundice","Other"], "common in infants"),
+    },
+    "child": {
+        "el": (["Πυρετός","Βήχας","Πονόλαιμος","Πόνος αυτιού","Κοιλιακός πόνος","Εμετός",
+                "Διάρροια","Εξάνθημα","Πονοκέφαλος","Δυσκολία αναπνοής","Άλλο"],
+               "συχνά σε παιδιά/εφήβους"),
+        "en": (["Fever","Cough","Sore throat","Ear pain","Abdominal pain","Vomiting",
+                "Diarrhoea","Rash","Headache","Breathing difficulty","Other"],
+               "common in children/teens"),
+    },
+    "adult": {
+        "el": (["Πονοκέφαλος","Πυρετός","Βήχας","Δύσπνοια","Ναυτία","Πόνος στήθους",
+                "Κοιλιακός πόνος","Ζάλη","Κόπωση","Πόνος πλάτης","Διάρροια","Άλλο"], ""),
+        "en": (["Headache","Fever","Cough","Shortness of breath","Nausea","Chest pain",
+                "Abdominal pain","Dizziness","Fatigue","Back pain","Diarrhoea","Other"], ""),
+    },
+}
+def _symptom_chips(profile, lang):
+    """Return (chips, group_label) for the person's age/sex group."""
+    age = profile.get("age", 0) or 0
+    sex = profile.get("sex", "")
+    if age <= 16:
+        g = "infant" if age < 2 else "child"
+    elif sex in ("Γυναίκα", "Female"):
+        g = "female"
+    elif sex in ("Άνδρας", "Male"):
+        g = "male"
+    else:
+        g = "adult"
+    return _CHIP_SETS[g]["el" if lang == "el" else "en"]
+
 def generate_html_report(profile, vitals, report_text, pubmed_refs, lang="el"):
     import re as _re, html as _html
     name=_html.escape(str(profile.get("name","—"))); age=str(profile.get("age","—"))
@@ -878,7 +936,7 @@ def render_intake():
     st.markdown(f"## 👤 {t('name')} & Ιστορικό")
     c1,c2,c3=st.columns([2,1,1])
     with c1: name=st.text_input(t("name"),value=st.session_state.profile.get("name",""),placeholder="Χριστόφορος")
-    with c2: age=st.number_input(t("age"),min_value=1,max_value=120,value=st.session_state.profile.get("age",40))
+    with c2: age=st.number_input(t("age"),min_value=0,max_value=120,value=st.session_state.profile.get("age",40))
     with c3: sex=st.selectbox(t("sex"),[t("male"),t("female"),t("other")])
     history=st.text_area(t("history"),value=st.session_state.profile.get("history",""),height=90,placeholder="Π.χ. Υπέρταση, Τ2 Διαβήτης")
     allergies=st.text_input(t("allergies"),value=st.session_state.profile.get("allergies",""),placeholder="Π.χ. Πενικιλλίνη")
@@ -1068,7 +1126,7 @@ Use a certified upper-arm cuff device, note systolic/diastolic values
     api_result = None
 
     # Try Railway GPR model first (real ML prediction)
-    if bp_api_url and age_val > 0 and wt_val and ht_val and hr_val:
+    if bp_api_url and age_val >= 18 and wt_val and ht_val and hr_val:
         try:
             payload = json.dumps({
                 "age": int(age_val), "height": float(ht_val),
@@ -1085,7 +1143,7 @@ Use a certified upper-arm cuff device, note systolic/diastolic values
         except Exception:
             api_result = None
 
-    if age_val > 0:
+    if age_val >= 18:
         risk = demographic_bp_risk(age_val, bmi_val, hr_val, wt_val, ht_val)
         label = risk["label_el"] if lang=="el" else risk["label_en"]
         note  = risk["note_el"]  if lang=="el" else risk["note_en"]
@@ -1310,27 +1368,23 @@ def render_triage():
                  if st.session_state.lang=="el" else
                  "👇 Step 3 — Describe what's bothering you (e.g. 'eye pain for 2 days'). "
                  "Asklepios will ask follow-up questions and then generate a report."))
-        CHIPS_EL=["Πονοκέφαλος","Πυρετός","Βήχας","Δύσπνοια","Ναυτία","Πόνος στήθους","Κοιλιακός πόνος","Ζάλη","Κόπωση","Πόνος πλάτης","Διάρροια","Αιματοχεσία","Άλλο"]
-        CHIPS_EN=["Headache","Fever","Cough","Shortness of breath","Nausea","Chest pain","Abdominal pain","Dizziness","Fatigue","Back pain","Diarrhoea","Blood in stool","Other"]
-        chips=CHIPS_EL if st.session_state.lang=="el" else CHIPS_EN
-        st.caption("Γρήγορη επιλογή:" if st.session_state.lang=="el" else "Quick select:")
-        chip_row1=chips[:7]; chip_row2=chips[7:]
-        cr1=st.columns(len(chip_row1))
-        for ci,chip in enumerate(chip_row1):
-            with cr1[ci]:
-                sel=chip in st.session_state.symptom_chips
-                if st.button(("✓ " if sel else "")+chip,key=f"chip_{ci}",use_container_width=True):
-                    if chip in st.session_state.symptom_chips: st.session_state.symptom_chips.remove(chip)
-                    else: st.session_state.symptom_chips.append(chip)
-                    st.rerun()
-        cr2=st.columns(len(chip_row2))
-        for ci,chip in enumerate(chip_row2):
-            with cr2[ci]:
-                sel=chip in st.session_state.symptom_chips
-                if st.button(("✓ " if sel else "")+chip,key=f"chip2_{ci}",use_container_width=True):
-                    if chip in st.session_state.symptom_chips: st.session_state.symptom_chips.remove(chip)
-                    else: st.session_state.symptom_chips.append(chip)
-                    st.rerun()
+        chips, _chips_label = _symptom_chips(st.session_state.profile, st.session_state.lang)
+        _cap = ("Γρήγορη επιλογή" if st.session_state.lang=="el" else "Quick select")
+        if _chips_label:
+            _cap += f" ({_chips_label})"
+        st.caption(_cap + ":")
+        _PER_ROW = 3
+        for _rs in range(0, len(chips), _PER_ROW):
+            _row = chips[_rs:_rs+_PER_ROW]
+            _cc = st.columns(len(_row))
+            for _j, chip in enumerate(_row):
+                _i = _rs + _j
+                with _cc[_j]:
+                    sel = chip in st.session_state.symptom_chips
+                    if st.button(("✓ " if sel else "")+chip, key=f"chip_{_i}", use_container_width=True):
+                        if chip in st.session_state.symptom_chips: st.session_state.symptom_chips.remove(chip)
+                        else: st.session_state.symptom_chips.append(chip)
+                        st.rerun()
         if st.session_state.symptom_chips:
             if st.button("➤ "+("Αποστολή επιλεγμένων" if st.session_state.lang=="el" else "Send selected"),type="primary"):
                 msg=("Κύρια συμπτώματα: " if st.session_state.lang=="el" else "Main symptoms: ")+", ".join(st.session_state.symptom_chips)
@@ -1586,6 +1640,14 @@ if auth_enabled() and CM is not None and not is_logged_in():
 if auth_enabled() and not is_logged_in():
     render_login_screen()
     st.stop()
+
+# Persist the signed login cookie on a CLEAN render pass. Writing it on the
+# "Verify" click is unreliable: the immediate st.rerun() aborts the stx
+# component's browser write, so the cookie never lands and the next session
+# (e.g. the new tab returning from the face scan) re-asks for login.
+if CM is not None and is_logged_in() and not st.session_state.get("_cookie_synced"):
+    _save_login_cookie(st.session_state.get("auth_user", ""))
+    st.session_state["_cookie_synced"] = True
 
 screen=st.session_state.screen
 if st.session_state.pop("_fs_banner", False):
