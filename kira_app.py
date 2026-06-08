@@ -12,6 +12,13 @@ import urllib.parse
 import hashlib, hmac, base64, unicodedata
 from datetime import datetime, date, timedelta
 
+try:
+    import streamlit_cookies_manager as stx
+    _STX_OK = True
+except ImportError:
+    _STX_OK = False
+    stx = None
+
 # ── PAGE CONFIG ───────────────────────────────────────────────────────────────
 st.set_page_config(
     page_title="Kira · AI Nurse",
