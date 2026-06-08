@@ -331,7 +331,8 @@ def _save_login_cookie(email):
     if not cm:
         return
     try:
-        cm.set(COOKIE_NAME, _make_token(email), expires_at=datetime.now()+timedelta(days=14))
+        cm.set(COOKIE_NAME, _make_token(email), key="ak_set_auth",
+               expires_at=datetime.now()+timedelta(days=14))
     except Exception:
         pass
 
@@ -340,7 +341,53 @@ def _clear_login_cookie():
     if not cm:
         return
     try:
-        cm.delete(COOKIE_NAME)
+        cm.delete(COOKIE_NAME, key="ak_del_auth")
+    except Exception:
+        pass
+
+# ── IN-PROGRESS PROFILE DRAFT (signed cookie) ─────────────────────────────────
+# Returning from the external face scan opens a NEW browser tab → a fresh Streamlit
+# session, so the profile held in session_state is gone and intake gets re-asked.
+# We persist the profile in a short-lived signed cookie and restore it on the new
+# session. Signed (tamper-proof) but NOT encrypted — fine on the user's own device
+# for now; for production this should move server-side (Supabase, keyed by email).
+DRAFT_COOKIE = "ak_draft"
+
+def _make_draft(payload_str, days=1):
+    exp = int(time.time()) + days*86400
+    body = f"{exp}|{payload_str}"
+    sig = hmac.new(_cookie_secret().encode(), body.encode(), hashlib.sha256).hexdigest()[:32]
+    return _b64.urlsafe_b64encode(f"{sig}|{body}".encode()).decode()
+
+def _read_draft(tok):
+    try:
+        raw = _b64.urlsafe_b64decode(str(tok).encode()).decode()
+        sig, exp, payload = raw.split("|", 2)
+        if int(exp) < time.time():
+            return None
+        good = hmac.new(_cookie_secret().encode(), f"{exp}|{payload}".encode(), hashlib.sha256).hexdigest()[:32]
+        if hmac.compare_digest(sig, good):
+            return json.loads(payload)
+    except Exception:
+        return None
+    return None
+
+def _save_draft_cookie(payload_str):
+    cm = globals().get("CM")
+    if not cm:
+        return
+    try:
+        cm.set(DRAFT_COOKIE, _make_draft(payload_str), key="ak_set_draft",
+               expires_at=datetime.now()+timedelta(days=1))
+    except Exception:
+        pass
+
+def _clear_draft_cookie():
+    cm = globals().get("CM")
+    if not cm:
+        return
+    try:
+        cm.delete(DRAFT_COOKIE, key="ak_del_draft")
     except Exception:
         pass
 
@@ -375,9 +422,11 @@ def logout():
         try: sb.auth.sign_out()
         except Exception: pass
     _clear_login_cookie()
+    _clear_draft_cookie()
     st.session_state.pop("auth_user", None)
     st.session_state.pop("otp_sent_to", None)
     st.session_state.pop("_cookie_synced", None)
+    st.session_state.pop("_draft_hash", None)
     try:
         if "pe" in st.query_params: del st.query_params["pe"]
     except Exception:
@@ -808,6 +857,26 @@ _VITAL_CATEGORIES = [
 def _relevant_vitals():
     txt = _strip_accents(" ".join(m["content"] for m in st.session_state.triage_chat if m["role"]=="user"))
     return [c for c in _VITAL_CATEGORIES if any(_strip_accents(r) in txt for r in c["roots"])]
+
+# A photo only helps for VISUAL complaints (skin/rash, eye, wound/swelling, mouth/
+# throat, nails, lesions...). For non-visual ones (e.g. chest pain, dizziness) the
+# camera adds nothing and just confuses, so the photo option is hidden unless the
+# conversation is about something visible.
+_VISUAL_ROOTS = [
+    # Greek (accent-insensitive)
+    "δερμα","εξανθημ","σπυρ","πληγ","τραυμ","κοψιμ","εκδορ","εξογκωμ","πρηξ","πρησμ",
+    "πρησιμ","οιδημ","μωλωπ","ελια","σπιλ","μελανωμ","εγκαυμ","καψιμ","δαγκωμ","τσιμπ",
+    "κνησμ","φαγουρ","φουσκαλ","φλυκταιν","εκζεμ","ψωριασ","ελκος","εξελκωσ","αφθ",
+    "οφθαλμ","ματι","λαιμ","αμυγδαλ","φαρυγγ","γλωσσ","νυχι","ονυχ","ουλη","κονδυλωμ",
+    "αλλοιωσ","κηλιδ","δοθιην","αποστημ","σπυρακ","πρηξιμ","οζο",
+    # English
+    "skin","rash","lesion","wound","laceration","abrasion","lump","bump","swelling",
+    "swollen","bruise","mole","melanoma","eye","throat","tonsil","tongue","nail",
+    "burn","bite","itch","blister","eczema","psoriasis","ulcer","pimple","cyst","wart",
+]
+def _visual_relevant():
+    txt = _strip_accents(" ".join(m["content"] for m in st.session_state.triage_chat))
+    return any(r in txt for r in _VISUAL_ROOTS)
 
 # Quick-select symptom chips, tailored to the person (age + sex from the profile).
 # These are common PRESENTING COMPLAINTS per group — not diagnoses — to speed up the
@@ -1421,8 +1490,10 @@ def render_triage():
         with _cols[_ci]:
             if st.button(("Όχι τώρα" if _lang=="el" else "Not now"), key="nudge_off", use_container_width=True):
                 st.session_state["_vitals_nudge_off"] = True; st.rerun()
-    # Photo analysis appears only after Asklepios has made an initial assessment
-    if any(m["role"]=="assistant" for m in st.session_state.triage_chat):
+    # Photo analysis appears only after an initial assessment AND only when the
+    # complaint is something visible (skin, eye, wound, throat, nails...). For
+    # non-visual issues (e.g. chest pain) a photo adds nothing, so it stays hidden.
+    if any(m["role"]=="assistant" for m in st.session_state.triage_chat) and _visual_relevant():
         with st.expander("📷 " + ("Ανάλυση φωτογραφίας (προαιρετικό)" if st.session_state.lang=="el" else "Photo analysis (optional)")):
             render_photo_scan()
     # Confirmation after a photo was added — guide the user to keep answering
@@ -1593,6 +1664,44 @@ Language: {"Greek" if lang=="el" else "English"}. Be direct. End with a one-line
         wa_url="https://wa.me/?text="+urllib.parse.quote(msg)
         st.markdown(f'<a href="{wa_url}" target="_blank" style="display:block;text-align:center;padding:8px;border-radius:8px;text-decoration:none;font-weight:600;font-size:13px;color:white;background:#25D366">WhatsApp</a>',unsafe_allow_html=True)
 
+# ── COOKIE MANAGER (once) — persistent login + in-progress profile draft ──────
+if _STX_OK and auth_enabled():
+    try:
+        CM = stx.CookieManager()
+    except Exception:
+        CM = None
+
+# Read ALL cookies in ONE component call. (stx's .get() internally re-renders the
+# component; calling it twice in a run raises a duplicate-key error, so we read
+# once via get_all() and index the dict.)
+_all_cookies = {}
+if CM is not None:
+    try:
+        _all_cookies = CM.get_all() or {}
+    except Exception:
+        _all_cookies = {}
+
+# Restore login from the signed cookie (keeps the user signed in across reloads /
+# new tabs — e.g. the tab returning from the external face scan).
+if auth_enabled() and not is_logged_in():
+    _ctok = _all_cookies.get(COOKIE_NAME)
+    _em = _read_token(_ctok) if _ctok else None
+    if _em:
+        st.session_state["auth_user"] = _em
+
+# Restore the in-progress profile draft so returning from the face scan does NOT
+# force re-entering the intake form.
+if CM is not None and not st.session_state.profile.get("name"):
+    _dtok = _all_cookies.get(DRAFT_COOKIE)
+    _dd = _read_draft(_dtok) if _dtok else None
+    if _dd and (_dd.get("profile") or {}).get("name"):
+        st.session_state.profile = _dd["profile"]
+        if _dd.get("lang"):
+            st.session_state.lang = _dd["lang"]
+        _mr = st.session_state.profile.get("meds_raw", "")
+        st.session_state.medications = [{"name": m.strip(), "freq": "", "notes": ""}
+                                        for m in _mr.split(",") if m.strip()] if _mr else []
+
 # ── FACESCAN INTERCEPTION ─────────────────────────────────────────────────────
 try:
     _raw = st.query_params.get("facescan","")
@@ -1609,45 +1718,39 @@ try:
                 st.session_state.vitals = _clean
                 st.session_state["_from_facescan"] = True
                 st.session_state["_fs_banner"] = True
-                if st.session_state.profile.get("name"):
-                    st.session_state.screen = "triage"
-                else:
-                    st.session_state.screen = "intake"
+                st.session_state.screen = "triage" if st.session_state.profile.get("name") else "intake"
             st.query_params.clear()
             st.rerun()
 except Exception:
     pass
 
-# ── PERSISTENT LOGIN + GATE ───────────────────────────────────────────────────
-# Login-first (every visitor is identified in Supabase → Authentication → Users).
-# A signed cookie keeps the user logged in across reloads / new tabs (e.g. returning
-# from the external face scan), so they are NOT asked to sign in again.
-if _STX_OK and auth_enabled():
-    try:
-        CM = stx.CookieManager()
-    except Exception:
-        CM = None
+# If we returned from the face scan and the profile draft has since been restored
+# (the cookie can take a render to arrive), skip the now-prefilled intake form and
+# jump straight to the assessment.
+if (st.session_state.get("_from_facescan") and st.session_state.vitals
+        and st.session_state.profile.get("name") and st.session_state.screen == "intake"):
+    st.session_state.screen = "triage"
+    st.session_state["_from_facescan"] = False
 
-if auth_enabled() and CM is not None and not is_logged_in():
-    try:
-        _tok = CM.get(COOKIE_NAME)
-    except Exception:
-        _tok = None
-    _em = _read_token(_tok) if _tok else None
-    if _em:
-        st.session_state["auth_user"] = _em
-
+# ── LOGIN GATE ────────────────────────────────────────────────────────────────
+# Login-first: every visitor is identified in Supabase → Authentication → Users.
 if auth_enabled() and not is_logged_in():
     render_login_screen()
     st.stop()
 
-# Persist the signed login cookie on a CLEAN render pass. Writing it on the
-# "Verify" click is unreliable: the immediate st.rerun() aborts the stx
-# component's browser write, so the cookie never lands and the next session
-# (e.g. the new tab returning from the face scan) re-asks for login.
+# ── PERSIST cookies on a CLEAN render pass ────────────────────────────────────
+# Writing on the verify *click* + immediate st.rerun() aborts the stx component's
+# browser write; a normal render that completes lands the cookie reliably. The two
+# .set calls use distinct keys so they never collide in the same render.
 if CM is not None and is_logged_in() and not st.session_state.get("_cookie_synced"):
     _save_login_cookie(st.session_state.get("auth_user", ""))
     st.session_state["_cookie_synced"] = True
+if CM is not None and st.session_state.profile.get("name"):
+    _payload = json.dumps({"profile": st.session_state.profile, "lang": st.session_state.lang},
+                          ensure_ascii=False, sort_keys=True)
+    if st.session_state.get("_draft_hash") != _payload:
+        _save_draft_cookie(_payload)
+        st.session_state["_draft_hash"] = _payload
 
 screen=st.session_state.screen
 if st.session_state.pop("_fs_banner", False):
