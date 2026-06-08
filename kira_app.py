@@ -5,7 +5,6 @@ Standalone Streamlit app · Real data only · No placeholders.
 """
 
 import streamlit as st
-import streamlit.components.v1 as components
 import os
 import json
 import io
@@ -511,238 +510,287 @@ def render_login_gate():
     return is_logged_in()
 
 def render_ad_banner(lang):
-    """Hero / value-prop banner shown on the login screen. Replaces a plain hero
-    with an information-rich card explaining what the app does."""
-    tx = {
-        "el": {"h1":"Ο νοσηλευτής<br>στην <em>τσέπη</em> σου.",
-               "sub":"Γρήγορη εκτίμηση υγείας, στα ελληνικά — όποτε τη χρειαστείς.",
-               "bub":"«Περίγραψέ μου τι νιώθεις και θα σε καθοδηγήσω — <strong>βήμα-βήμα.</strong>»",
-               "f1":"Πρώτη εκτίμηση σε ~2 λεπτά",
-               "f2":"Στα ελληνικά, διαθέσιμος 24/7",
-               "f3":"Με επιστημονική τεκμηρίωση",
-               "cta":"Συνδέσου δωρεάν ↓",
-               "disc":"Ενημερωτικό εργαλείο. Δεν αντικαθιστά ιατρική διάγνωση ή θεραπεία."},
-        "en": {"h1":"The nurse<br>in your <em>pocket.</em>",
-               "sub":"Quick health assessment, in your language — whenever you need it.",
-               "bub":"Tell me how you feel and I will guide you — <strong>step by step.</strong>",
-               "f1":"First assessment in ~2 minutes",
-               "f2":"In Greek & English, available 24/7",
-               "f3":"Evidence-based, powered by PubMed",
-               "cta":"Sign in free ↓",
-               "disc":"Informational tool only. Does not replace medical diagnosis or treatment."},
-    }
-    d = tx.get(lang, tx["el"])
-    css = (
-        "*{box-sizing:border-box;margin:0;padding:0}"
-        "body{background:transparent;font-family:sans-serif}"
-        ".ad{width:100%;border-radius:24px;overflow:hidden;"
-        "background:linear-gradient(160deg,#3D2FE7 0%,#7B2FE0 55%,#9B3FFF 100%);"
-        "padding:28px 24px 24px}"
-        ".lo{width:40px;height:40px;border-radius:12px;background:rgba(255,255,255,.18);"
-        "display:flex;align-items:center;justify-content:center}"
-        ".lo i,.av i{color:#fff}"
-        ".lo i{font-size:20px}"
-        ".nm{font-size:15px;font-weight:700;color:#fff;line-height:1}"
-        ".sm{font-size:11px;color:rgba(255,255,255,.65);letter-spacing:.06em;"
-        "text-transform:uppercase;margin-top:2px}"
-        "h1{font-size:34px;font-weight:800;color:#fff;line-height:1.15;margin:18px 0 8px}"
-        "h1 em{color:#F9C846;font-style:italic}"
-        ".su{font-size:14px;color:rgba(255,255,255,.75);line-height:1.55;margin-bottom:18px}"
-        ".cb{background:rgba(255,255,255,.13);border:1px solid rgba(255,255,255,.2);"
-        "border-radius:14px;padding:12px 14px;margin-bottom:18px;display:flex;gap:10px}"
-        ".av{width:28px;height:28px;border-radius:50%;background:rgba(255,255,255,.25);"
-        "display:flex;align-items:center;justify-content:center;flex-shrink:0}"
-        ".av i{font-size:14px}"
-        ".bt{font-size:12px;color:#fff;line-height:1.55;font-style:italic}"
-        ".bt strong{font-style:normal;font-weight:700}"
-        ".ar{text-align:center;color:rgba(255,255,255,.45);font-size:18px;margin:-4px 0 10px}"
-        ".fe{display:flex;flex-direction:column;gap:9px;margin-bottom:20px}"
-        ".fr{display:flex;align-items:center;gap:11px}"
-        ".fi{width:32px;height:32px;border-radius:10px;background:rgba(255,255,255,.14);"
-        "display:flex;align-items:center;justify-content:center;flex-shrink:0}"
-        ".fi i{font-size:16px;color:#fff}"
-        ".ft{font-size:13px;color:rgba(255,255,255,.9);line-height:1.3}"
-        ".ct{width:100%;padding:15px;border-radius:16px;"
-        "background:linear-gradient(135deg,#3D2FE7,#7B2FE0);"
-        "border:2px solid rgba(255,255,255,.4);cursor:pointer;"
-        "font-size:15px;font-weight:700;color:#fff;"
-        "transition:background .25s,color .25s}"
-        ".ct:hover{background:#fff;color:#1a1a1a;border-color:#fff}"
-        ".ct:active{transform:scale(.98)}"
-        ".di{font-size:11px;color:rgba(255,255,255,.45);text-align:center;"
-        "margin-top:10px;line-height:1.5}"
-    )
-    # CTA scrolls the parent window down to bring the login form into view.
-    js = (
-        "function scrollToLogin(){"
-        "try{window.parent.scrollBy({top:560,behavior:'smooth'});}catch(e){}}"
-    )
-    html = (
-        "<html><head><meta charset=\"UTF-8\">"
-        "<link rel=\"stylesheet\" href=\"https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.19.0/tabler-icons.min.css\">"
-        "<link href=\"https://fonts.googleapis.com/css2?family=DM+Sans:ital,wght@0,700;0,800;1,700&display=swap\" rel=\"stylesheet\">"
-        "<style>" + css + "</style></head><body>"
-        "<div class=\"ad\">"
-        "<div style=\"display:flex;align-items:center;gap:10px\">"
-        "<div class=\"lo\"><i class=\"ti ti-stethoscope\"></i></div>"
-        "<div><div class=\"nm\">Asklepios</div><div class=\"sm\">AI Nurse</div></div>"
-        "</div>"
-        "<h1>" + d["h1"] + "</h1>"
-        "<p class=\"su\">" + d["sub"] + "</p>"
-        "<div class=\"cb\"><div class=\"av\"><i class=\"ti ti-robot\"></i></div>"
-        "<div class=\"bt\">" + d["bub"] + "</div></div>"
-        "<div class=\"ar\">&#8964;</div>"
-        "<div class=\"fe\">"
-        "<div class=\"fr\"><div class=\"fi\"><i class=\"ti ti-clock\"></i></div><div class=\"ft\">" + d["f1"] + "</div></div>"
-        "<div class=\"fr\"><div class=\"fi\"><i class=\"ti ti-flag\"></i></div><div class=\"ft\">" + d["f2"] + "</div></div>"
-        "<div class=\"fr\"><div class=\"fi\"><i class=\"ti ti-microscope\"></i></div><div class=\"ft\">" + d["f3"] + "</div></div>"
-        "</div>"
-        "<button class=\"ct\" onclick=\"scrollToLogin()\">" + d["cta"] + "</button>"
-        "<p class=\"di\">" + d["disc"] + "</p>"
-        "</div>"
-        "<script>" + js + "</script>"
-        "</body></html>"
-    )
-    components.html(html, height=560, scrolling=False)
+    """Editorial-style value-prop banner shown on the login screen. Uses pure
+    st.markdown (no iframe → no deprecation, no JS). Editorial typography
+    inspired by Cira but with HONEST claims only:
+      • Heart rate yes (rPPG is reliable for HR)
+      • NO blood pressure or "30+ vitals" promise — rPPG can't reliably do those
+      • GDPR not HIPAA — we are EU-based
+    Cards visualize the actual product: chat bubble (symptoms),
+    vitals readout (HR + BP/SpO₂ entered by user), report checklist."""
+    if lang == "en":
+        d = {
+            "pill_l":"ASKLEPIOS · AI NURSE", "pill_r":"🔒 GDPR · Encrypted",
+            "h_l":"Symptoms.", "h_m":"Assessment.", "h_r":"In Greek.",
+            "sub":"Describe what you're feeling. Get a clinical assessment with PubMed references. In a few minutes.",
+            "s1_lbl":"YOU", "s1_text":"\"Headache and nausea for 3 days…\"",
+            "s2_lbl":"VITALS",
+            "s2_v1":"HR", "s2_v1v":"78 bpm",
+            "s2_v2":"BP", "s2_v2v":"120/80",
+            "s3_lbl":"REPORT",
+            "s3_l1":"Clinical assessment",
+            "s3_l2":"PubMed references",
+            "s3_l3":"Drug interactions",
+            "cta":"Sign in free ↓",
+            "t1":"🇬🇷 Greek", "t2":"🔒 GDPR",
+            "t3":"📚 PubMed", "t4":"🤖 Claude + GPT-4o", "t5":"⚡ Free",
+        }
+    else:
+        d = {
+            "pill_l":"ASKLEPIOS · AI ΝΟΣΗΛΕΥΤΗΣ", "pill_r":"🔒 GDPR · Κρυπτογράφηση",
+            "h_l":"Συμπτώματα.", "h_m":"Εκτίμηση.", "h_r":"Στα Ελληνικά.",
+            "sub":"Περίγραψε τι νιώθεις. Λάβε κλινική εκτίμηση με τεκμηρίωση από PubMed. Σε λίγα λεπτά.",
+            "s1_lbl":"ΕΣΥ", "s1_text":"«Πονοκέφαλος και ναυτία 3 μέρες…»",
+            "s2_lbl":"ΖΩΤΙΚΑ",
+            "s2_v1":"HR", "s2_v1v":"78 bpm",
+            "s2_v2":"BP", "s2_v2v":"120/80",
+            "s3_lbl":"ΑΝΑΦΟΡΑ",
+            "s3_l1":"Κλινική εκτίμηση",
+            "s3_l2":"Αναφορές PubMed",
+            "s3_l3":"Αλληλεπιδράσεις",
+            "cta":"Σύνδεση δωρεάν ↓",
+            "t1":"🇬🇷 Ελληνικά", "t2":"🔒 GDPR",
+            "t3":"📚 PubMed", "t4":"🤖 Claude + GPT-4o", "t5":"⚡ Δωρεάν",
+        }
+    css = """
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,700;1,700;1,800;1,900&family=Inter:wght@400;500;600;700&display=swap');
+.ad-hero {
+  background: linear-gradient(180deg, #FAF7F2 0%, #F2EDE3 100%);
+  border-radius: 28px; padding: 60px 40px 36px;
+  margin: 12px 0 28px; text-align: center;
+  font-family: 'Inter', system-ui, sans-serif;
+  border: 1px solid rgba(122, 47, 224, 0.08);
+}
+.ad-pill {
+  display: inline-flex; align-items: center; gap: 12px;
+  background: white; border: 1px solid #E5E7EB;
+  border-radius: 999px; padding: 8px 18px;
+  font-size: 11.5px; font-weight: 700; letter-spacing: 0.1em;
+  color: #7B2FE0; margin-bottom: 24px;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.03);
+}
+.ad-pill .sep { color: #D1D5DB; font-weight: 400; }
+.ad-pill .gdpr { color: #10B981; letter-spacing: 0.04em; }
+.ad-title {
+  font-family: 'Playfair Display', Georgia, serif;
+  font-size: 60px; font-weight: 700; line-height: 1.02;
+  letter-spacing: -2px; color: #1A1A2E; margin: 0 0 4px;
+}
+.ad-title .word { display: inline-block; }
+.ad-title .accent {
+  color: #D946EF; font-style: italic; font-weight: 900;
+  letter-spacing: -2.5px;
+}
+.ad-sub {
+  font-size: 16.5px; color: #4B5563;
+  max-width: 580px; margin: 22px auto 38px;
+  line-height: 1.6; font-weight: 400;
+}
+
+/* 3-card flow with mockup-style content */
+.ad-flow {
+  display: flex; align-items: stretch; justify-content: center;
+  gap: 14px; margin: 36px 0 38px; flex-wrap: wrap;
+}
+.ad-card {
+  background: white; border: 1px solid #ECEEF3;
+  border-radius: 18px; padding: 18px 16px 18px;
+  width: 210px; max-width: 230px; min-height: 130px;
+  box-shadow: 0 3px 10px rgba(26, 26, 46, 0.05);
+  display: flex; flex-direction: column;
+  text-align: left;
+}
+.ad-card-label {
+  font-size: 10px; font-weight: 700; letter-spacing: 0.14em;
+  color: #9CA3AF; text-transform: uppercase; margin-bottom: 10px;
+  display: flex; align-items: center; gap: 6px;
+}
+.ad-card-label .dot {
+  width: 6px; height: 6px; border-radius: 50%;
+}
+.ad-card-1 .ad-card-label .dot { background: #2D3FE7; }
+.ad-card-2 .ad-card-label .dot { background: #DC2626; }
+.ad-card-3 .ad-card-label .dot { background: #059669; }
+
+/* Card 1: Chat bubble */
+.ad-bubble {
+  background: #F4F1FB; border-radius: 14px 14px 14px 4px;
+  padding: 11px 13px; font-size: 13px;
+  color: #1A1A2E; line-height: 1.45; font-style: italic;
+  font-weight: 500;
+}
+/* Card 2: Vitals readout */
+.ad-vitals { display: flex; flex-direction: column; gap: 8px; }
+.ad-vital-row {
+  display: flex; align-items: center; justify-content: space-between;
+  background: #FAFBFC; border-radius: 9px;
+  padding: 8px 11px; font-size: 12.5px;
+}
+.ad-vital-row .lbl { color: #6B7280; font-weight: 600; letter-spacing: 0.04em; }
+.ad-vital-row .val { color: #1A1A2E; font-weight: 700; font-variant-numeric: tabular-nums; }
+/* Card 3: Report checklist */
+.ad-report { display: flex; flex-direction: column; gap: 7px; }
+.ad-report-line {
+  display: flex; align-items: center; gap: 9px;
+  font-size: 13px; color: #1A1A2E; font-weight: 500;
+}
+.ad-report-line .check {
+  width: 18px; height: 18px; border-radius: 50%;
+  background: #ECFDF5; color: #059669;
+  display: inline-flex; align-items: center; justify-content: center;
+  font-size: 11px; font-weight: 700; flex-shrink: 0;
+}
+.ad-arrow {
+  display: flex; align-items: center;
+  font-size: 22px; color: #D946EF; font-weight: 700; opacity: 0.5;
+}
+
+.ad-cta {
+  display: inline-block;
+  background: linear-gradient(135deg, #2D3FE7, #7B2FE0);
+  color: white !important; padding: 15px 36px;
+  border-radius: 999px; font-size: 14.5px; font-weight: 700;
+  letter-spacing: 0.02em; margin: 4px 0 26px;
+  box-shadow: 0 6px 18px rgba(123, 47, 224, 0.28);
+  text-decoration: none;
+}
+
+/* Trust badges — inline with dot separators (Cira-style) */
+.ad-trust {
+  display: flex; justify-content: center; align-items: center;
+  gap: 10px; flex-wrap: wrap; font-size: 12.5px;
+  color: #6B7280; font-weight: 500;
+  padding-top: 14px; border-top: 1px solid rgba(0,0,0,0.05);
+  margin-top: 4px;
+}
+.ad-trust .item { white-space: nowrap; }
+.ad-trust .sep-dot {
+  color: #D1D5DB; font-weight: 400; font-size: 14px;
+  line-height: 1;
+}
+
+@media (max-width: 640px) {
+  .ad-hero { padding: 36px 22px 28px; border-radius: 22px; }
+  .ad-title { font-size: 36px; letter-spacing: -1.2px; }
+  .ad-title .accent { letter-spacing: -1.5px; }
+  .ad-sub { font-size: 14.5px; margin: 18px auto 28px; }
+  .ad-arrow { display: none; }
+  .ad-card { width: 100%; max-width: 340px; padding: 14px; min-height: auto; }
+  .ad-flow { gap: 10px; margin: 24px 0 28px; }
+  .ad-trust { gap: 6px; font-size: 11.5px; }
+  .ad-cta { padding: 14px 28px; font-size: 13.5px; }
+  .ad-pill { font-size: 10.5px; padding: 7px 14px; }
+}
+</style>
+"""
+    body = f"""
+<div class="ad-hero">
+  <div class="ad-pill">✦ {d["pill_l"]} <span class="sep">|</span> <span class="gdpr">{d["pill_r"]}</span></div>
+  <h1 class="ad-title">
+    <span class="word">{d["h_l"]}</span>
+    <span class="word">{d["h_m"]}</span><br>
+    <span class="word accent">{d["h_r"]}</span>
+  </h1>
+  <p class="ad-sub">{d["sub"]}</p>
+  <div class="ad-flow">
+    <div class="ad-card ad-card-1">
+      <div class="ad-card-label"><span class="dot"></span>{d["s1_lbl"]}</div>
+      <div class="ad-bubble">{d["s1_text"]}</div>
+    </div>
+    <div class="ad-arrow">→</div>
+    <div class="ad-card ad-card-2">
+      <div class="ad-card-label"><span class="dot"></span>{d["s2_lbl"]}</div>
+      <div class="ad-vitals">
+        <div class="ad-vital-row"><span class="lbl">❤️ {d["s2_v1"]}</span><span class="val">{d["s2_v1v"]}</span></div>
+        <div class="ad-vital-row"><span class="lbl">💉 {d["s2_v2"]}</span><span class="val">{d["s2_v2v"]}</span></div>
+      </div>
+    </div>
+    <div class="ad-arrow">→</div>
+    <div class="ad-card ad-card-3">
+      <div class="ad-card-label"><span class="dot"></span>{d["s3_lbl"]}</div>
+      <div class="ad-report">
+        <div class="ad-report-line"><span class="check">✓</span>{d["s3_l1"]}</div>
+        <div class="ad-report-line"><span class="check">✓</span>{d["s3_l2"]}</div>
+        <div class="ad-report-line"><span class="check">✓</span>{d["s3_l3"]}</div>
+      </div>
+    </div>
+  </div>
+  <a href="#asklepios-login" class="ad-cta">{d["cta"]}</a>
+  <div class="ad-trust">
+    <span class="item">{d["t1"]}</span><span class="sep-dot">·</span>
+    <span class="item">{d["t2"]}</span><span class="sep-dot">·</span>
+    <span class="item">{d["t3"]}</span><span class="sep-dot">·</span>
+    <span class="item">{d["t4"]}</span><span class="sep-dot">·</span>
+    <span class="item">{d["t5"]}</span>
+  </div>
+</div>
+"""
+    st.markdown(css + body, unsafe_allow_html=True)
 
 
 def render_explainer_video(lang):
-    """Auto-playing 7-step slideshow explaining how the app works. Shown on the
-    login screen below the login form, for visitors who want more detail."""
+    """7-step explainer of how the app works. Uses native st.tabs — no iframe,
+    no JS, no deprecation warning. Each tab shows icon + title + subtitle in a
+    compact centered card. Shown inside a collapsed expander on the login screen."""
     el = (lang == "el")
-    C = {
-        "el": {
-            "steps": ["asklepios", "βήμα 1", "βήμα 2", "βήμα 3",
-                      "προαιρετικό", "ai πρόταση", "βήμα 4"],
-            "titles": ["Ο ψηφιακός σου νοσηλευτής",
-                       "Σύνδεση με email",
-                       "Συμπλήρωσε το προφίλ σου",
-                       "Περίγραψε τα συμπτώματα σου",
-                       "Μέτρηση ζωτικών — 3 επιλογές",
-                       "Φωτό ή σάρωση — μόνο αν χρειαστεί",
-                       "Αναλυτική αναφορά υγείας"],
-            "subs": ["Αξιολόγηση συμπτωμάτων με AI — γρήγορα, στα ελληνικά.",
-                     "Εισάγεις το email σου, λαμβάνεις OTP. Χωρίς password.",
-                     "Όνομα, ηλικία, φύλο, ιστορικό, αλλεργίες, φάρμακα.",
-                     "Ο Asklepios κάνει στοχευμένες ερωτήσεις — μία κάθε φορά.",
-                     "", "",
-                     "Κλινική εκτίμηση με PubMed + GPT-4o. PDF για τον γιατρό σου."],
-        },
-        "en": {
-            "steps": ["asklepios", "step 1", "step 2", "step 3", "optional", "ai suggestion", "step 4"],
-            "titles": ["Your digital nurse", "Sign in with email", "Fill in your profile",
-                       "Describe your symptoms", "Measure vitals — 3 options",
-                       "Photo or scan — only when needed", "Detailed health report"],
-            "subs": ["AI-powered symptom assessment — fast, in your language.",
-                     "Enter your email, receive OTP. No password needed.",
-                     "Name, age, sex, history, allergies, medications.",
-                     "Asklepios asks targeted questions — one at a time.",
-                     "", "",
-                     "Clinical assessment with PubMed + GPT-4o. PDF for your doctor."],
-        },
-    }
-    d = C.get(lang, C["el"])
-    TOTAL = 7
-    icons = ["ti-stethoscope","ti-login","ti-user-circle","ti-message-chatbot",
-             "ti-heart-rate-monitor","ti-camera","ti-report-medical"]
-    ic_cls = ["ic-b","ic-p","ic-t","ic-b","ic-a","ic-c","ic-t"]
-    slides_html = ""
-    for i in range(TOTAL):
-        active = " active" if i == 0 else ""
-        sub_html = ("<p class=\"s-sub\">" + d["subs"][i] + "</p>") if d["subs"][i] else ""
-        slides_html += (
-            "<div class=\"slide" + active + "\" id=\"s" + str(i) + "\">"
-            "<div class=\"s-icon " + ic_cls[i] + "\"><i class=\"ti " + icons[i] + "\"></i></div>"
-            "<div class=\"s-step\">" + d["steps"][i] + "</div>"
-            "<div class=\"s-title\">" + d["titles"][i] + "</div>"
-            + sub_html + "</div>"
-        )
-    dots_html = "".join(
-        "<button class=\"dot" + (" on" if i==0 else "") + "\" onclick=\"go(" + str(i) + ")\"></button>"
-        for i in range(TOTAL)
-    )
-    css = (
-        "*{box-sizing:border-box;margin:0;padding:0}"
-        "body{background:transparent;font-family:sans-serif}"
-        ".ex{width:100%;border:1px solid #e5e7eb;border-radius:14px;overflow:hidden;background:#fff}"
-        ".stage{position:relative;width:100%;height:340px;overflow:hidden;background:#F8F9FF}"
-        ".slide{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;"
-        "justify-content:center;padding:24px 32px;opacity:0;transform:translateY(14px);"
-        "transition:opacity .4s,transform .4s;pointer-events:none}"
-        ".slide.active{opacity:1;transform:translateY(0);pointer-events:auto}"
-        ".slide.exit{opacity:0;transform:translateY(-14px);transition:opacity .25s,transform .25s}"
-        ".s-icon{width:52px;height:52px;border-radius:50%;display:flex;align-items:center;"
-        "justify-content:center;margin-bottom:14px;font-size:22px}"
-        ".ic-b{background:#EFF6FF;color:#1D4ED8}.ic-p{background:#EEEDFE;color:#534AB7}"
-        ".ic-t{background:#ECFDF5;color:#065F46}.ic-a{background:#FFFBEB;color:#92400E}"
-        ".ic-c{background:#FEF2F2;color:#991B1B}"
-        ".s-step{font-size:10px;font-weight:600;letter-spacing:.09em;color:#9CA3AF;"
-        "margin-bottom:6px;text-transform:uppercase}"
-        ".s-title{font-size:17px;font-weight:600;color:#1A1A2E;text-align:center;"
-        "margin-bottom:7px;line-height:1.3}"
-        ".s-sub{font-size:12px;color:#6B7280;text-align:center;line-height:1.6;max-width:380px}"
-        ".prog{height:2px;background:#F3F4F6}"
-        ".pfill{height:100%;background:#2D3FE7;border-radius:1px;transition:width .3s}"
-        ".ctrl{display:flex;align-items:center;justify-content:space-between;"
-        "padding:9px 13px;border-top:1px solid #F3F4F6;background:#fff}"
-        ".dots{display:flex;gap:5px;align-items:center}"
-        ".dot{width:5px;height:5px;border-radius:50%;background:#E5E7EB;"
-        "cursor:pointer;border:none;padding:0;transition:all .25s}"
-        ".dot.on{width:14px;border-radius:3px;background:#2D3FE7}"
-        ".ibtn{width:28px;height:28px;border-radius:50%;border:1px solid #E5E7EB;"
-        "background:#fff;cursor:pointer;font-size:13px;color:#6B7280}"
-        ".ibtn:disabled{opacity:.3;cursor:default}"
-        ".pbtn{width:28px;height:28px;border-radius:50%;border:1px solid #D1D5DB;"
-        "background:#fff;cursor:pointer;font-size:13px;color:#1A1A2E}"
-        ".sc{font-size:10px;color:#9CA3AF;min-width:28px;text-align:center}"
-    )
-    js = (
-        "var T=" + str(TOTAL) + ",cur=0,play=false,tim=null;"
-        "function mkDots(){var d=document.getElementById('dots');d.innerHTML='';"
-        "for(var i=0;i<T;i++){var b=document.createElement('button');"
-        "b.className='dot'+(i===cur?' on':'');"
-        "b.onclick=(function(x){return function(){go(x);};})(i);d.appendChild(b);}}"
-        "function go(idx){var sl=document.querySelectorAll('.slide');"
-        "sl[cur].classList.remove('active');sl[cur].classList.add('exit');"
-        "setTimeout(function(){sl[cur].classList.remove('exit');},280);"
-        "cur=idx;sl[cur].classList.add('active');"
-        "document.getElementById('pf').style.width=((cur+1)/T*100)+'%';"
-        "document.getElementById('sc').textContent=(cur+1)+' / '+T;"
-        "document.getElementById('pb').disabled=(cur===0);"
-        "document.getElementById('nb').disabled=(cur===T-1);mkDots();}"
-        "function nav(d){var n=cur+d;if(n>=0&&n<T)go(n);"
-        "if(play&&n===T-1){clearInterval(tim);play=false;"
-        "document.getElementById('pli').className='ti ti-player-play';}}"
-        "function togPlay(){play=!play;"
-        "document.getElementById('pli').className=play?'ti ti-player-pause':'ti ti-player-play';"
-        "if(play){if(cur===T-1)go(0);tim=setInterval(function(){if(cur<T-1)nav(1);"
-        "else{clearInterval(tim);play=false;"
-        "document.getElementById('pli').className='ti ti-player-play';}},3500);}"
-        "else clearInterval(tim);}"
-        "mkDots();setTimeout(function(){togPlay();},800);"
-    )
-    html = (
-        "<html><head><meta charset=\"UTF-8\">"
-        "<link rel=\"stylesheet\" href=\"https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.19.0/tabler-icons.min.css\">"
-        "<link href=\"https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600&display=swap\" rel=\"stylesheet\">"
-        "<style>" + css + "</style></head><body>"
-        "<div class=\"ex\">"
-        "<div class=\"stage\">" + slides_html + "</div>"
-        "<div class=\"prog\"><div class=\"pfill\" id=\"pf\" style=\"width:14.3%\"></div></div>"
-        "<div class=\"ctrl\">"
-        "<button class=\"ibtn\" id=\"pb\" onclick=\"nav(-1)\" disabled><i class=\"ti ti-chevron-left\"></i></button>"
-        "<div style=\"display:flex;align-items:center;gap:8px\">"
-        "<div class=\"dots\" id=\"dots\">" + dots_html + "</div>"
-        "<button class=\"pbtn\" onclick=\"togPlay()\"><i class=\"ti ti-player-play\" id=\"pli\"></i></button>"
-        "</div>"
-        "<div style=\"display:flex;align-items:center;gap:5px\">"
-        "<span class=\"sc\" id=\"sc\">1 / " + str(TOTAL) + "</span>"
-        "<button class=\"ibtn\" id=\"nb\" onclick=\"nav(1)\"><i class=\"ti ti-chevron-right\"></i></button>"
-        "</div></div></div>"
-        "<script>" + js + "</script>"
-        "</body></html>"
-    )
-    components.html(html, height=420, scrolling=False)
+    if el:
+        tab_labels = ["✦ Intro", "✉️ Σύνδεση", "👤 Προφίλ", "💬 Συμπτώματα",
+                      "❤️ Ζωτικά", "📷 Φωτό", "📋 Αναφορά"]
+        titles = ["Ο ψηφιακός σου νοσηλευτής",
+                  "Σύνδεση με email",
+                  "Συμπλήρωσε το προφίλ σου",
+                  "Περίγραψε τα συμπτώματα σου",
+                  "Μέτρηση ζωτικών — 3 επιλογές",
+                  "Φωτογραφία ή σάρωση — μόνο αν χρειαστεί",
+                  "Αναλυτική αναφορά υγείας"]
+        subs = ["Αξιολόγηση συμπτωμάτων με τεχνητή νοημοσύνη — γρήγορα, στα Ελληνικά.",
+                "Εισάγεις το email σου και λαμβάνεις 6-ψήφιο κωδικό. Χωρίς password.",
+                "Όνομα, ηλικία, φύλο, ιατρικό ιστορικό, αλλεργίες, φάρμακα.",
+                "Ο Asklepios κάνει στοχευμένες ερωτήσεις — μία κάθε φορά.",
+                "Χειροκίνητα · συσκευή · σάρωση προσώπου (καρδιακός ρυθμός).",
+                "Προτείνεται μόνο για ορατά συμπτώματα — δερματικά, τραύματα, εξογκώματα.",
+                "Κλινική εκτίμηση με αναφορές PubMed + δεύτερη γνώμη GPT-4o. Κατέβασμα PDF."]
+    else:
+        tab_labels = ["✦ Intro", "✉️ Sign-in", "👤 Profile", "💬 Symptoms",
+                      "❤️ Vitals", "📷 Photo", "📋 Report"]
+        titles = ["Your digital nurse",
+                  "Sign in with email",
+                  "Fill in your profile",
+                  "Describe your symptoms",
+                  "Measure vitals — 3 options",
+                  "Photo or scan — only when needed",
+                  "Detailed health report"]
+        subs = ["AI-powered symptom assessment — fast, in your language.",
+                "Enter your email and receive a 6-digit code. No password needed.",
+                "Name, age, sex, medical history, allergies, medications.",
+                "Asklepios asks targeted questions — one at a time.",
+                "Manual entry · device · face scan (heart rate only).",
+                "Suggested only for visible symptoms — skin, wounds, lumps.",
+                "Clinical assessment with PubMed references + GPT-4o second opinion. PDF download."]
+    icons = ["🩺", "✉️", "👤", "💬", "❤️", "📷", "📋"]
+    tints = ["#EFF6FF", "#EEEDFE", "#ECFDF5", "#FFF7ED", "#FEF2F2", "#F0FDFA", "#FDF4FF"]
+    step_label_l = "ΒΗΜΑ" if el else "STEP"
+    # Build the explainer entirely from st.tabs + st.markdown — no iframe.
+    tabs = st.tabs(tab_labels)
+    for i, tab in enumerate(tabs):
+        with tab:
+            label = "Asklepios" if i == 0 else f"{step_label_l} {i}"
+            st.markdown(
+                f"""
+<div style="background:{tints[i]};border-radius:14px;padding:24px 20px;
+            text-align:center;border:1px solid rgba(0,0,0,0.04);margin:6px 0 4px;">
+  <div style="font-size:38px;line-height:1;margin-bottom:10px;">{icons[i]}</div>
+  <div style="font-size:10.5px;font-weight:700;letter-spacing:.12em;
+              color:#9CA3AF;text-transform:uppercase;margin-bottom:6px;">{label}</div>
+  <div style="font-size:17px;font-weight:600;color:#1A1A2E;line-height:1.35;
+              margin-bottom:8px;">{titles[i]}</div>
+  <div style="font-size:13.5px;color:#4B5563;line-height:1.55;max-width:420px;
+              margin:0 auto;">{subs[i]}</div>
+</div>
+""",
+                unsafe_allow_html=True,
+            )
 
 
 def render_login_screen():
