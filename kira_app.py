@@ -248,9 +248,13 @@ st.markdown("""
     .stButton button { white-space: normal !important; min-height: 44px !important; }
 }
 [data-testid="stMarkdownContainer"] { overflow-wrap: break-word !important; word-break: break-word !important; }
-/* Markdown tables — clean column alignment on mobile (override the per-letter break above) */
+/* Markdown tables — clean column alignment. Auto layout (no fixed widths) so each
+ * table sizes naturally: differential-diagnosis (3 cols) and treatment plans (2 cols)
+ * both render correctly. Previously had table-layout:fixed + nth-child(2):64px which
+ * was meant for the diagnosis %-column but accidentally squashed every 2-col table
+ * into one-letter-per-line on mobile. */
 [data-testid="stMarkdownContainer"] table {
-    width: 100%; border-collapse: collapse; table-layout: fixed;
+    width: 100%; border-collapse: collapse;
     font-size: 12.5px; margin: 12px 0;
 }
 [data-testid="stMarkdownContainer"] thead th { background: #F4F6FF; font-weight: 600; }
@@ -260,9 +264,6 @@ st.markdown("""
     text-align: left; vertical-align: top;
     word-break: normal !important; overflow-wrap: break-word !important; hyphens: none;
 }
-/* Narrow middle column (probability/%) so Διάγνωση & Σχόλιο get the room */
-[data-testid="stMarkdownContainer"] th:nth-child(2),
-[data-testid="stMarkdownContainer"] td:nth-child(2) { width: 64px; text-align: center; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -460,53 +461,110 @@ def logout():
         pass
 
 def render_login_gate():
-    """Inline email->OTP login. Returns True once the user is logged in."""
+    """Inline email->OTP login. Returns True once the user is logged in.
+
+    UX-hardened (tester report, Cyprus): when Supabase rate-limits or returns a
+    transient error, the email STILL gets delivered — but the previous version
+    showed an error and never revealed the code-entry field. Result: the user has
+    a code in their inbox and nowhere to type it. This version always advances to
+    the code-entry stage after the send button is clicked, regardless of the API
+    return code. If no code arrives the user can press 'Resend' or 'Different email'."""
     lang = st.session_state.lang
     if is_logged_in():
         return True
+
+    # Friendly header
     st.markdown(f'''<div style="background:rgba(45,63,231,0.06);border:1px solid rgba(45,63,231,0.15);border-radius:14px;padding:20px 22px;text-align:center;margin:10px 0">
         <div style="font-size:34px;margin-bottom:6px">🔒</div>
         <div style="font-size:16px;font-weight:700;color:#1A1A2E">{"Σύνδεση" if lang=="el" else "Sign in"}</div>
-        <div style="font-size:13px;color:#6B7280;margin-top:4px">{"Βάλε το email σου και τον 6ψήφιο κωδικό που θα λάβεις για να συνεχίσεις." if lang=="el" else "Enter your email and the 6-digit code we send you to continue."}</div>
+        <div style="font-size:13px;color:#6B7280;margin-top:4px">{"Email + 6-ψήφιος κωδικός. Χωρίς password." if lang=="el" else "Email + 6-digit code. No password."}</div>
     </div>''', unsafe_allow_html=True)
+
+    # Recover pending email across mobile reloads / fresh tabs
     sent_to = st.session_state.get("otp_sent_to")
     if not sent_to:
-        # Survive a mobile reload / new session: recover the pending email from the URL
         pe = st.query_params.get("pe")
         if pe:
             st.session_state["otp_sent_to"] = pe
             sent_to = pe
+
     if not sent_to:
+        # ── STAGE 1: enter email ────────────────────────────────────────────
         email = st.text_input("Email", key="otp_email", placeholder="you@example.com")
-        if st.button(("Στείλε κωδικό" if lang=="el" else "Send code"), type="primary", use_container_width=True, key="otp_send"):
+        if st.button(("📩 " + ("Στείλε μου τον κωδικό" if lang=="el" else "Send me the code")),
+                     type="primary", use_container_width=True, key="otp_send"):
             if email and "@" in email:
+                # Best-effort send: ADVANCE to stage 2 regardless of API result.
+                # Email is usually delivered even when Supabase rate-limits the
+                # response — the user just needs the code field to appear.
                 ok, err = send_otp(email)
-                if ok:
-                    st.session_state["otp_sent_to"] = email
-                    st.query_params["pe"] = email
-                    st.rerun()
-                else:
-                    st.error(("Σφάλμα αποστολής: " if lang=="el" else "Send error: ") + err)
+                st.session_state["otp_sent_to"] = email
+                st.query_params["pe"] = email
+                if not ok:
+                    st.session_state["_otp_send_warning"] = (err or "")[:140]
+                st.rerun()
             else:
                 st.warning("Έγκυρο email, παρακαλώ." if lang=="el" else "Please enter a valid email.")
     else:
-        st.caption((f"Στείλαμε 6ψήφιο κωδικό στο {sent_to}" if lang=="el" else f"We sent a 6-digit code to {sent_to}"))
-        code = st.text_input(("Κωδικός" if lang=="el" else "Code"), key="otp_code", placeholder="123456")
-        c1, c2 = st.columns([2,1])
-        with c1:
-            if st.button(("Επιβεβαίωση" if lang=="el" else "Verify"), type="primary", use_container_width=True, key="otp_verify"):
+        # ── STAGE 2: enter code ─────────────────────────────────────────────
+        warn = st.session_state.pop("_otp_send_warning", None)
+        if warn:
+            # Soft warning — DON'T block the code field. Email may still have arrived.
+            st.warning(("⚠️ Πιθανό πρόβλημα στην αποστολή — αλλά ο κωδικός μπορεί να έχει φτάσει στο email σου. "
+                        "Έλεγξε το inbox και το spam folder, και βάλε τον κωδικό παρακάτω. "
+                        "Αν δεν λάβεις τίποτα σε 1 λεπτό, πάτα «Νέος κωδικός»."
+                        if lang=="el" else
+                        "⚠️ The send response had an issue — but the code may still have reached your email. "
+                        "Check your inbox and spam folder, then enter the code below. "
+                        "If nothing arrives within 1 minute, press 'New code'."))
+        else:
+            st.success(f"📧 " + (f"Σου στείλαμε κωδικό στο **{sent_to}**" if lang=="el"
+                                  else f"We sent a code to **{sent_to}**"))
+        st.caption(("Έλεγξε το inbox και το spam folder. Ο κωδικός φτάνει σε λίγα δευτερόλεπτα."
+                    if lang=="el" else
+                    "Check your inbox and spam folder. The code arrives within a few seconds."))
+
+        code = st.text_input(
+            ("6-ψήφιος κωδικός" if lang=="el" else "6-digit code"),
+            key="otp_code",
+            placeholder="123456",
+            max_chars=6,
+        )
+        if st.button(("✓ " + ("Επιβεβαίωση & Σύνδεση" if lang=="el" else "Verify & Sign in")),
+                     type="primary", use_container_width=True, key="otp_verify"):
+            if not code or len(str(code).strip()) < 6:
+                st.warning(("Βάλε τον 6-ψήφιο κωδικό από το email." if lang=="el"
+                            else "Enter the 6-digit code from your email."))
+            else:
                 ok, err = verify_otp(sent_to, code)
                 if ok:
                     st.session_state.pop("otp_sent_to", None)
                     if "pe" in st.query_params: del st.query_params["pe"]
                     st.rerun()
                 else:
-                    st.error(("Δεν έγινε σύνδεση: " if lang=="el" else "Sign-in failed: ") + (err or ("λάθος/ληγμένος κωδικός" if lang=="el" else "wrong/expired code")))
+                    st.error(("Λάθος ή ληγμένος κωδικός — δοκίμασε ξανά ή πάτα «Νέος κωδικός»."
+                              if lang=="el" else
+                              "Wrong or expired code — try again or press 'New code'."))
+
+        c1, c2 = st.columns(2)
+        with c1:
+            if st.button(("📩 " + ("Νέος κωδικός" if lang=="el" else "New code")),
+                         use_container_width=True, key="otp_resend"):
+                ok2, err2 = send_otp(sent_to)
+                # Always show user-friendly message — code may have arrived regardless
+                if ok2:
+                    st.success(("Νέος κωδικός στάλθηκε." if lang=="el" else "New code sent."))
+                else:
+                    st.info(("Αν δεν λάβεις νέο κωδικό σε 60'', χρησιμοποίησε τον προηγούμενο που έλαβες."
+                             if lang=="el" else
+                             "If no new code arrives in 60s, use the previous one you received."))
         with c2:
-            if st.button(("Άλλο email" if lang=="el" else "Change email"), use_container_width=True, key="otp_reset"):
+            if st.button(("Άλλο email" if lang=="el" else "Different email"),
+                         use_container_width=True, key="otp_reset"):
                 st.session_state.pop("otp_sent_to", None)
                 if "pe" in st.query_params: del st.query_params["pe"]
                 st.rerun()
+
     return is_logged_in()
 
 def render_ad_banner(lang):
@@ -1350,18 +1408,41 @@ _VISUAL_ROOTS = [
     "κνησμ","φαγουρ","φουσκαλ","φλυκταιν","εκζεμ","ψωριασ","ελκος","εξελκωσ","αφθ",
     "οφθαλμ","ματι","λαιμ","αμυγδαλ","φαρυγγ","γλωσσ","νυχι","ονυχ","ουλη","κονδυλωμ",
     "αλλοιωσ","κηλιδ","δοθιην","αποστημ","σπυρακ","πρηξιμ","οζο",
+    # Additional: swelling / lump / bump variants (medical + casual Greek)
+    "διογκωσ","καρουμπαλ","ογκο","πεταξ","βγηκ","πρισμ","φουσκωμ","φουσκωσ",
     # English
     "skin","rash","lesion","wound","laceration","abrasion","lump","bump","swelling",
     "swollen","bruise","mole","melanoma","eye","throat","tonsil","tongue","nail",
     "burn","bite","itch","blister","eczema","psoriasis","ulcer","pimple","cyst","wart",
 ]
 def _visual_relevant():
-    # USER messages only — so when Asklepios asks differential questions like
-    # "any rash on the skin?" during a chest-pain workup, the photo option does
-    # NOT appear. The photo expander is for things the USER is complaining about.
-    txt = _strip_accents(" ".join(m["content"] for m in st.session_state.triage_chat
-                                  if m["role"] == "user"))
-    return any(r in txt for r in _VISUAL_ROOTS)
+    """Show the photo upload option when EITHER:
+    (a) the user explicitly mentions a visual symptom (skin/rash/wound/lump/…), OR
+    (b) Asklepios's most recent reply explicitly suggested the photo option.
+    Case (b) catches descriptions in casual/regional Greek (e.g. «πετάξει κάτι σαν
+    βυζί στον αγκώνα» = an elbow lump) where Claude understood and offered the
+    photo, but our keyword list couldn't match the unusual phrasing. We only
+    check the LAST assistant message so old differential-diagnosis mentions of
+    'εξάνθημα' in unrelated chest-pain workups do NOT trigger false positives."""
+    # (a) User explicitly mentions a visual symptom
+    user_txt = _strip_accents(" ".join(m["content"] for m in st.session_state.triage_chat
+                                       if m["role"] == "user"))
+    if any(r in user_txt for r in _VISUAL_ROOTS):
+        return True
+    # (b) Asklepios's LAST message suggests the photo option
+    last_assistant = next((m["content"] for m in reversed(st.session_state.triage_chat)
+                           if m["role"] == "assistant"), "")
+    a_txt = _strip_accents(last_assistant)
+    photo_hints = [
+        _strip_accents("αναλυση φωτογραφιας"),
+        _strip_accents("ανεβασεις φωτογραφια"),
+        _strip_accents("ανεβασετε φωτογραφια"),
+        _strip_accents("φωτογραφια απο την επιλογη"),
+        "photo analysis",
+        "upload a photo",
+        "upload photo",
+    ]
+    return any(p in a_txt for p in photo_hints)
 
 # Quick-select symptom chips, tailored to the person (age + sex from the profile).
 # These are common PRESENTING COMPLAINTS per group — not diagnoses — to speed up the
@@ -2227,9 +2308,145 @@ Language: {"Greek" if lang=="el" else "English"}. Be direct. End with a one-line
     if not st.session_state.report:
         if st.button("🔄 "+("Δοκιμή ξανά" if lang=="el" else "Retry"),type="primary"): st.rerun()
         return
-    st.markdown('<div class="card">',unsafe_allow_html=True)
+    # ── Doctor's-report style: PATIENT INFO doc-card + CLINICAL ASSESSMENT header ──
+    # Inspired by the medical-report template (USGH-style): blue/red accent boxes
+    # for allergies + medications side-by-side, with medical history above. The
+    # actual Claude assessment renders below with restyled markdown section headers.
+    history_raw = (p.get("history") or "").strip()
+    history = history_raw if history_raw else "—"
+    allergies_raw = (p.get("allergies") or "").strip()
+    allergies = allergies_raw if allergies_raw else "—"
+    meds_raw = (p.get("meds_raw") or "").strip()
+    meds_list = [m.strip() for m in meds_raw.split(",") if m.strip()]
+    meds_html = "<br>".join(f"• {m}" for m in meds_list) if meds_list else "—"
+    if lang == "el":
+        TX = {
+            "patient_info": "Στοιχεία Ασθενή",
+            "history_lbl": "Ιατρικό Ιστορικό",
+            "allergies_lbl": "Αλλεργίες",
+            "meds_lbl": "Φάρμακα",
+            "assessment_title": "Κλινική Αξιολόγηση",
+        }
+    else:
+        TX = {
+            "patient_info": "Patient Information",
+            "history_lbl": "Medical History",
+            "allergies_lbl": "Allergies",
+            "meds_lbl": "Medications",
+            "assessment_title": "Clinical Assessment",
+        }
+    st.markdown(f"""
+<style>
+.report-card {{
+  background: white;
+  border: 1px solid #E5E7EB;
+  border-radius: 14px;
+  padding: 26px 28px;
+  margin: 6px 0 16px;
+  font-family: 'Inter', system-ui, sans-serif;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+}}
+.report-card-title {{
+  font-size: 11px; font-weight: 700; letter-spacing: 0.14em;
+  color: #6B7280; text-transform: uppercase;
+  border-bottom: 2px solid #E5E7EB;
+  padding-bottom: 10px; margin-bottom: 18px;
+  display: flex; align-items: center; gap: 8px;
+}}
+.history-block {{
+  background: #F9FAFB; border: 1px solid #E5E7EB;
+  border-radius: 10px; padding: 14px 16px; margin-bottom: 14px;
+  font-size: 13.5px; color: #374151; line-height: 1.55;
+}}
+.history-block .hb-lbl {{
+  font-size: 10.5px; font-weight: 700; color: #6B7280;
+  text-transform: uppercase; letter-spacing: 0.10em; margin-bottom: 6px;
+}}
+.aller-meds {{
+  display: grid; grid-template-columns: 1fr 1fr; gap: 14px;
+}}
+.aller-box, .meds-box {{
+  border-radius: 12px; padding: 16px 18px;
+  font-size: 13.5px; line-height: 1.55;
+}}
+.aller-box {{ background: #FEF2F2; border: 1px solid #FECACA; }}
+.meds-box  {{ background: #DBEAFE; border: 1px solid #93C5FD; }}
+.aller-box .am-lbl, .meds-box .am-lbl {{
+  font-size: 10.5px; font-weight: 700; letter-spacing: 0.12em;
+  text-transform: uppercase; margin-bottom: 8px;
+}}
+.aller-box .am-lbl {{ color: #991B1B; }}
+.meds-box  .am-lbl {{ color: #1E40AF; }}
+.aller-box .am-val {{ color: #7F1D1D; font-weight: 500; }}
+.meds-box  .am-val {{ color: #1E3A8A; font-weight: 500; }}
+
+/* Clinical Assessment section header (separates patient info from Claude content) */
+.assessment-section-header {{
+  background: linear-gradient(135deg, #EFF6FF 0%, #E0E7FF 100%);
+  border: 1px solid #C7D2FE;
+  border-left: 4px solid #2D3FE7;
+  border-radius: 12px;
+  padding: 16px 22px;
+  margin: 16px 0 14px;
+  display: flex; align-items: center; gap: 12px;
+  font-family: 'Inter', system-ui, sans-serif;
+}}
+.assessment-section-header .ash-icon {{
+  font-size: 24px;
+}}
+.assessment-section-header .ash-title {{
+  font-size: 13px; font-weight: 800; letter-spacing: 0.14em;
+  color: #1E3A8A; text-transform: uppercase;
+}}
+
+/* Style markdown section headers inside the Claude report so each section
+ * ("ΚΥΡΙΟ ΠΑΡΑΠΟΝΟ", "ΙΣΤΟΡΙΚΟ", "ΕΚΤΙΜΗΣΗ" ...) reads like a medical report block */
+[data-testid="stMarkdownContainer"] h1,
+[data-testid="stMarkdownContainer"] h2 {{
+  color: #2D3FE7 !important;
+  font-size: 14px !important;
+  font-weight: 700 !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.10em !important;
+  border-bottom: 1.5px solid #DBEAFE !important;
+  padding-bottom: 6px !important;
+  margin: 22px 0 12px !important;
+}}
+[data-testid="stMarkdownContainer"] h3 {{
+  color: #4338CA !important;
+  font-size: 13.5px !important;
+  font-weight: 700 !important;
+  margin: 16px 0 8px !important;
+}}
+@media (max-width: 640px) {{
+  .report-card {{ padding: 20px 18px; }}
+  .aller-meds {{ grid-template-columns: 1fr; gap: 10px; }}
+  .assessment-section-header {{ padding: 12px 16px; }}
+}}
+</style>
+<div class="report-card">
+  <div class="report-card-title">📑 {TX['patient_info']}</div>
+  <div class="history-block">
+    <div class="hb-lbl">📋 {TX['history_lbl']}</div>
+    <div>{history}</div>
+  </div>
+  <div class="aller-meds">
+    <div class="aller-box">
+      <div class="am-lbl">🔴 {TX['allergies_lbl']}</div>
+      <div class="am-val">{allergies}</div>
+    </div>
+    <div class="meds-box">
+      <div class="am-lbl">💊 {TX['meds_lbl']}</div>
+      <div class="am-val">{meds_html}</div>
+    </div>
+  </div>
+</div>
+<div class="assessment-section-header">
+  <span class="ash-icon">📋</span>
+  <span class="ash-title">{TX['assessment_title']}</span>
+</div>
+""", unsafe_allow_html=True)
     st.markdown(st.session_state.report)
-    st.markdown('</div>',unsafe_allow_html=True)
     if st.session_state.report_pubmed:
         with st.expander(f"🔬 {t('pubmed')} ({len(st.session_state.report_pubmed)})"):
             for a in st.session_state.report_pubmed:
