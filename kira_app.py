@@ -477,7 +477,7 @@ def render_login_gate():
     st.markdown(f'''<div style="background:rgba(45,63,231,0.06);border:1px solid rgba(45,63,231,0.15);border-radius:14px;padding:20px 22px;text-align:center;margin:10px 0">
         <div style="font-size:34px;margin-bottom:6px">🔒</div>
         <div style="font-size:16px;font-weight:700;color:#1A1A2E">{"Σύνδεση" if lang=="el" else "Sign in"}</div>
-        <div style="font-size:13px;color:#6B7280;margin-top:4px">{"Email + 6-ψήφιος κωδικός. Χωρίς password." if lang=="el" else "Email + 6-digit code. No password."}</div>
+        <div style="font-size:13px;color:#6B7280;margin-top:4px">{"Email + κωδικός μίας χρήσης. Χωρίς password." if lang=="el" else "Email + one-time code. No password."}</div>
     </div>''', unsafe_allow_html=True)
 
     # Recover pending email across mobile reloads / fresh tabs
@@ -525,18 +525,19 @@ def render_login_gate():
                     "Check your inbox and spam folder. The code arrives within a few seconds."))
 
         code = st.text_input(
-            ("6-ψήφιος κωδικός" if lang=="el" else "6-digit code"),
+            ("Κωδικός από το email" if lang=="el" else "Code from your email"),
             key="otp_code",
-            placeholder="123456",
-            max_chars=6,
+            placeholder="12345678",
+            max_chars=8,
         )
         if st.button(("✓ " + ("Επιβεβαίωση & Σύνδεση" if lang=="el" else "Verify & Sign in")),
                      type="primary", use_container_width=True, key="otp_verify"):
-            if not code or len(str(code).strip()) < 6:
-                st.warning(("Βάλε τον 6-ψήφιο κωδικό από το email." if lang=="el"
-                            else "Enter the 6-digit code from your email."))
+            _code_clean = str(code or "").strip().replace(" ", "")
+            if not _code_clean.isdigit() or len(_code_clean) < 6:
+                st.warning(("Βάλε τον κωδικό από το email (6-8 ψηφία)." if lang=="el"
+                            else "Enter the code from your email (6-8 digits)."))
             else:
-                ok, err = verify_otp(sent_to, code)
+                ok, err = verify_otp(sent_to, _code_clean)
                 if ok:
                     st.session_state.pop("otp_sent_to", None)
                     if "pe" in st.query_params: del st.query_params["pe"]
@@ -785,7 +786,7 @@ def render_explainer_video(lang):
              "Αξιολόγηση συμπτωμάτων με τεχνητή νοημοσύνη — γρήγορα, στα Ελληνικά."),
             ("02", "✉️", "#F0EEFE", "ΣΥΝΔΕΣΗ",
              "Σύνδεση με email",
-             "Email + 6-ψήφιος κωδικός. Χωρίς password, χωρίς πολύπλοκη εγγραφή."),
+             "Email + κωδικός μίας χρήσης. Χωρίς password, χωρίς πολύπλοκη εγγραφή."),
             ("03", "👤", "#ECFDF5", "ΠΡΟΦΙΛ",
              "Συμπλήρωσε το προφίλ σου",
              "Όνομα, ηλικία, φύλο, ιατρικό ιστορικό, αλλεργίες, φάρμακα."),
@@ -811,7 +812,7 @@ def render_explainer_video(lang):
              "AI-powered symptom assessment — fast, in your language."),
             ("02", "✉️", "#F0EEFE", "SIGN-IN",
              "Sign in with email",
-             "Email + 6-digit code. No password, no complex registration."),
+             "Email + one-time code. No password, no complex registration."),
             ("03", "👤", "#ECFDF5", "PROFILE",
              "Fill in your profile",
              "Name, age, sex, medical history, allergies, medications."),
