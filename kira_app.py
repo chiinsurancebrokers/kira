@@ -531,7 +531,6 @@ def render_ad_banner(lang):
             "s3_l1":"Clinical assessment",
             "s3_l2":"PubMed references",
             "s3_l3":"Drug interactions",
-            "cta":"Sign in free ↓",
             "t1":"🇬🇷 Greek", "t2":"🔒 GDPR",
             "t3":"📚 PubMed", "t4":"🤖 Claude + GPT-4o", "t5":"⚡ Free",
         }
@@ -548,7 +547,6 @@ def render_ad_banner(lang):
             "s3_l1":"Κλινική εκτίμηση",
             "s3_l2":"Αναφορές PubMed",
             "s3_l3":"Αλληλεπιδράσεις",
-            "cta":"Σύνδεση δωρεάν ↓",
             "t1":"🇬🇷 Ελληνικά", "t2":"🔒 GDPR",
             "t3":"📚 PubMed", "t4":"🤖 Claude + GPT-4o", "t5":"⚡ Δωρεάν",
         }
@@ -646,23 +644,13 @@ def render_ad_banner(lang):
   font-size: 22px; color: #D946EF; font-weight: 700; opacity: 0.5;
 }
 
-.ad-cta {
-  display: inline-block;
-  background: linear-gradient(135deg, #2D3FE7, #7B2FE0);
-  color: white !important; padding: 15px 36px;
-  border-radius: 999px; font-size: 14.5px; font-weight: 700;
-  letter-spacing: 0.02em; margin: 4px 0 26px;
-  box-shadow: 0 6px 18px rgba(123, 47, 224, 0.28);
-  text-decoration: none;
-}
-
 /* Trust badges — inline with dot separators (Cira-style) */
 .ad-trust {
   display: flex; justify-content: center; align-items: center;
   gap: 10px; flex-wrap: wrap; font-size: 12.5px;
   color: #6B7280; font-weight: 500;
   padding-top: 14px; border-top: 1px solid rgba(0,0,0,0.05);
-  margin-top: 4px;
+  margin-top: 20px;
 }
 .ad-trust .item { white-space: nowrap; }
 .ad-trust .sep-dot {
@@ -679,7 +667,6 @@ def render_ad_banner(lang):
   .ad-card { width: 100%; max-width: 340px; padding: 14px; min-height: auto; }
   .ad-flow { gap: 10px; margin: 24px 0 28px; }
   .ad-trust { gap: 6px; font-size: 11.5px; }
-  .ad-cta { padding: 14px 28px; font-size: 13.5px; }
   .ad-pill { font-size: 10.5px; padding: 7px 14px; }
 }
 </style>
@@ -716,7 +703,6 @@ def render_ad_banner(lang):
       </div>
     </div>
   </div>
-  <a href="#asklepios-login" class="ad-cta">{d["cta"]}</a>
   <div class="ad-trust">
     <span class="item">{d["t1"]}</span><span class="sep-dot">·</span>
     <span class="item">{d["t2"]}</span><span class="sep-dot">·</span>
@@ -730,67 +716,146 @@ def render_ad_banner(lang):
 
 
 def render_explainer_video(lang):
-    """7-step explainer of how the app works. Uses native st.tabs — no iframe,
-    no JS, no deprecation warning. Each tab shows icon + title + subtitle in a
-    compact centered card. Shown inside a collapsed expander on the login screen."""
+    """Photo-slider style walkthrough: horizontal scrollable cards (one per step).
+    Mobile: swipeable with snap. Desktop: 3-4 cards visible + scroll. No iframe,
+    no JS, no tabs — visible immediately."""
     el = (lang == "el")
     if el:
-        tab_labels = ["✦ Intro", "✉️ Σύνδεση", "👤 Προφίλ", "💬 Συμπτώματα",
-                      "❤️ Ζωτικά", "📷 Φωτό", "📋 Αναφορά"]
-        titles = ["Ο ψηφιακός σου νοσηλευτής",
-                  "Σύνδεση με email",
-                  "Συμπλήρωσε το προφίλ σου",
-                  "Περίγραψε τα συμπτώματα σου",
-                  "Μέτρηση ζωτικών — 3 επιλογές",
-                  "Φωτογραφία ή σάρωση — μόνο αν χρειαστεί",
-                  "Αναλυτική αναφορά υγείας"]
-        subs = ["Αξιολόγηση συμπτωμάτων με τεχνητή νοημοσύνη — γρήγορα, στα Ελληνικά.",
-                "Εισάγεις το email σου και λαμβάνεις 6-ψήφιο κωδικό. Χωρίς password.",
-                "Όνομα, ηλικία, φύλο, ιατρικό ιστορικό, αλλεργίες, φάρμακα.",
-                "Ο Asklepios κάνει στοχευμένες ερωτήσεις — μία κάθε φορά.",
-                "Χειροκίνητα · συσκευή · σάρωση προσώπου (καρδιακός ρυθμός).",
-                "Προτείνεται μόνο για ορατά συμπτώματα — δερματικά, τραύματα, εξογκώματα.",
-                "Κλινική εκτίμηση με αναφορές PubMed + δεύτερη γνώμη GPT-4o. Κατέβασμα PDF."]
+        steps = [
+            ("01", "🩺", "#EEF6FF", "ASKLEPIOS",
+             "Ο ψηφιακός σου νοσηλευτής",
+             "Αξιολόγηση συμπτωμάτων με τεχνητή νοημοσύνη — γρήγορα, στα Ελληνικά."),
+            ("02", "✉️", "#F0EEFE", "ΣΥΝΔΕΣΗ",
+             "Σύνδεση με email",
+             "Email + 6-ψήφιος κωδικός. Χωρίς password, χωρίς πολύπλοκη εγγραφή."),
+            ("03", "👤", "#ECFDF5", "ΠΡΟΦΙΛ",
+             "Συμπλήρωσε το προφίλ σου",
+             "Όνομα, ηλικία, φύλο, ιατρικό ιστορικό, αλλεργίες, φάρμακα."),
+            ("04", "💬", "#FFF7ED", "ΣΥΜΠΤΩΜΑΤΑ",
+             "Περίγραψε τι νιώθεις",
+             "Ο Asklepios κάνει στοχευμένες ερωτήσεις — μία κάθε φορά."),
+            ("05", "❤️", "#FEF2F2", "ΖΩΤΙΚΑ",
+             "Μέτρηση ζωτικών — 3 επιλογές",
+             "Χειροκίνητα · συσκευή · σάρωση προσώπου (καρδιακός ρυθμός)."),
+            ("06", "📷", "#F0FDFA", "ΦΩΤΟ",
+             "Φωτογραφία — μόνο αν χρειαστεί",
+             "Προτείνεται για ορατά συμπτώματα: δερματικά, τραύματα, εξογκώματα."),
+            ("07", "📋", "#FDF4FF", "ΑΝΑΦΟΡΑ",
+             "Αναλυτική αναφορά υγείας",
+             "Κλινική εκτίμηση με PubMed + GPT-4o δεύτερη γνώμη. PDF για τον γιατρό σου."),
+        ]
+        header = "Πώς λειτουργεί"
+        hint   = "← σύρε για περισσότερα →"
     else:
-        tab_labels = ["✦ Intro", "✉️ Sign-in", "👤 Profile", "💬 Symptoms",
-                      "❤️ Vitals", "📷 Photo", "📋 Report"]
-        titles = ["Your digital nurse",
-                  "Sign in with email",
-                  "Fill in your profile",
-                  "Describe your symptoms",
-                  "Measure vitals — 3 options",
-                  "Photo or scan — only when needed",
-                  "Detailed health report"]
-        subs = ["AI-powered symptom assessment — fast, in your language.",
-                "Enter your email and receive a 6-digit code. No password needed.",
-                "Name, age, sex, medical history, allergies, medications.",
-                "Asklepios asks targeted questions — one at a time.",
-                "Manual entry · device · face scan (heart rate only).",
-                "Suggested only for visible symptoms — skin, wounds, lumps.",
-                "Clinical assessment with PubMed references + GPT-4o second opinion. PDF download."]
-    icons = ["🩺", "✉️", "👤", "💬", "❤️", "📷", "📋"]
-    tints = ["#EFF6FF", "#EEEDFE", "#ECFDF5", "#FFF7ED", "#FEF2F2", "#F0FDFA", "#FDF4FF"]
-    step_label_l = "ΒΗΜΑ" if el else "STEP"
-    # Build the explainer entirely from st.tabs + st.markdown — no iframe.
-    tabs = st.tabs(tab_labels)
-    for i, tab in enumerate(tabs):
-        with tab:
-            label = "Asklepios" if i == 0 else f"{step_label_l} {i}"
-            st.markdown(
-                f"""
-<div style="background:{tints[i]};border-radius:14px;padding:24px 20px;
-            text-align:center;border:1px solid rgba(0,0,0,0.04);margin:6px 0 4px;">
-  <div style="font-size:38px;line-height:1;margin-bottom:10px;">{icons[i]}</div>
-  <div style="font-size:10.5px;font-weight:700;letter-spacing:.12em;
-              color:#9CA3AF;text-transform:uppercase;margin-bottom:6px;">{label}</div>
-  <div style="font-size:17px;font-weight:600;color:#1A1A2E;line-height:1.35;
-              margin-bottom:8px;">{titles[i]}</div>
-  <div style="font-size:13.5px;color:#4B5563;line-height:1.55;max-width:420px;
-              margin:0 auto;">{subs[i]}</div>
+        steps = [
+            ("01", "🩺", "#EEF6FF", "ASKLEPIOS",
+             "Your digital nurse",
+             "AI-powered symptom assessment — fast, in your language."),
+            ("02", "✉️", "#F0EEFE", "SIGN-IN",
+             "Sign in with email",
+             "Email + 6-digit code. No password, no complex registration."),
+            ("03", "👤", "#ECFDF5", "PROFILE",
+             "Fill in your profile",
+             "Name, age, sex, medical history, allergies, medications."),
+            ("04", "💬", "#FFF7ED", "SYMPTOMS",
+             "Describe what you're feeling",
+             "Asklepios asks targeted questions — one at a time."),
+            ("05", "❤️", "#FEF2F2", "VITALS",
+             "Measure vitals — 3 options",
+             "Manual entry · device · face scan (heart rate only)."),
+            ("06", "📷", "#F0FDFA", "PHOTO",
+             "Photo — only when needed",
+             "Suggested for visible symptoms: skin, wounds, lumps."),
+            ("07", "📋", "#FDF4FF", "REPORT",
+             "Detailed health report",
+             "Clinical assessment with PubMed + GPT-4o second opinion. PDF for your doctor."),
+        ]
+        header = "How it works"
+        hint   = "← swipe for more →"
+    cards = "".join(
+        f"""<div class="exp-card" style="background:{tint};">
+              <div class="exp-num">{num}</div>
+              <div class="exp-icon">{icon}</div>
+              <div class="exp-label">{label}</div>
+              <div class="exp-title">{title}</div>
+              <div class="exp-sub">{sub}</div>
+            </div>"""
+        for (num, icon, tint, label, title, sub) in steps
+    )
+    st.markdown(
+        f"""
+<style>
+.exp-section {{
+  margin: 32px 0 16px;
+}}
+.exp-header {{
+  display: flex; justify-content: space-between; align-items: baseline;
+  margin: 0 4px 12px;
+  font-family: 'Inter', system-ui, sans-serif;
+}}
+.exp-header .ttl {{
+  font-size: 18px; font-weight: 700; color: #1A1A2E;
+  letter-spacing: -0.01em;
+}}
+.exp-header .hint {{
+  font-size: 11px; color: #9CA3AF; font-weight: 500;
+  letter-spacing: 0.02em;
+}}
+.exp-scroll {{
+  display: flex; gap: 12px;
+  overflow-x: auto; overflow-y: hidden;
+  padding: 4px 4px 18px;
+  scroll-snap-type: x mandatory;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+  scrollbar-color: #CBD5E1 transparent;
+}}
+.exp-scroll::-webkit-scrollbar {{ height: 6px; }}
+.exp-scroll::-webkit-scrollbar-thumb {{
+  background: #CBD5E1; border-radius: 3px;
+}}
+.exp-scroll::-webkit-scrollbar-track {{ background: transparent; }}
+.exp-card {{
+  flex: 0 0 250px; max-width: 250px;
+  border-radius: 18px; padding: 22px 20px;
+  scroll-snap-align: start;
+  border: 1px solid rgba(0,0,0,0.04);
+  text-align: left;
+  font-family: 'Inter', system-ui, sans-serif;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+}}
+.exp-num {{
+  font-size: 11px; font-weight: 800; letter-spacing: 0.14em;
+  color: rgba(0,0,0,0.28); margin-bottom: 12px;
+}}
+.exp-icon {{
+  font-size: 30px; line-height: 1; margin-bottom: 10px;
+}}
+.exp-label {{
+  font-size: 9.5px; font-weight: 700; letter-spacing: 0.14em;
+  color: #9CA3AF; text-transform: uppercase; margin-bottom: 6px;
+}}
+.exp-title {{
+  font-size: 15px; font-weight: 700; color: #1A1A2E;
+  line-height: 1.35; margin-bottom: 8px;
+}}
+.exp-sub {{
+  font-size: 12.5px; color: #4B5563; line-height: 1.55;
+}}
+@media (max-width: 640px) {{
+  .exp-card {{ flex: 0 0 220px; padding: 18px 16px; }}
+  .exp-icon {{ font-size: 26px; }}
+  .exp-title {{ font-size: 14px; }}
+  .exp-sub {{ font-size: 12px; }}
+}}
+</style>
+<div class="exp-section">
+  <div class="exp-header"><span class="ttl">{header}</span><span class="hint">{hint}</span></div>
+  <div class="exp-scroll">{cards}</div>
 </div>
 """,
-                unsafe_allow_html=True,
-            )
+        unsafe_allow_html=True,
+    )
 
 
 def render_login_screen():
@@ -806,11 +871,9 @@ def render_login_screen():
     col1, col2, col3 = st.columns([1,2,1])
     with col2:
         render_login_gate()
-    # "How it works" explainer — collapsed by default so the page stays compact.
-    # Users who want to learn more before signing in can expand it.
-    with st.expander(("Πώς λειτουργεί (1 λεπτό)" if lang=="el" else "How it works (1 min)"),
-                     expanded=False):
-        render_explainer_video(lang)
+    # "How it works" photo-slider — visible inline, no click needed.
+    # Horizontal scrollable cards, mobile-swipeable.
+    render_explainer_video(lang)
     st.markdown(f'<div class="disclaimer">{t("disclaimer_main")}</div>', unsafe_allow_html=True)
 
 def save_feedback(rating, comment=""):
@@ -1042,6 +1105,88 @@ def render_topbar():
                          key="topbar_logout", use_container_width=True):
                 logout()
                 st.rerun()
+
+
+def render_doc_header(title_el, title_en, *, icon="📋",
+                      sub_el=None, sub_en=None, show_date=True):
+    """Compact doc-template style header card for each screen.
+    White card with blue circular logo, org caps, friendly title, optional subtitle
+    and date. Establishes the medical-form aesthetic on intake/vitals/triage/report
+    while keeping Streamlit widgets unchanged below."""
+    lang = st.session_state.lang
+    title = title_el if lang == "el" else title_en
+    sub = (sub_el if lang == "el" else sub_en) or ""
+    org = "ASKLEPIOS · AI ΝΟΣΗΛΕΥΤΗΣ" if lang == "el" else "ASKLEPIOS · AI NURSE"
+    date_str = datetime.now().strftime("%d.%m.%Y")
+    date_lbl = "ΗΜΕΡ." if lang == "el" else "DATE"
+    date_html = (
+        f'<div class="dph-date"><div class="dph-date-lbl">{date_lbl}</div>'
+        f'<div class="dph-date-val">{date_str}</div></div>'
+    ) if show_date else ""
+    sub_html = f'<div class="dph-sub">{sub}</div>' if sub else ""
+    st.markdown(
+        f"""
+<style>
+.doc-page-head {{
+  display: flex; align-items: center; gap: 16px;
+  padding: 18px 22px;
+  background: white;
+  border: 1px solid #E5E7EB;
+  border-radius: 14px;
+  margin: 4px 0 22px;
+  font-family: 'Inter', system-ui, sans-serif;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.03);
+}}
+.dph-logo {{
+  width: 50px; height: 50px; border-radius: 50%;
+  background: #DBEAFE;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 23px; flex-shrink: 0;
+}}
+.dph-text {{ flex: 1; min-width: 0; }}
+.dph-org {{
+  font-size: 9.5px; font-weight: 700; letter-spacing: 0.14em;
+  color: #6B7280; text-transform: uppercase; margin-bottom: 3px;
+}}
+.dph-title {{
+  font-size: 19px; font-weight: 700; color: #111827;
+  letter-spacing: -0.015em; line-height: 1.2;
+}}
+.dph-sub {{
+  font-size: 12.5px; color: #6B7280; margin-top: 3px; font-weight: 500;
+}}
+.dph-date {{
+  text-align: right; flex-shrink: 0;
+  border-left: 1px solid #E5E7EB; padding-left: 14px;
+}}
+.dph-date-lbl {{
+  font-size: 9px; font-weight: 700; letter-spacing: 0.14em;
+  color: #9CA3AF; text-transform: uppercase;
+}}
+.dph-date-val {{
+  font-size: 13px; font-weight: 700; color: #111827;
+  font-variant-numeric: tabular-nums; margin-top: 2px;
+}}
+@media (max-width: 640px) {{
+  .doc-page-head {{ padding: 14px 16px; gap: 12px; }}
+  .dph-logo {{ width: 42px; height: 42px; font-size: 19px; }}
+  .dph-title {{ font-size: 16px; }}
+  .dph-sub {{ font-size: 11.5px; }}
+  .dph-date {{ display: none; }}
+}}
+</style>
+<div class="doc-page-head">
+  <div class="dph-logo">{icon}</div>
+  <div class="dph-text">
+    <div class="dph-org">{org}</div>
+    <div class="dph-title">{title}</div>
+    {sub_html}
+  </div>
+  {date_html}
+</div>
+""",
+        unsafe_allow_html=True,
+    )
 
 
 def render_stepper(current):
@@ -1323,22 +1468,177 @@ table.vitals tbody tr:nth-child(even){{background:#F8FAFF}}
     return html_out.encode("utf-8")
 
 def render_home():
-    st.markdown(f'''<div class="kira-hero"><div style="font-size:64px;margin-bottom:8px">🩺</div><h1>{t("title")}</h1><p>{t("subtitle")}</p><div class="kira-tagline">{t("tagline")}</div></div>''',unsafe_allow_html=True)
-    st.markdown(f'<div class="disclaimer">{t("disclaimer_main")}</div>',unsafe_allow_html=True)
-    col1,col2,col3=st.columns([1,2,1])
+    lang = st.session_state.lang
+    p = st.session_state.profile
+    name = p.get("name", "")
+    today_str = datetime.now().strftime("%d.%m.%Y")
+    # Editorial banner — now visible on home too (no CTA, Start button is right below).
+    render_ad_banner(lang)
+    # Doc-template "assessment sheet" card — Notion-clean white surface with
+    # doctor's-report aesthetic: title block, patient fields, checklist, blue emergency box.
+    if lang == "el":
+        txt = {
+            "org": "ASKLEPIOS · AI ΝΟΣΗΛΕΥΤΗΣ",
+            "title": "Φύλλο Εκτίμησης Υγείας",
+            "patient_lbl": "Όνομα:",
+            "date_lbl": "Ημερομηνία:",
+            "includes": "Τι περιλαμβάνει η εκτίμηση:",
+            "check1": "Κλινική εκτίμηση συμπτωμάτων",
+            "check2": "Αναφορές από PubMed (επιστημονική βιβλιογραφία)",
+            "check3": "Δεύτερη γνώμη GPT-4o",
+            "check4": "Έλεγχος αλληλεπιδράσεων φαρμάκων",
+            "check5": "PDF αναφορά για τον γιατρό σου",
+            "start": "📋 Ξεκίνα την εκτίμηση →",
+            "emergency_lbl": "Επείγον:",
+            "emergency_text": "Για πόνο στο στήθος, δυσκολία αναπνοής, σοβαρή αιμορραγία, απώλεια συνείδησης ή συμπτώματα εγκεφαλικού, καλέστε αμέσως 166 (ΕΚΑΒ) ή 112.",
+            "blank": "_____________________",
+        }
+    else:
+        txt = {
+            "org": "ASKLEPIOS · AI NURSE",
+            "title": "Health Assessment Sheet",
+            "patient_lbl": "Name:",
+            "date_lbl": "Date:",
+            "includes": "What this assessment includes:",
+            "check1": "Clinical symptom evaluation",
+            "check2": "PubMed references (scientific literature)",
+            "check3": "GPT-4o second opinion",
+            "check4": "Drug interaction check",
+            "check5": "PDF report for your doctor",
+            "start": "📋 Start assessment →",
+            "emergency_lbl": "Emergency:",
+            "emergency_text": "For chest pain, difficulty breathing, severe bleeding, loss of consciousness, or stroke symptoms, call 166 (EKAB) or 112 immediately.",
+            "blank": "_____________________",
+        }
+    name_display = name if name else txt["blank"]
+    st.markdown(f"""
+<style>
+.doc-card {{
+  background: white;
+  border: 1px solid #E5E7EB;
+  border-radius: 16px;
+  padding: 36px 36px 32px;
+  margin: 8px 0 24px;
+  font-family: 'Inter', system-ui, sans-serif;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+}}
+.doc-head {{
+  display: flex; align-items: center; gap: 18px;
+  border-bottom: 1px solid #F3F4F6;
+  padding-bottom: 22px; margin-bottom: 26px;
+}}
+.doc-logo {{
+  width: 60px; height: 60px; border-radius: 50%;
+  background: #DBEAFE;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 26px; flex-shrink: 0;
+}}
+.doc-head-text .org {{
+  font-size: 10.5px; font-weight: 700; letter-spacing: 0.14em;
+  color: #6B7280; text-transform: uppercase; margin-bottom: 4px;
+}}
+.doc-head-text .title {{
+  font-size: 26px; font-weight: 700; color: #111827;
+  letter-spacing: -0.02em; line-height: 1.15;
+}}
+.doc-fields {{
+  display: flex; gap: 36px; margin-bottom: 26px; flex-wrap: wrap;
+}}
+.doc-field {{ flex: 1; min-width: 200px; }}
+.doc-field label {{
+  display: block;
+  font-size: 12.5px; font-weight: 600; color: #374151;
+  margin-bottom: 6px;
+}}
+.doc-field .underline {{
+  font-size: 15px; color: #111827; font-weight: 500;
+  border-bottom: 1.5px solid #1F2937;
+  padding-bottom: 5px;
+}}
+.doc-section {{
+  font-size: 14px; font-weight: 700; color: #111827;
+  margin: 4px 0 14px;
+}}
+.doc-checklist {{
+  display: grid; grid-template-columns: 1fr 1fr;
+  gap: 11px 28px; margin-bottom: 26px;
+}}
+.doc-check-item {{
+  display: flex; align-items: flex-start; gap: 11px;
+  font-size: 13.5px; color: #374151; line-height: 1.5;
+}}
+.doc-check-box {{
+  width: 18px; height: 18px; border: 1.5px solid #2563EB;
+  border-radius: 4px; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  color: #2563EB; font-size: 11px; font-weight: 800;
+  background: #EFF6FF; margin-top: 1px;
+}}
+.doc-emergency {{
+  background: #DBEAFE;
+  border: 1px solid #93C5FD;
+  border-radius: 12px;
+  padding: 16px 18px;
+  font-size: 13px; color: #1E3A8A;
+  line-height: 1.55;
+}}
+.doc-emergency strong {{
+  color: #1E40AF; font-weight: 700;
+}}
+@media (max-width: 640px) {{
+  .doc-card {{ padding: 24px 20px 22px; }}
+  .doc-head {{ flex-direction: column; align-items: flex-start; gap: 12px; padding-bottom: 18px; margin-bottom: 20px; }}
+  .doc-logo {{ width: 50px; height: 50px; font-size: 22px; }}
+  .doc-head-text .title {{ font-size: 21px; }}
+  .doc-checklist {{ grid-template-columns: 1fr; gap: 10px; margin-bottom: 22px; }}
+  .doc-fields {{ gap: 18px; margin-bottom: 22px; }}
+}}
+</style>
+<div class="doc-card">
+  <div class="doc-head">
+    <div class="doc-logo">📋</div>
+    <div class="doc-head-text">
+      <div class="org">{txt['org']}</div>
+      <div class="title">{txt['title']}</div>
+    </div>
+  </div>
+  <div class="doc-fields">
+    <div class="doc-field">
+      <label>{txt['patient_lbl']}</label>
+      <div class="underline">{name_display}</div>
+    </div>
+    <div class="doc-field">
+      <label>{txt['date_lbl']}</label>
+      <div class="underline">{today_str}</div>
+    </div>
+  </div>
+  <div class="doc-section">{txt['includes']}</div>
+  <div class="doc-checklist">
+    <div class="doc-check-item"><span class="doc-check-box">✓</span><span>{txt['check1']}</span></div>
+    <div class="doc-check-item"><span class="doc-check-box">✓</span><span>{txt['check2']}</span></div>
+    <div class="doc-check-item"><span class="doc-check-box">✓</span><span>{txt['check3']}</span></div>
+    <div class="doc-check-item"><span class="doc-check-box">✓</span><span>{txt['check4']}</span></div>
+    <div class="doc-check-item"><span class="doc-check-box">✓</span><span>{txt['check5']}</span></div>
+  </div>
+  <div class="doc-emergency">
+    <strong>🚨 {txt['emergency_lbl']}</strong> {txt['emergency_text']}
+  </div>
+</div>
+""", unsafe_allow_html=True)
+    # Start button — primary CTA, sits right below the doc card
+    col1, col2, col3 = st.columns([1, 2, 1])
     with col2:
-        if st.button(t("start"),type="primary",use_container_width=True):
-            st.session_state.screen="intake"; st.rerun()
-    st.markdown("---")
-    f1,f2,f3=st.columns(3)
-    with f1: st.markdown('<div class="card"><div style="font-size:32px">🔬</div><h3 style="margin-top:12px">PubMed Evidence</h3><p style="font-size:13px;color:#6B7280">Κάθε εκτίμηση υποστηρίζεται από επιστημονική βιβλιογραφία NCBI.</p></div>',unsafe_allow_html=True)
-    with f2: st.markdown('<div class="card"><div style="font-size:32px">🤖</div><h3 style="margin-top:12px">Dual AI Engine</h3><p style="font-size:13px;color:#6B7280">Claude Sonnet + GPT-4o για διπλή κλινική γνώμη.</p></div>',unsafe_allow_html=True)
-    with f3: st.markdown('<div class="card"><div style="font-size:32px">🇬🇷</div><h3 style="margin-top:12px">Ελληνικό Πλαίσιο</h3><p style="font-size:13px;color:#6B7280">ΕΟΠΥΥ, ΕΟΔΥ, ΕΟΦ — ελληνικό σύστημα υγείας.</p></div>',unsafe_allow_html=True)
-    st.markdown(f'<div class="emergency">{t("emergency")}</div>',unsafe_allow_html=True)
+        if st.button(txt["start"], type="primary", use_container_width=True, key="home_start"):
+            st.session_state.screen = "intake"; st.rerun()
 
 def render_intake():
     render_stepper("intake")
-    st.markdown(f"## 👤 {t('name')} & Ιστορικό")
+    render_doc_header(
+        "Πες μας λίγα για σένα", "Tell us about yourself",
+        icon="👤",
+        sub_el="Όνομα, ηλικία, ιατρικό ιστορικό",
+        sub_en="Name, age, medical history",
+    )
     c1,c2,c3=st.columns([2,1,1])
     with c1: name=st.text_input(t("name"),value=st.session_state.profile.get("name",""),placeholder="Χριστόφορος")
     with c2: age=st.number_input(t("age"),min_value=0,max_value=120,value=st.session_state.profile.get("age",40))
@@ -1376,7 +1676,13 @@ def render_vitals():
     render_stepper("vitals")
     p=st.session_state.profile
     lang=st.session_state.lang
-    st.markdown(f"## 📊 {t('vitals_title')} — {p.get('name','')}")
+    nm = p.get("name","")
+    render_doc_header(
+        "Πώς είναι τα ζωτικά σου;", "How are your vitals?",
+        icon="❤️",
+        sub_el=(f"για τον/την {nm}" if nm else "Χειροκίνητα, με συσκευή ή σάρωση προσώπου"),
+        sub_en=(f"for {nm}" if nm else "Manual, device, or face scan"),
+    )
 
     # ── Tab layout: Manual (default) | Device Import | Face Scan (experimental) ──
     tab_manual, tab_device, tab_scan = st.tabs([
@@ -1763,7 +2069,13 @@ def render_photo_scan():
 def render_triage():
     render_stepper("triage")
     p=st.session_state.profile
-    st.markdown(f"## 🩺 {t('triage_title')} — {p.get('name','')}")
+    nm = p.get("name","")
+    render_doc_header(
+        "Ας μιλήσουμε για τα συμπτώματα", "Let's talk about your symptoms",
+        icon="💬",
+        sub_el=(f"συνομιλία με {nm}" if nm else "Πες τι σε απασχολεί — μία ερώτηση κάθε φορά"),
+        sub_en=(f"chat with {nm}" if nm else "Tell me what's bothering you — one question at a time"),
+    )
     render_vitals_summary()
     st.markdown(f'<div class="disclaimer">{t("disclaimer_main")}</div>',unsafe_allow_html=True)
     # Symptom quick-select: only BEFORE the conversation starts, so once chatting
@@ -1873,7 +2185,16 @@ def render_triage():
 def render_report():
     render_stepper("report")
     p=st.session_state.profile; lang=st.session_state.lang
-    st.markdown(f"## 📋 {t('report_title')}"); st.caption(f"{p.get('name','')}, {p.get('age')}y · {datetime.now().strftime('%d %b %Y %H:%M')}")
+    nm = p.get("name","")
+    age = p.get("age")
+    sub_el = f"για {nm}" + (f", {age} ετών" if age else "")
+    sub_en = f"for {nm}" + (f", {age} years old" if age else "")
+    render_doc_header(
+        "Η εκτίμηση σου", "Your assessment",
+        icon="📋",
+        sub_el=(sub_el if nm else "Κλινική εκτίμηση με τεκμηρίωση"),
+        sub_en=(sub_en if nm else "Clinical assessment with references"),
+    )
     render_vitals_summary()
     if not st.session_state.report:
         conversation="\n".join(f"{'Patient' if m['role']=='user' else 'Asklepios'}: {m['content']}" for m in st.session_state.triage_chat)
