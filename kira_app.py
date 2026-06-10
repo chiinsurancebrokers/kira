@@ -1405,10 +1405,14 @@ def _strip_accents(s):
 _VITAL_CATEGORIES = [
     {"key":"cardio","scan":True,
      "el":"καρδιακός ρυθμός / πίεση","en":"heart rate / blood pressure",
+     # Cardiac symptoms only. We deliberately do NOT use generic "ιδρωτ/ιδρωσ/
+     # ιδρων/εφιδρ" (sweating) — those false-positive on workout/fever/photo
+     # descriptions. Cold sweat ("κρυος ιδρωτ" / "cold sweat") is cardiac and
+     # is checked specifically below.
      "roots":["παλμ","ταχυκαρδ","αρρυθμ","στηθ","θωρακ","λιποθυμ","λιγοθυμ",
-              "εφιδρ","ιδρωτ","ιδρωσ","ιδρων","ζαλ",
+              "κρυος ιδρωτ","ζαλ",
               "palpit","racing heart","irregular heart","tachycard","arrhythm",
-              "chest pain","chest tightness","faint","sweat","dizz","lightheaded","light-headed"]},
+              "chest pain","chest tightness","faint","cold sweat","dizz","lightheaded","light-headed"]},
     {"key":"bp","scan":False,
      "el":"αρτηριακή πίεση","en":"blood pressure",
      "roots":["πιεση","υπερτασ","υποτασ","αρτηριακ",
@@ -1424,7 +1428,15 @@ _VITAL_CATEGORIES = [
               "shortness of breath","respiratory","oxygen"]},
 ]
 def _relevant_vitals():
-    txt = _strip_accents(" ".join(m["content"] for m in st.session_state.triage_chat if m["role"]=="user"))
+    # Only consider what the USER actually reported — NOT photo-analysis text
+    # we injected as user messages. Those are Claude's AI descriptions and
+    # routinely list cardiac warning signs (sweating, palpitations) even for
+    # unrelated cases like an elbow lump, which would falsely trigger nudges.
+    _PHOTO_PREFIXES = ("Αποτέλεσμα φωτογραφικής", "Photo analysis result")
+    user_msgs = [m["content"] for m in st.session_state.triage_chat
+                 if m["role"] == "user"
+                 and not str(m["content"]).startswith(_PHOTO_PREFIXES)]
+    txt = _strip_accents(" ".join(user_msgs))
     return [c for c in _VITAL_CATEGORIES if any(_strip_accents(r) in txt for r in c["roots"])]
 
 # A photo only helps for VISUAL complaints (skin/rash, eye, wound/swelling, mouth/
