@@ -2153,6 +2153,16 @@ def render_photo_scan():
         key="human_photo_upload"
     )
 
+    # Identity of the currently uploaded file — used to detect when the user
+    # swaps to a different photo and we need to discard a stale preview.
+    _current_file_id = (f"{uploaded_photo.name}|{uploaded_photo.size}|{scan_k}"
+                        if uploaded_photo else None)
+
+    # ── STAGE 1: Analyse button. Runs the vision pipeline and STORES the
+    # result in session_state so it survives the rerun. Critically, the
+    # 'Πρόσθεση στην εκτίμηση' button is NOT nested inside this if-block —
+    # nested Streamlit buttons silently fail because the outer condition
+    # becomes False on the next interaction.
     if uploaded_photo:
         c_img, c_info = st.columns([1,1])
         with c_img: st.image(uploaded_photo, use_container_width=True)
@@ -2213,41 +2223,61 @@ def render_photo_scan():
                                    else "You are Asklepios AI's visual-exam assistant. You SUPPLEMENT an assessment already in progress — you do NOT start a new one. Stay faithful to the stated complaint and anatomical region, be accurate, cautious, and do not dramatise.")
                     analysis = claude_vision_human(img_b64, img_type, full_prompt, sys_prompt)
 
-                st.markdown('<div class="card">', unsafe_allow_html=True)
-                st.markdown(analysis)
-                st.markdown('</div>', unsafe_allow_html=True)
-
-                urgent_kw = ["urgent","immediate","επείγον","άμεσα","ιατρό αμέσως","emergency","melanoma","cancer","carcinoma","καρκίν"]
-                if any(k.lower() in analysis.lower() for k in urgent_kw):
-                    st.error("🚨 " + ("Επείγοντα ευρήματα — επικοινωνήστε με ιατρό ΑΜΕΣΑ" if lang=="el"
-                                      else "Urgent findings — contact a doctor IMMEDIATELY"))
-
-                # Preview-only — finding gets persisted to the list only when the
-                # user explicitly clicks "Add to assessment" below.
+                # Persist the preview so the next rerun renders Stage 2 at top
+                # level — NOT nested inside this button block (which would die
+                # on the next interaction).
                 st.session_state["_photo_preview"] = {
-                    "scan_type": scan_k, "scan_label": sel,
-                    "florence_desc": f2_desc, "analysis": analysis,
+                    "file_id":     _current_file_id,
+                    "scan_type":   scan_k,
+                    "scan_label":  sel,
+                    "florence_desc": f2_desc,
+                    "analysis":    analysis,
                 }
-                if st.button("➤ " + ("Πρόσθεση στην εκτίμηση" if lang=="el" else "Add to assessment"),
-                             type="primary", use_container_width=True, key="photo_to_triage_h"):
-                    msg = (f"Αποτέλεσμα φωτογραφικής ανάλυσης ({sel}):\n\n{analysis}"
-                           if lang=="el" else
-                           f"Photo analysis result ({sel}):\n\n{analysis}")
-                    st.session_state.triage_chat.append({"role":"user","content":msg})
-                    # Append to the photo findings LIST so multiple uploads accumulate
-                    # and all become visible in the final report.
-                    _pf = st.session_state.get("photo_findings")
-                    if not isinstance(_pf, list):
-                        _pf = []
-                    _pf.append({
-                        "scan_type": scan_k, "scan_label": sel,
-                        "florence_desc": f2_desc, "analysis": analysis,
-                    })
-                    st.session_state["photo_findings"] = _pf
-                    st.session_state["photo_added"] = True
-                    st.session_state.pop("_photo_preview", None)
-                    st.rerun()
-    else:
+                st.rerun()
+
+    # ── STAGE 2: render the preview + 'Add to assessment' button at TOP LEVEL
+    # (not nested), so the button actually fires on click.
+    preview = st.session_state.get("_photo_preview")
+    if preview:
+        # If the user uploaded a different file or changed scan type, the old
+        # preview is stale — discard it so they can re-analyse the new one.
+        if uploaded_photo and preview.get("file_id") and preview["file_id"] != _current_file_id:
+            st.session_state.pop("_photo_preview", None)
+            preview = None
+    if preview:
+        analysis = preview["analysis"]
+        st.markdown('<div class="card">', unsafe_allow_html=True)
+        st.markdown(analysis)
+        st.markdown('</div>', unsafe_allow_html=True)
+
+        urgent_kw = ["urgent","immediate","επείγον","άμεσα","ιατρό αμέσως","emergency","melanoma","cancer","carcinoma","καρκίν"]
+        if any(k.lower() in analysis.lower() for k in urgent_kw):
+            st.error("🚨 " + ("Επείγοντα ευρήματα — επικοινωνήστε με ιατρό ΑΜΕΣΑ" if lang=="el"
+                              else "Urgent findings — contact a doctor IMMEDIATELY"))
+
+        if st.button("➤ " + ("Πρόσθεση στην εκτίμηση" if lang=="el" else "Add to assessment"),
+                     type="primary", use_container_width=True, key="photo_to_triage_h"):
+            _lbl = preview["scan_label"]
+            msg = (f"Αποτέλεσμα φωτογραφικής ανάλυσης ({_lbl}):\n\n{analysis}"
+                   if lang=="el" else
+                   f"Photo analysis result ({_lbl}):\n\n{analysis}")
+            st.session_state.triage_chat.append({"role":"user","content":msg})
+            # Append to the photo findings LIST so multiple uploads accumulate
+            # and all become visible in the final report.
+            _pf = st.session_state.get("photo_findings")
+            if not isinstance(_pf, list):
+                _pf = []
+            _pf.append({
+                "scan_type":     preview["scan_type"],
+                "scan_label":    preview["scan_label"],
+                "florence_desc": preview.get("florence_desc",""),
+                "analysis":      analysis,
+            })
+            st.session_state["photo_findings"] = _pf
+            st.session_state["photo_added"]    = True
+            st.session_state.pop("_photo_preview", None)
+            st.rerun()
+    elif not uploaded_photo:
         st.info("👆 " + ("Ανεβάστε φωτογραφία για να ξεκινήσει η ανάλυση" if lang=="el"
                         else "Upload a photo to begin analysis"))
 
