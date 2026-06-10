@@ -973,6 +973,33 @@ def pubmed_search(query, n=3):
         return out
     except: return []
 
+# Pillar-targeted PubMed query: scopes results to *high-evidence* publication
+# types (Practice Guideline, Systematic Review, Meta-Analysis, Review) crossed
+# with the MeSH heading that matches the pillar — so each recommendation gets
+# 1-2 references from guideline-quality literature rather than single studies.
+_PILLAR_MESH = {
+    "exercise":  '("Exercise Therapy"[MeSH] OR "Exercise"[MeSH] OR "Physical Activity"[MeSH:NoExp] OR "Exercise Movement Techniques"[MeSH])',
+    "nutrition": '("Diet Therapy"[MeSH] OR "Diet"[MeSH] OR "Nutrition Therapy"[MeSH] OR "Diet, Healthy"[MeSH])',
+    "lifestyle": '("Life Style"[MeSH] OR "Risk Reduction Behavior"[MeSH] OR "Health Behavior"[MeSH])',
+}
+_PILLAR_PTYPE = '(Practice Guideline[ptyp] OR Systematic Review[ptyp] OR Meta-Analysis[ptyp] OR Review[ptyp])'
+
+def pubmed_pillar_search(condition, pillar, n=2):
+    """High-evidence PubMed search for one of: 'exercise', 'nutrition', 'lifestyle'.
+    Returns the same list-of-dicts shape as pubmed_search. Falls back to a
+    broader keyword query if the strict MeSH+ptyp combo returns nothing."""
+    if not condition: return []
+    mesh = _PILLAR_MESH.get(pillar)
+    if not mesh: return []
+    cond_q = condition.strip()
+    # Try strict (MeSH + high-evidence ptype) first
+    strict = f"{cond_q} AND {mesh} AND {_PILLAR_PTYPE}"
+    res = pubmed_search(strict, n=n)
+    if res:
+        return res
+    # Fallback: drop ptype filter — still MeSH-scoped, just any pub type
+    return pubmed_search(f"{cond_q} AND {mesh}", n=n)
+
 def rxnorm_interactions(names):
     try:
         cuis = []
@@ -1063,6 +1090,8 @@ defaults = {
     "report": "",
     "report_pubmed": [],
     "report_gpt": "",
+    "report_recs": None,  # {"exercise": "...", "nutrition": "...", "lifestyle": "..."} from Claude
+    "report_recs_refs": {},  # {"exercise": [...refs...], "nutrition": [...], "lifestyle": [...]}
     "medications": [],
     "med_inputs": [],
     "symptom_chips": [],
@@ -1503,7 +1532,7 @@ def _symptom_chips(profile, lang):
         g = "adult"
     return _CHIP_SETS[g]["el" if lang == "el" else "en"]
 
-def generate_html_report(profile, vitals, report_text, pubmed_refs, lang="el"):
+def generate_html_report(profile, vitals, report_text, pubmed_refs, lang="el", recs=None):
     import re as _re, html as _html
     name=_html.escape(str(profile.get("name","—"))); age=str(profile.get("age","—"))
     sex=_html.escape(str(profile.get("sex",""))); hx=_html.escape(str(profile.get("history","") or "—"))
@@ -1525,6 +1554,37 @@ def generate_html_report(profile, vitals, report_text, pubmed_refs, lang="el"):
     refs_html=""
     if pubmed_refs:
         refs_html="<h2>Βιβλιογραφία</h2><ol>"+"".join(f'<li>{_html.escape(a.get("title","—"))} — {_html.escape(a.get("authors",""))}. <em>{_html.escape(a.get("journal",""))}</em>, {_html.escape(a.get("date",""))}. <a href="{_html.escape(a.get("url",""))}">{_html.escape(a.get("url",""))}</a></li>' for a in pubmed_refs)+"</ol>"
+    # PNOE-style Recommendations section (Exercise / Nutrition / Lifestyle)
+    recs_html = ""
+    if recs and any(recs.get(k) for k in ("exercise","nutrition","lifestyle")):
+        _ex = _html.escape(recs.get("exercise","—"))
+        _nu = _html.escape(recs.get("nutrition","—"))
+        _li = _html.escape(recs.get("lifestyle","—"))
+        _t = ("Εξατομικευμένες Συστάσεις", "Φυσική Δραστηριότητα", "Διατροφή", "Τρόπος Ζωής",
+              "Οδηγίες & μετα-αναλύσεις") if lang=="el" \
+             else ("Personalised Recommendations", "Exercise", "Nutrition", "Lifestyle",
+                   "Guidelines & meta-analyses")
+        def _refs_box(pillar):
+            items = (recs.get("_refs", {}) or {}).get(pillar) or []
+            if not items: return ""
+            lis = "".join(
+                f'<li><a href="{_html.escape(r.get("url",""))}" target="_blank" '
+                f'style="color:#1E40AF;text-decoration:none">'
+                f'{_html.escape((r.get("title","—") or "")[:120])}</a>'
+                f'<span style="color:#9CA3AF"> · {_html.escape(r.get("journal","") or "")}'
+                f'{(" " + _html.escape((r.get("date","") or "")[:4])) if r.get("date") else ""}</span></li>'
+                for r in items
+            )
+            return (f'<div class="recs-refs"><div class="recs-refs-lbl">📚 {_t[4]}</div>'
+                    f'<ul>{lis}</ul></div>')
+        recs_html = (
+            f'<h2>📍 {_t[0]}</h2>'
+            '<div class="recs-grid">'
+            f'<div class="recs-box exercise"><div class="recs-lbl">🏃 {_t[1]}</div><div>{_ex}</div>{_refs_box("exercise")}</div>'
+            f'<div class="recs-box nutrition"><div class="recs-lbl">🥗 {_t[2]}</div><div>{_nu}</div>{_refs_box("nutrition")}</div>'
+            f'<div class="recs-box lifestyle"><div class="recs-lbl">🌿 {_t[3]}</div><div>{_li}</div>{_refs_box("lifestyle")}</div>'
+            '</div>'
+        )
     html_out=f"""<!DOCTYPE html><html lang="{lang}"><head><meta charset="UTF-8"><title>Asklepios Report — {name}</title>
 <style>*{{box-sizing:border-box;margin:0;padding:0}}body{{font-family:'Inter',sans-serif;font-size:13px;color:#1A1A2E;max-width:820px;margin:0 auto;padding:32px 40px}}
 .hdr{{display:flex;justify-content:space-between;align-items:center;border-bottom:3px solid #2D3FE7;padding-bottom:14px;margin-bottom:20px}}
@@ -1538,12 +1598,22 @@ table.vitals thead tr{{background:#2D3FE7;color:white}}table.vitals th,table.vit
 table.vitals tbody tr:nth-child(even){{background:#F8FAFF}}
 .emergency{{background:#DC2626;color:white;border-radius:8px;padding:12px 16px;font-weight:700;margin:16px 0}}
 .disclaimer{{background:#FFFBEB;border:1px solid #FCD34D;border-radius:8px;padding:10px 14px;font-size:11px;color:#92400E;margin:12px 0}}
+.recs-grid{{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin:10px 0 16px}}
+.recs-box{{border:1px solid;border-radius:10px;padding:12px 14px;font-size:12px;line-height:1.55}}
+.recs-box.exercise{{background:#EFF6FF;border-color:#BFDBFE}}
+.recs-box.nutrition{{background:#ECFDF5;border-color:#A7F3D0}}
+.recs-box.lifestyle{{background:#FEF3F2;border-color:#FECDD3}}
+.recs-lbl{{font-size:10px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:#1F2937;margin-bottom:6px}}
+.recs-refs{{margin-top:8px;padding-top:6px;border-top:1px dashed rgba(0,0,0,0.10)}}
+.recs-refs-lbl{{font-size:9px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:#6B7280;margin-bottom:4px}}
+.recs-refs ul{{list-style:none;padding:0;margin:0}}.recs-refs li{{font-size:10.5px;line-height:1.4;margin-bottom:3px}}
+@media print{{.recs-box{{-webkit-print-color-adjust:exact;print-color-adjust:exact}}.recs-grid{{grid-template-columns:1fr 1fr 1fr !important}}}}
 .hint{{text-align:center;margin:24px 0 0;font-size:12px;color:#94A3B8;border-top:1px dashed #E0E5FF;padding-top:14px}}
 @media print{{body{{padding:16px}}.patient,.emergency{{-webkit-print-color-adjust:exact;print-color-adjust:exact}}@page{{margin:15mm}}}}</style></head><body>
 <div class="hdr"><div class="hdr-logo">🩺 Asklepios AI Nurse</div><div class="hdr-date">Κλινική Εκτίμηση<br>{ts}</div></div>
 <div class="patient"><div class="patient-name">{name}</div><div class="patient-meta">{age} ετών · {sex}</div>
 <div class="patient-detail"><strong>Ιστορικό:</strong> {hx}<br><strong>Αλλεργίες:</strong> {allg}<br><strong>Φάρμακα:</strong> {meds}</div></div>
-{vitals_sec}<h2>Κλινική Αξιολόγηση</h2>{md2h(report_text or "")}{refs_html}
+{vitals_sec}<h2>Κλινική Αξιολόγηση</h2>{md2h(report_text or "")}{recs_html}{refs_html}
 <div class="emergency">🚨 ΣΕ ΕΠΕΙΓΟΥΣΑ ΑΝΑΓΚΗ: ΚΑΛΕΣΤΕ 166 (ΕΚΑΒ) ή 112</div>
 <div class="disclaimer">⚠️ AI-generated. Δεν αποτελεί ιατρική διάγνωση. Απαιτείται επίσκεψη σε επαγγελματία υγείας.</div>
 <div class="hint">💡 Ctrl+P → Save as PDF</div></body></html>"""
@@ -2264,6 +2334,430 @@ def render_triage():
     if not enabled:
         st.caption("Συνεχίστε — ο Asklepios θα σας ειδοποιήσει όταν έχει αρκετά." if st.session_state.lang=="el" else "Continue — Asklepios will let you know when it has enough.")
 
+# ── PNOE-inspired report helpers ──────────────────────────────────────────────
+# Inspired by the PNOE Metabolic Blueprint report (Frank Shallenberger), which
+# packages each recommendation block as three categories (EXERCISE / NUTRITION /
+# LIFESTYLE) and uses a 5-level scale. We adapt both ideas:
+#   1. Claude is asked to emit a delimited RECS block at the end of the report
+#      with three personalised buckets. We parse it out and render as a styled
+#      3-column card (PDF/TXT/WhatsApp also get the clean text).
+#   2. The existing Wellness Score is augmented with a 5-segment scale bar
+#      (Severe Limit. → Limit. → Neutral → Good → Excellent) matching PNOE's
+#      visual language.
+
+def _extract_recs(report_text):
+    """Pull <<<RECS ... RECS>>> block out of the Claude report.
+    Returns (cleaned_text, recs_dict_or_None). Graceful: if no block found,
+    returns the original text unchanged and None."""
+    import re as _re_r
+    if not report_text:
+        return report_text, None
+    m = _re_r.search(r"<<<RECS\s*(.*?)\s*RECS>>>", report_text, _re_r.DOTALL)
+    if not m:
+        return report_text, None
+    block = m.group(1)
+    cleaned = (report_text[:m.start()].rstrip() + "\n\n" + report_text[m.end():].lstrip()).strip()
+    recs = {}
+    # Multi-line tolerant: accumulate until next label or end
+    current = None
+    for line in block.splitlines():
+        s = line.strip()
+        if not s: continue
+        upper = s.upper()
+        for tag, key in (("CONDITION:", "condition"),
+                         ("EXERCISE:", "exercise"),
+                         ("NUTRITION:", "nutrition"),
+                         ("LIFESTYLE:", "lifestyle")):
+            if upper.startswith(tag):
+                current = key
+                recs[key] = s[len(tag):].strip()
+                break
+        else:
+            # Continuation line
+            if current:
+                recs[current] = (recs.get(current, "") + " " + s).strip()
+    return cleaned, (recs if recs else None)
+
+
+def _render_recs_card(recs, lang, refs=None):
+    """3-column Exercise/Nutrition/Lifestyle card (PNOE-style), with per-pillar
+    PubMed references rendered as small links under each column when available."""
+    if not recs:
+        return
+    if lang == "el":
+        tx = {
+            "title":   "📍 ΕΞΑΤΟΜΙΚΕΥΜΕΝΕΣ ΣΥΣΤΑΣΕΙΣ",
+            "ex_lbl":  "ΦΥΣΙΚΗ ΔΡΑΣΤΗΡΙΟΤΗΤΑ",
+            "nu_lbl":  "ΔΙΑΤΡΟΦΗ",
+            "li_lbl":  "ΤΡΟΠΟΣ ΖΩΗΣ",
+            "refs":    "Οδηγίες & μετα-αναλύσεις",
+        }
+    else:
+        tx = {
+            "title":   "📍 PERSONALISED RECOMMENDATIONS",
+            "ex_lbl":  "EXERCISE",
+            "nu_lbl":  "NUTRITION",
+            "li_lbl":  "LIFESTYLE",
+            "refs":    "Guidelines & meta-analyses",
+        }
+    ex = recs.get("exercise",  "—")
+    nu = recs.get("nutrition", "—")
+    li = recs.get("lifestyle", "—")
+    import html as _html_r
+    ex, nu, li = (_html_r.escape(ex), _html_r.escape(nu), _html_r.escape(li))
+
+    def _refs_html(pillar_key):
+        items = (refs or {}).get(pillar_key) or []
+        if not items:
+            return ""
+        lis = "".join(
+            f'<li><a href="{_html_r.escape(r.get("url",""))}" target="_blank" '
+            f'style="color:#1E40AF;text-decoration:none">'
+            f'{_html_r.escape((r.get("title","—") or "")[:120])}'
+            f'</a><span style="color:#9CA3AF"> · {_html_r.escape(r.get("journal","") or "")}'
+            f'{(" " + _html_r.escape(r.get("date","")[:4])) if r.get("date") else ""}</span></li>'
+            for r in items
+        )
+        return (
+            f'<div class="pnoe-refs">'
+            f'<div class="pnoe-refs-lbl">📚 {tx["refs"]}</div>'
+            f'<ul>{lis}</ul>'
+            f'</div>'
+        )
+
+    st.markdown(f"""
+<style>
+.pnoe-recs {{
+  background: white;
+  border: 1px solid #E5E7EB;
+  border-radius: 14px;
+  padding: 24px 26px;
+  margin: 18px 0;
+  font-family: 'Inter', system-ui, sans-serif;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+}}
+.pnoe-recs-title {{
+  font-size: 11px; font-weight: 700; letter-spacing: 0.14em;
+  color: #6B7280; text-transform: uppercase;
+  border-bottom: 2px solid #E5E7EB;
+  padding-bottom: 10px; margin-bottom: 18px;
+}}
+.pnoe-recs-grid {{
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 14px;
+}}
+.pnoe-recs-col {{
+  border-radius: 12px;
+  padding: 16px 16px 18px;
+  border: 1px solid;
+  position: relative;
+}}
+.pnoe-recs-col::before {{
+  content: ""; position: absolute; left: 16px; top: 16px;
+  width: 4px; height: 18px; border-radius: 2px;
+}}
+.pnoe-recs-col.exercise  {{ background: #EFF6FF; border-color: #BFDBFE; }}
+.pnoe-recs-col.exercise::before  {{ background: #3B82F6; }}
+.pnoe-recs-col.nutrition {{ background: #ECFDF5; border-color: #A7F3D0; }}
+.pnoe-recs-col.nutrition::before {{ background: #10B981; }}
+.pnoe-recs-col.lifestyle {{ background: #FEF3F2; border-color: #FECDD3; }}
+.pnoe-recs-col.lifestyle::before {{ background: #EF4444; }}
+.pnoe-recs-head {{
+  display: flex; align-items: center; gap: 9px;
+  margin-bottom: 10px; padding-left: 14px;
+}}
+.pnoe-recs-icon {{ font-size: 17px; line-height: 1; }}
+.pnoe-recs-label {{
+  font-size: 11px; font-weight: 800;
+  letter-spacing: 0.12em; text-transform: uppercase;
+  color: #1F2937;
+}}
+.pnoe-recs-body {{
+  font-size: 13px; color: #374151; line-height: 1.6;
+}}
+.pnoe-refs {{
+  margin-top: 12px; padding-top: 10px;
+  border-top: 1px dashed rgba(0,0,0,0.10);
+}}
+.pnoe-refs-lbl {{
+  font-size: 10px; font-weight: 700; letter-spacing: 0.10em;
+  color: #6B7280; text-transform: uppercase; margin-bottom: 5px;
+}}
+.pnoe-refs ul {{
+  list-style: none; padding: 0; margin: 0;
+}}
+.pnoe-refs li {{
+  font-size: 11.5px; line-height: 1.45; margin-bottom: 5px;
+  color: #374151;
+}}
+.pnoe-refs a:hover {{ text-decoration: underline !important; }}
+@media (max-width: 768px) {{
+  .pnoe-recs-grid {{ grid-template-columns: 1fr; gap: 11px; }}
+  .pnoe-recs {{ padding: 20px 18px; }}
+}}
+</style>
+<div class="pnoe-recs">
+  <div class="pnoe-recs-title">{tx['title']}</div>
+  <div class="pnoe-recs-grid">
+    <div class="pnoe-recs-col exercise">
+      <div class="pnoe-recs-head">
+        <span class="pnoe-recs-icon">🏃</span>
+        <span class="pnoe-recs-label">{tx['ex_lbl']}</span>
+      </div>
+      <div class="pnoe-recs-body">{ex}</div>
+      {_refs_html("exercise")}
+    </div>
+    <div class="pnoe-recs-col nutrition">
+      <div class="pnoe-recs-head">
+        <span class="pnoe-recs-icon">🥗</span>
+        <span class="pnoe-recs-label">{tx['nu_lbl']}</span>
+      </div>
+      <div class="pnoe-recs-body">{nu}</div>
+      {_refs_html("nutrition")}
+    </div>
+    <div class="pnoe-recs-col lifestyle">
+      <div class="pnoe-recs-head">
+        <span class="pnoe-recs-icon">🌿</span>
+        <span class="pnoe-recs-label">{tx['li_lbl']}</span>
+      </div>
+      <div class="pnoe-recs-body">{li}</div>
+      {_refs_html("lifestyle")}
+    </div>
+  </div>
+</div>
+""", unsafe_allow_html=True)
+
+
+def _compute_health_pillars(profile, vitals, status_map, report_text, lang):
+    """Return (pillars_list, overall_score). Each pillar has a score 0-100 or
+    None when no data was available. The overall is the mean of pillars that
+    had data — never invented for missing inputs."""
+    age = profile.get("age", 0) or 0
+    # Accent-stripped so Greek history like "Υπέρταση" matches the "υπερτασ" pattern
+    history = _strip_accents((profile.get("history") or "").lower())
+    rep_low = _strip_accents((report_text or "").lower())
+
+    def _ss(k):
+        s = status_map.get(k)
+        if s == "green":  return 100
+        if s == "yellow": return 60
+        if s == "red":    return 25
+        return None
+
+    # 1) 🫀 Cardiovascular: HR + BP + age/hypertension penalty
+    cardio, cfact = [], []
+    if _ss("hr") is not None:
+        cardio.append(_ss("hr"));  cfact.append(f"HR {vitals.get('hr')}")
+    if _ss("bp") is not None:
+        cardio.append(_ss("bp"));  cfact.append(f"BP {vitals.get('bp_sys')}/{vitals.get('bp_dia')}")
+    if cardio:
+        sc = sum(cardio) / len(cardio)
+        if age >= 75: sc = max(20, sc - 12); cfact.append("ηλικία ≥75" if lang=="el" else "age ≥75")
+        elif age >= 65: sc = max(25, sc - 6)
+        if any(w in history for w in ("υπερτασ","hypertens")):
+            sc = max(20, sc - 8); cfact.append("ιστ. υπέρτασης" if lang=="el" else "hypertension hx")
+        c_score = int(round(sc))
+    else:
+        c_score = None
+
+    # 2) 🫁 Respiratory: SpO2 + BR + smoking/asthma flags
+    resp, rfact = [], []
+    if _ss("spo2") is not None:
+        resp.append(_ss("spo2")); rfact.append(f"SpO₂ {vitals.get('spo2')}%")
+    if _ss("br") is not None:
+        resp.append(_ss("br"));   rfact.append(f"BR {vitals.get('br')}/min")
+    if resp:
+        sc = sum(resp) / len(resp)
+        if any(w in history for w in ("καπν","smok","τσιγαρ")):
+            sc = max(20, sc - 15); rfact.append("κάπνισμα" if lang=="el" else "smoking")
+        if any(w in history for w in ("ασθμ","asthm","copd","χαπ")):
+            sc = max(20, sc - 8);  rfact.append("ασθματικός" if lang=="el" else "asthma")
+        r_score = int(round(sc))
+    else:
+        r_score = None
+
+    # 3) ⚖️ Metabolic: BMI + temp + diabetes flag
+    meta, mfact = [], []
+    if _ss("bmi") is not None:
+        meta.append(_ss("bmi"));  mfact.append(f"ΔΜΣ {vitals.get('bmi')}" if lang=="el" else f"BMI {vitals.get('bmi')}")
+    if _ss("temp") is not None:
+        meta.append(_ss("temp")); mfact.append(f"T {vitals.get('temp')}°C")
+    if meta:
+        sc = sum(meta) / len(meta)
+        if any(w in history for w in ("διαβητ","diabet","τ2","t2")):
+            sc = max(20, sc - 12); mfact.append("διαβήτης" if lang=="el" else "diabetes")
+        m_score = int(round(sc))
+    else:
+        m_score = None
+
+    # 4) 🩺 Symptom burden: from report content (red flags + severity terms)
+    sb_score = 100
+    sb_fact = []
+    urgent = [_strip_accents(w) for w in
+              ["επείγον","emergency","stroke","εγκεφαλικ","heart attack","έμφραγμα",
+               "anaphylax","αναφυλαξ","unconscious","αναίσθητ","166","112"]]
+    if any(w in rep_low for w in urgent):
+        sb_score -= 50
+        sb_fact.append("κόκκινες σημαίες" if lang=="el" else "red flags")
+    severity = [_strip_accents(w) for w in
+                ("σοβαρ","οξύς","έντον","severe","intense","acute")]
+    if any(w in rep_low for w in severity):
+        sb_score -= 12
+        sb_fact.append("έντονα συμπτώματα" if lang=="el" else "intense symptoms")
+    # Many differentials = more diagnostic uncertainty
+    diff_rows = rep_low.count("|")
+    if diff_rows >= 16:  # ≥4 rows in the markdown table
+        sb_score -= 8
+        sb_fact.append("πολλαπλές διαφορικές" if lang=="el" else "multiple differentials")
+    sb_score = max(20, sb_score)
+    if not sb_fact:
+        sb_fact.append("ήπιο προφίλ" if lang=="el" else "mild profile")
+
+    pillars = [
+        {"key":"cardio","icon":"🫀",
+         "label_el":"Καρδιαγγειακή","label_en":"Cardiovascular",
+         "score":c_score,"factors":cfact,"available":c_score is not None},
+        {"key":"resp","icon":"🫁",
+         "label_el":"Αναπνευστική","label_en":"Respiratory",
+         "score":r_score,"factors":rfact,"available":r_score is not None},
+        {"key":"meta","icon":"⚖️",
+         "label_el":"Μεταβολική","label_en":"Metabolic",
+         "score":m_score,"factors":mfact,"available":m_score is not None},
+        {"key":"symp","icon":"🩺",
+         "label_el":"Συμπτωματικό φορτίο","label_en":"Symptom burden",
+         "score":sb_score,"factors":sb_fact,"available":True},
+    ]
+    avail = [p for p in pillars if p["available"]]
+    overall = int(round(sum(p["score"] for p in avail) / len(avail))) if avail else None
+    return pillars, overall
+
+
+def _grade_label(score, lang):
+    """Map a 0-100 score to the PNOE 5-level grade label."""
+    if score is None:
+        return ("Δεν υπάρχουν δεδομένα", "#9CA3AF") if lang=="el" else ("No data", "#9CA3AF")
+    if score >= 80: return (("Άριστο" if lang=="el" else "Excellent"), "#059669")
+    if score >= 60: return (("Καλό"   if lang=="el" else "Good"),      "#10B981")
+    if score >= 40: return (("Μέτριο" if lang=="el" else "Neutral"),   "#3B82F6")
+    if score >= 20: return (("Χαμηλό" if lang=="el" else "Limited"),   "#F97316")
+    return            (("Πολύ χαμηλό" if lang=="el" else "Severe limit."), "#DC2626")
+
+
+def _pillar_scale_html(score):
+    """A clean 5-segment scale (PNOE-style) for a pillar score, on white bg."""
+    if score is None:
+        return '<div style="height:10px;background:#F3F4F6;border-radius:5px;margin-top:6px"></div>'
+    seg = max(0, min(4, int(score) // 20))
+    colors = ["#DC2626","#F97316","#3B82F6","#10B981","#059669"]
+    out = '<div style="display:flex;gap:4px;margin-top:6px">'
+    for i in range(5):
+        bg = colors[i] if i <= seg else "#E5E7EB"
+        marker = "box-shadow:0 0 0 2px white inset" if i == seg else ""
+        out += f'<div style="flex:1;height:10px;background:{bg};border-radius:5px;{marker}"></div>'
+    out += '</div>'
+    return out
+
+
+def _render_health_pillars(profile, vitals, status_map, report_text, lang):
+    """4-Pillar Health Profile card — replaces the placeholder wellness score
+    with a transparent, factor-explained breakdown (PNOE 'Overview' inspired)."""
+    pillars, overall = _compute_health_pillars(profile, vitals, status_map, report_text, lang)
+    if overall is None and not any(p["available"] for p in pillars):
+        return  # Nothing to show
+    if lang == "el":
+        title    = "📊 ΠΡΟΦΙΛ ΥΓΕΙΑΣ"
+        ov_lbl   = "Συνολικό σκορ"
+        no_data  = "δεν μετρήθηκε"
+        method   = ("Υπολογίζεται από ζωτικά + ιστορικό + ευρήματα εκτίμησης. "
+                    "Δεν αντικαθιστά εργαστηριακή μέτρηση.")
+        factors_lbl = "Παράγοντες"
+    else:
+        title    = "📊 HEALTH PROFILE"
+        ov_lbl   = "Overall score"
+        no_data  = "not measured"
+        method   = ("Computed from vitals + history + assessment findings. "
+                    "Not a substitute for lab measurements.")
+        factors_lbl = "Factors"
+    ov_grade, ov_color = _grade_label(overall, lang)
+    overall_disp = f"{overall}" if overall is not None else "—"
+
+    # Build pillar rows
+    rows_html = ""
+    for p in pillars:
+        label = p["label_el"] if lang == "el" else p["label_en"]
+        grade, gcolor = _grade_label(p["score"], lang)
+        score_disp = f"{p['score']}" if p["score"] is not None else "—"
+        factors_disp = (" · ".join(p["factors"][:3])) if p["factors"] else no_data
+        opacity = "1" if p["available"] else "0.55"
+        rows_html += f"""
+<div style="padding:12px 0;border-top:1px solid #F3F4F6;opacity:{opacity}">
+  <div style="display:flex;align-items:center;justify-content:space-between;gap:12px">
+    <div style="display:flex;align-items:center;gap:10px;min-width:0;flex:1">
+      <span style="font-size:20px;flex-shrink:0">{p['icon']}</span>
+      <span style="font-size:13.5px;font-weight:700;color:#1F2937">{label}</span>
+    </div>
+    <div style="display:flex;align-items:center;gap:10px;flex-shrink:0">
+      <span style="font-size:18px;font-weight:800;color:{gcolor};font-variant-numeric:tabular-nums">{score_disp}<span style="font-size:11px;color:#9CA3AF;font-weight:600">%</span></span>
+      <span style="background:{gcolor}15;color:{gcolor};font-size:10.5px;font-weight:700;padding:3px 9px;border-radius:99px;letter-spacing:0.04em;text-transform:uppercase">{grade}</span>
+    </div>
+  </div>
+  {_pillar_scale_html(p["score"])}
+  <div style="font-size:11px;color:#6B7280;margin-top:6px;line-height:1.5">
+    <span style="font-weight:700;letter-spacing:0.08em;text-transform:uppercase">{factors_lbl}:</span> {factors_disp}
+  </div>
+</div>
+"""
+    st.markdown(f"""
+<style>
+.hp-card {{
+  background: white; border: 1px solid #E5E7EB; border-radius: 14px;
+  padding: 22px 24px; margin: 18px 0;
+  font-family: 'Inter', system-ui, sans-serif;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+}}
+.hp-title {{
+  font-size: 11px; font-weight: 700; letter-spacing: 0.14em;
+  color: #6B7280; text-transform: uppercase;
+  border-bottom: 2px solid #E5E7EB; padding-bottom: 10px; margin-bottom: 14px;
+}}
+.hp-overall {{
+  display: flex; align-items: center; gap: 16px;
+  background: linear-gradient(135deg, #F9FAFB 0%, #F3F4F6 100%);
+  border-radius: 12px; padding: 14px 18px; margin-bottom: 4px;
+}}
+.hp-overall .ov-num {{
+  font-size: 38px; font-weight: 800; line-height: 1;
+  color: {ov_color}; font-variant-numeric: tabular-nums;
+}}
+.hp-overall .ov-meta {{ flex: 1; min-width: 0; }}
+.hp-overall .ov-lbl {{
+  font-size: 10.5px; font-weight: 700; letter-spacing: 0.12em;
+  color: #6B7280; text-transform: uppercase;
+}}
+.hp-overall .ov-grade {{
+  font-size: 16px; font-weight: 700; color: {ov_color}; margin-top: 2px;
+}}
+.hp-method {{
+  font-size: 10.5px; color: #9CA3AF; margin-top: 12px;
+  padding-top: 10px; border-top: 1px dashed #E5E7EB; line-height: 1.5;
+}}
+</style>
+<div class="hp-card">
+  <div class="hp-title">{title}</div>
+  <div class="hp-overall">
+    <div class="ov-num">{overall_disp}<span style="font-size:18px;color:#9CA3AF;font-weight:600">%</span></div>
+    <div class="ov-meta">
+      <div class="ov-lbl">{ov_lbl}</div>
+      <div class="ov-grade">{ov_grade}</div>
+    </div>
+  </div>
+  {rows_html}
+  <div class="hp-method">ℹ️ {method}</div>
+</div>
+""", unsafe_allow_html=True)
+
+
 def render_report():
     render_stepper("report")
     p=st.session_state.profile; lang=st.session_state.lang
@@ -2298,6 +2792,15 @@ PUBMED: {pubmed_ctx}
 Write these sections IN THIS ORDER, using EXACTLY these headers as written (do not abbreviate or drop letters):
 {"1. ΚΥΡΙΟ ΠΑΡΑΠΟΝΟ  2. ΙΣΤΟΡΙΚΟ  3. ΕΚΤΙΜΗΣΗ (Πρωτεύουσα Διάγνωση + Διαφορικές Διαγνώσεις)  4. ΘΕΡΑΠΕΥΤΙΚΟ ΠΛΑΝΟ  5. ΚΟΚΚΙΝΕΣ ΣΗΜΑΙΕΣ  6. ΒΙΒΛΙΟΓΡΑΦΙΑ" if lang=="el" else "1. CHIEF COMPLAINT  2. HISTORY  3. ASSESSMENT (Primary Diagnosis + Differentials)  4. TREATMENT PLAN  5. RED FLAGS  6. REFERENCES"}
 For the differentials use a markdown table with EXACTLY 3 columns and these short headers: {"| Διάγνωση | % | Σχόλιο |" if lang=="el" else "| Diagnosis | % | Comment |"} (keep the probability header as just "%", and put values like "~8%"). Keep cell text short.
+
+After section 6 (References), append EXACTLY this delimited block — same format, no extra text inside the delimiters:
+<<<RECS
+CONDITION: [the primary clinical condition in 2-4 ENGLISH words, MeSH-friendly — e.g. "Hypertension", "Migraine", "Type 2 Diabetes", "Gastroesophageal Reflux", "Anxiety Disorder". Just the noun phrase, no extra text. This is used to fetch matching guideline literature.]
+EXERCISE: [2-3 sentences of PERSONALISED exercise advice for this specific patient — based on age, conditions, symptoms. Direct and actionable. {"Σε Ελληνικά." if lang=="el" else "In English."} No generic platitudes.]
+NUTRITION: [2-3 sentences of personalised nutrition advice for this patient — specific foods/changes that target the assessed conditions. {"Σε Ελληνικά." if lang=="el" else "In English."}]
+LIFESTYLE: [2-3 sentences on sleep, stress, smoking, alcohol — tailored to this case. {"Σε Ελληνικά." if lang=="el" else "In English."}]
+RECS>>>
+
 Language: {"Greek" if lang=="el" else "English"}. Be direct. End with a one-line AI disclaimer."""
         with st.spinner("Δημιουργία αναφοράς..." if lang=="el" else "Generating report..."):
             result=claude([{"role":"user","content":report_prompt}],system=kira_system(),max_tokens=4000,timeout=120)
@@ -2305,7 +2808,26 @@ Language: {"Greek" if lang=="el" else "English"}. Be direct. End with a one-line
                 st.error(result)
                 if st.button("🔄 Retry"): st.rerun()
                 return
-            st.session_state.report=result
+            # Parse out the PNOE-style RECS block ONCE on generation. The cleaned
+            # report (without delimiters) is what shows on-screen and in exports;
+            # the recs dict drives the 3-column visual card.
+            _clean, _recs = _extract_recs(result)
+            st.session_state.report = _clean
+            st.session_state.report_recs = _recs
+            # Fetch high-evidence PubMed refs PER PILLAR (Exercise/Nutrition/Lifestyle)
+            # using MeSH + Practice-Guideline/Systematic-Review/Meta-Analysis filters.
+            # Runs the 3 queries in parallel to keep total latency reasonable.
+            _condition = (_recs or {}).get("condition", "").strip()
+            if _condition:
+                from concurrent.futures import ThreadPoolExecutor as _TPE
+                with st.spinner("📚 " + ("Αναζήτηση οδηγιών ανά πυλώνα..." if lang=="el"
+                                          else "Searching guideline-level evidence per pillar...")):
+                    with _TPE(max_workers=3) as _ex:
+                        _futs = {p: _ex.submit(pubmed_pillar_search, _condition, p, 2)
+                                 for p in ("exercise","nutrition","lifestyle")}
+                        st.session_state.report_recs_refs = {p: f.result() for p,f in _futs.items()}
+            else:
+                st.session_state.report_recs_refs = {}
     if not st.session_state.report:
         if st.button("🔄 "+("Δοκιμή ξανά" if lang=="el" else "Retry"),type="primary"): st.rerun()
         return
@@ -2448,6 +2970,10 @@ Language: {"Greek" if lang=="el" else "English"}. Be direct. End with a one-line
 </div>
 """, unsafe_allow_html=True)
     st.markdown(st.session_state.report)
+    # PNOE-style 3-pillar Recommendations card (Exercise / Nutrition / Lifestyle)
+    if st.session_state.get("report_recs"):
+        _render_recs_card(st.session_state.report_recs, lang,
+                          refs=st.session_state.get("report_recs_refs") or {})
     if st.session_state.report_pubmed:
         with st.expander(f"🔬 {t('pubmed')} ({len(st.session_state.report_pubmed)})"):
             for a in st.session_state.report_pubmed:
@@ -2455,23 +2981,59 @@ Language: {"Greek" if lang=="el" else "English"}. Be direct. End with a one-line
     if get_openai_key():
         with st.expander(f"🤖 {t('second_opinion')}"):
             if not st.session_state.report_gpt:
-                if st.button("Get GPT-4o Second Opinion",type="secondary"):
+                if st.button(("Λάβε δεύτερη γνώμη GPT-4o" if lang=="el" else "Get GPT-4o second opinion"),
+                             type="secondary", key="gpt_get"):
                     with st.spinner("GPT-4o reviewing..."):
-                        st.session_state.report_gpt=gpt4o(prompt=f"Patient: {p.get('name')}, {p.get('age')}yo\n\nClaude report:\n{st.session_state.report}\n\nAgree? Additions or corrections?",system=kira_system(),max_tokens=900)
+                        _gpt_prompt = (
+                            f"Patient: {p.get('name')}, {p.get('age')}yo {p.get('sex','')}\n"
+                            f"History: {p.get('history','none')} | Allergies: {p.get('allergies','none')} | Meds: {p.get('meds_raw','none')}\n\n"
+                            f"Claude clinical assessment:\n{st.session_state.report}\n\n"
+                            f"As an independent clinical reviewer: do you AGREE with this assessment? "
+                            f"What specific ADDITIONS or CORRECTIONS would you make (differentials missed, "
+                            f"treatment refinements, red flags overlooked, drug-interaction concerns)? "
+                            f"Be concise — bullet points OK. Respond in {'Greek' if lang=='el' else 'English'}."
+                        )
+                        st.session_state.report_gpt = gpt4o(prompt=_gpt_prompt, system=kira_system(), max_tokens=900)
                     st.rerun()
-            else: st.markdown(st.session_state.report_gpt)
+            else:
+                st.markdown(st.session_state.report_gpt)
+                # Integration: if the second opinion adds value, the user can fold
+                # it into the main report so it shows up in the on-screen assessment
+                # AND in every downstream export (PDF/HTML/TXT/WhatsApp).
+                st.divider()
+                if st.session_state.get("_gpt_integrated"):
+                    st.success("✓ " + ("Ενσωματώθηκε στην τελική εκτίμηση παραπάνω και στα exports."
+                                       if lang=="el" else
+                                       "Integrated into the final assessment above and in all exports."))
+                else:
+                    if st.button(("➕ Ενσωμάτωση στην τελική εκτίμηση" if lang=="el"
+                                  else "➕ Integrate into final assessment"),
+                                 type="primary", use_container_width=True, key="gpt_integrate"):
+                        _hdr = "## " + ("ΔΕΥΤΕΡΗ ΓΝΩΜΗ (GPT-4o)" if lang=="el"
+                                        else "SECOND OPINION (GPT-4o)")
+                        st.session_state.report = (
+                            (st.session_state.report or "").rstrip()
+                            + "\n\n---\n\n" + _hdr + "\n\n"
+                            + (st.session_state.report_gpt or "").strip()
+                        )
+                        st.session_state["_gpt_integrated"] = True
+                        st.rerun()
+                    st.caption(("💡 Προσθέτει τη δεύτερη γνώμη ως ξεχωριστή ενότητα στην αναφορά "
+                                "και σε όλα τα exports (PDF/TXT/WhatsApp)."
+                                if lang=="el" else
+                                "💡 Adds the second opinion as a separate section in the report "
+                                "and in every export (PDF/TXT/WhatsApp)."))
     if len(st.session_state.medications)>=2:
         with st.expander("💊 RxNorm" + (" — Έλεγχος Αλληλεπιδράσεων" if lang=="el" else " — Interactions")):
             with st.spinner("RxNorm..."): rxr=rxnorm_interactions([m["name"] for m in st.session_state.medications])
             if rxr: st.markdown(rxr)
+    # ── 4-Pillar Health Profile (replaces the old placeholder wellness score).
+    # Honest, factor-explained — Cardiovascular / Respiratory / Metabolic /
+    # Symptom burden — each backed by the vitals + history items that drove it.
     v=st.session_state.vitals
-    if v.get("hr") or v.get("bp_sys"):
-        status_map=classify_vitals(dict(v))
-        reds=sum(1 for s in status_map.values() if s=="red"); yellows=sum(1 for s in status_map.values() if s=="yellow")
-        wellness=max(20,100-reds*20-yellows*8)
-        wcolor="#10B981" if wellness>=75 else "#F59E0B" if wellness>=50 else "#EF4444"
-        wlabel=("Εξαιρετικό" if wellness>=85 else "Καλό" if wellness>=70 else "Μέτριο" if wellness>=50 else "Χρήζει Προσοχής") if lang=="el" else ("Excellent" if wellness>=85 else "Good" if wellness>=70 else "Moderate" if wellness>=50 else "Needs Attention")
-        st.markdown(f'''<div class="wellness-wrap"><div><div class="wellness-score" style="color:{wcolor}">{wellness}</div><div class="wellness-label">Wellness Score</div></div><div style="flex:1"><div class="wellness-desc">{wlabel}</div><div style="background:rgba(255,255,255,.2);border-radius:99px;height:8px;margin-top:10px"><div style="background:{wcolor};width:{wellness}%;height:8px;border-radius:99px"></div></div></div></div>''',unsafe_allow_html=True)
+    _status_map = classify_vitals(dict(v)) if v else {}
+    _render_health_pillars(st.session_state.profile, v, _status_map,
+                           st.session_state.report, lang)
     urgent_kw=["chest pain","πόνος στήθους","stroke","εγκεφαλικό","anaphylaxis","αναφυλαξία","166","112","emergency","επείγον","unconscious","αναίσθητος"]
     if any(kw in st.session_state.report.lower() for kw in urgent_kw):
         st.markdown('<div class="red-flags-urgent">🚨 Η αναφορά περιέχει <b>επείγουσες ενδείξεις</b>. Καλέστε <b>166</b> ή <b>112</b> αμέσως αν ισχύουν.</div>',unsafe_allow_html=True)
@@ -2509,12 +3071,30 @@ Language: {"Greek" if lang=="el" else "English"}. Be direct. End with a one-line
             delete_draft(st.session_state.get("auth_user",""))
             for k,vv in defaults.items(): st.session_state[k]=vv
             for fbk in ("fb_comment","fb_rating","fb_sent","photo_added","photo_findings",
-                        "_draft_hash","_from_facescan","_scan_injected","_vitals_nudge_off"): st.session_state.pop(fbk, None)
+                        "_draft_hash","_from_facescan","_scan_injected","_vitals_nudge_off",
+                        "_gpt_integrated"): st.session_state.pop(fbk, None)
             st.rerun()
     with c2:
-        st.download_button("📄 TXT",data=st.session_state.report,file_name=fname+".txt",mime="text/plain",use_container_width=True)
+        # TXT: report + recs (plain text) so the file is self-contained
+        _txt_parts = [st.session_state.report or ""]
+        _r = st.session_state.get("report_recs")
+        if _r and any(_r.get(k) for k in ("exercise","nutrition","lifestyle")):
+            _hdr = ("ΕΞΑΤΟΜΙΚΕΥΜΕΝΕΣ ΣΥΣΤΑΣΕΙΣ" if lang=="el" else "PERSONALISED RECOMMENDATIONS")
+            _lbls = (("Φυσική Δραστηριότητα","Διατροφή","Τρόπος Ζωής") if lang=="el"
+                     else ("Exercise","Nutrition","Lifestyle"))
+            _txt_parts += [
+                "", "", "## " + _hdr,
+                f"🏃 {_lbls[0]}: " + _r.get("exercise","—"),
+                f"🥗 {_lbls[1]}: " + _r.get("nutrition","—"),
+                f"🌿 {_lbls[2]}: " + _r.get("lifestyle","—"),
+            ]
+        _txt_full = "\n".join(_txt_parts)
+        st.download_button("📄 TXT",data=_txt_full,file_name=fname+".txt",mime="text/plain",use_container_width=True)
     with c3:
-        st.download_button("📄 PDF/HTML",data=generate_html_report(st.session_state.profile,st.session_state.vitals,st.session_state.report,st.session_state.report_pubmed,lang=lang),file_name=fname+".html",mime="text/html",use_container_width=True,help="Open in browser → Ctrl+P → Save as PDF")
+        _recs_for_html = dict(st.session_state.get("report_recs") or {})
+        if _recs_for_html:
+            _recs_for_html["_refs"] = st.session_state.get("report_recs_refs") or {}
+        st.download_button("📄 PDF/HTML",data=generate_html_report(st.session_state.profile,st.session_state.vitals,st.session_state.report,st.session_state.report_pubmed,lang=lang,recs=_recs_for_html),file_name=fname+".html",mime="text/html",use_container_width=True,help="Open in browser → Ctrl+P → Save as PDF")
     with c4:
         import re as _re_wa
         wa_lines=[f"🩺 Asklepios AI Nurse",
@@ -2535,6 +3115,15 @@ Language: {"Greek" if lang=="el" else "English"}. Be direct. End with a one-line
             rep=rep[:1500].rsplit("\n",1)[0].rstrip()+"\n…(πλήρης αναφορά στο PDF)"
         if rep:
             wa_lines+=["", rep]
+        # PNOE-style recs in WhatsApp (plain emoji-prefixed lines)
+        _r2 = st.session_state.get("report_recs")
+        if _r2 and any(_r2.get(k) for k in ("exercise","nutrition","lifestyle")):
+            _lbls2 = (("Άσκηση","Διατροφή","Τρόπος ζωής") if lang=="el"
+                      else ("Exercise","Nutrition","Lifestyle"))
+            wa_lines += ["", ("📍 Συστάσεις:" if lang=="el" else "📍 Recommendations:")]
+            if _r2.get("exercise"):  wa_lines.append(f"🏃 {_lbls2[0]}: {_r2['exercise']}")
+            if _r2.get("nutrition"): wa_lines.append(f"🥗 {_lbls2[1]}: {_r2['nutrition']}")
+            if _r2.get("lifestyle"): wa_lines.append(f"🌿 {_lbls2[2]}: {_r2['lifestyle']}")
         wa_lines+=["", "---", "⚠️ AI-generated. asklepiosainurse.up.railway.app"]
         msg="\n".join(wa_lines)
         wa_url="https://wa.me/?text="+urllib.parse.quote(msg)
