@@ -101,6 +101,135 @@ def claude_vision_human(image_b64, image_type, prompt, system=""):
             return json.loads(r.read())["content"][0]["text"]
     except Exception as e: return f"⚠️ {e}"
 
+def claude_analyze_lab(file_bytes, mime_type, profile, conversation, lang, file_name=""):
+    """Analyze lab results (PDF or image) via Claude with native document support.
+    
+    Lab results in Greece are typically PDFs from labs (e.g. Biocheck, Affidea) or
+    phone photos of paper printouts. Claude's PDF support handles both text-based
+    and image-based PDFs internally (built-in OCR). Result is interpreted WITHIN
+    the conversation context — not as a standalone report — so findings tie back
+    to the user's reported symptoms.
+    
+    Privacy: file is sent to Claude API for processing, NEVER stored on our side.
+    """
+    key = get_claude_key()
+    if not key:
+        return "⚠️ Claude API key not set."
+    
+    file_b64 = _b64.b64encode(file_bytes).decode()
+    
+    # Clinical context from the ongoing assessment
+    convo_txt = "\n".join(
+        f"{'Ασθενής' if m['role']=='user' else 'Asklepios'}: {m['content'][:400]}"
+        for m in (conversation or [])[-6:]
+    ) if conversation else ("Δεν έχει καταγραφεί συνομιλία ακόμη." if lang=="el" else "No conversation yet.")
+    
+    age = profile.get("age", "?")
+    sex = profile.get("sex", "")
+    history = profile.get("history", "") or "—"
+    meds = profile.get("meds_raw", "") or "—"
+    
+    if lang == "el":
+        system = ("Είσαι έμπειρος ιατρός νοσηλευτής που ερμηνεύει εργαστηριακές εξετάσεις "
+                  "στα Ελληνικά. Είσαι ακριβής, σαφής, και κάνεις το κλινικό συμπέρασμα ΜΕΣΑ "
+                  "στο πλαίσιο των συμπτωμάτων και του ιστορικού. ΔΕΝ κάνεις τελική διάγνωση — "
+                  "επισημαίνεις ευρήματα και τι μπορεί να σημαίνουν.")
+        prompt = f"""ΚΛΙΝΙΚΟ ΠΛΑΙΣΙΟ:
+Ασθενής: {age} ετών, {sex}
+Ιστορικό: {history}
+Φάρμακα: {meds}
+
+Συνομιλία μέχρι τώρα:
+{convo_txt}
+
+---
+
+ΕΡΓΑΣΤΗΡΙΑΚΕΣ ΕΞΕΤΑΣΕΙΣ (επισυνάπτεται PDF/εικόνα):
+Ανάλυσε τα αποτελέσματα σε αυτές τις ενότητες:
+
+**1. ΕΥΡΗΜΑΤΑ ΕΚΤΟΣ ΟΡΙΩΝ**
+Πίνακας ή λίστα με τους δείκτες που είναι ψηλά ή χαμηλά, με την τιμή, τα όρια αναφοράς, την κατεύθυνση (↑/↓). Αν όλα είναι εντός ορίων, πες το ξεκάθαρα.
+
+**2. ΕΡΜΗΝΕΙΑ**
+Τι μπορεί να σημαίνει αυτή η εικόνα κλινικά. Σύντομα, σε απλή γλώσσα.
+
+**3. ΣΧΕΣΗ ΜΕ ΣΥΜΠΤΩΜΑΤΑ**
+Συμβατά με όσα περιγράφει ο ασθενής στη συνομιλία; Υποστηρίζουν την τρέχουσα εκτίμηση ή την αλλάζουν;
+
+**4. ΕΠΟΜΕΝΑ ΒΗΜΑΤΑ**
+Τι θα ρωτούσε ο γιατρός. Επιπλέον εξετάσεις που ίσως χρειάζονται. Πότε είναι επείγον.
+
+ΣΗΜΑΝΤΙΚΟ: ΜΗΝ κάνεις τελική διάγνωση. Πάντα συστήνεις επίσκεψη σε ιατρό για ερμηνεία.
+Αναφέρε ΜΟΝΟ τα ευρήματα που πραγματικά βλέπεις στο έγγραφο — μην εφεύρεις δείκτες."""
+    else:
+        system = ("You are an expert clinical reviewer interpreting lab results. Be precise, "
+                  "clear, and tie findings to the patient's reported symptoms. Do NOT make a "
+                  "final diagnosis — surface findings and what they may indicate.")
+        prompt = f"""CLINICAL CONTEXT:
+Patient: {age} yo {sex}
+History: {history}
+Medications: {meds}
+
+Conversation so far:
+{convo_txt}
+
+---
+
+LAB RESULTS (PDF/image attached):
+Analyse in these sections:
+
+**1. OUT-OF-RANGE FINDINGS**
+Table or list of indicators that are high or low, with value, reference range, direction (↑/↓). If all within range, say so clearly.
+
+**2. INTERPRETATION**
+What this clinical picture may indicate. Brief, plain language.
+
+**3. RELATION TO SYMPTOMS**
+Consistent with what the patient describes? Supports or changes the current assessment?
+
+**4. NEXT STEPS**
+What the doctor would ask. Additional tests possibly needed. When this is urgent.
+
+IMPORTANT: Do NOT make a final diagnosis. Always recommend seeing a doctor for interpretation.
+Only findings you actually see in the document — don't invent indicators."""
+    
+    # Build content block based on file type
+    if mime_type == "application/pdf":
+        content_block = {
+            "type": "document",
+            "source": {"type":"base64", "media_type":"application/pdf", "data":file_b64}
+        }
+    else:
+        content_block = {
+            "type": "image",
+            "source": {"type":"base64", "media_type":mime_type, "data":file_b64}
+        }
+    
+    body = json.dumps({
+        "model": "claude-sonnet-4-6",
+        "max_tokens": 3000,
+        "system": system,
+        "messages": [{
+            "role": "user",
+            "content": [content_block, {"type":"text","text":prompt}]
+        }]
+    }).encode()
+    
+    req = urllib.request.Request(
+        "https://api.anthropic.com/v1/messages",
+        data=body,
+        headers={
+            "x-api-key": key,
+            "anthropic-version": "2023-06-01",
+            "content-type": "application/json",
+        }
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=90) as r:
+            return json.loads(r.read())["content"][0]["text"]
+    except Exception as e:
+        return f"⚠️ Σφάλμα ανάλυσης: {e}"
+
 # ── PAGE CONFIG ───────────────────────────────────────────────────────────────
 st.set_page_config(
     page_title="Asklepios · AI Nurse",
@@ -1092,6 +1221,8 @@ defaults = {
     "report_gpt": "",
     "report_recs": None,  # {"exercise": "...", "nutrition": "...", "lifestyle": "..."} from Claude
     "report_recs_refs": {},  # {"exercise": [...refs...], "nutrition": [...], "lifestyle": [...]}
+    "photo_findings": [],  # list of dicts — visual analyses added to assessment
+    "lab_findings": [],    # list of dicts — lab PDF/image analyses added to assessment
     "medications": [],
     "med_inputs": [],
     "symptom_chips": [],
@@ -1544,7 +1675,7 @@ def _symptom_chips(profile, lang):
         g = "adult"
     return _CHIP_SETS[g]["el" if lang == "el" else "en"]
 
-def generate_html_report(profile, vitals, report_text, pubmed_refs, lang="el", recs=None, photo_findings=None):
+def generate_html_report(profile, vitals, report_text, pubmed_refs, lang="el", recs=None, photo_findings=None, lab_findings=None):
     import re as _re, html as _html
     name=_html.escape(str(profile.get("name","—"))); age=str(profile.get("age","—"))
     sex=_html.escape(str(profile.get("sex",""))); hx=_html.escape(str(profile.get("history","") or "—"))
@@ -1613,6 +1744,22 @@ def generate_html_report(profile, vitals, report_text, pubmed_refs, lang="el", r
                 f'</div><div class="pf-row-body">{_an}</div></div>'
             )
         photo_html = f'<h2>{_pf_title}</h2><div class="pf-list">{_pf_items}</div>'
+    # Lab findings — same structure as photo, green accent for lab data.
+    lab_html = ""
+    if lab_findings and isinstance(lab_findings, list):
+        _lf_title = "🧪 Ευρήματα Εργαστηριακών Εξετάσεων" if lang=="el" else "🧪 Lab Findings"
+        _lf_items = ""
+        for i, lf in enumerate(lab_findings, 1):
+            _lbl = _html.escape(lf.get("file_name","—"))
+            _an = _re.sub(r"\s+", " ", (lf.get("analysis","") or "").strip())
+            _an = _html.escape(_an)
+            _an = _re.sub(r"\*\*(.+?)\*\*", r"<strong>\1</strong>", _an)
+            _lf_items += (
+                f'<div class="lf-row"><div class="lf-row-head">'
+                f'<span class="lf-row-num">{i}</span><span class="lf-row-lbl">📄 {_lbl}</span>'
+                f'</div><div class="lf-row-body">{_an}</div></div>'
+            )
+        lab_html = f'<h2>{_lf_title}</h2><div class="lf-list">{_lf_items}</div>'
     html_out=f"""<!DOCTYPE html><html lang="{lang}"><head><meta charset="UTF-8"><title>Asklepios Report — {name}</title>
 <style>*{{box-sizing:border-box;margin:0;padding:0}}body{{font-family:'Inter',sans-serif;font-size:13px;color:#1A1A2E;max-width:820px;margin:0 auto;padding:32px 40px}}
 .hdr{{display:flex;justify-content:space-between;align-items:center;border-bottom:3px solid #2D3FE7;padding-bottom:14px;margin-bottom:20px}}
@@ -1639,13 +1786,17 @@ table.vitals tbody tr:nth-child(even){{background:#F8FAFF}}
 .pf-row-head{{display:flex;align-items:center;gap:8px;margin-bottom:5px}}
 .pf-row-num{{background:#DBEAFE;color:#1E40AF;font-size:10px;font-weight:700;width:18px;height:18px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center}}
 .pf-row-lbl{{font-size:12px;font-weight:700;color:#111827}}.pf-row-body{{font-size:11.5px;color:#374151;line-height:1.55}}
+.lf-list{{margin:8px 0 16px}}.lf-row{{padding:10px 0;border-bottom:1px solid #F3F4F6}}.lf-row:last-child{{border-bottom:none}}
+.lf-row-head{{display:flex;align-items:center;gap:8px;margin-bottom:5px}}
+.lf-row-num{{background:#D1FAE5;color:#065F46;font-size:10px;font-weight:700;width:18px;height:18px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center}}
+.lf-row-lbl{{font-size:12px;font-weight:700;color:#111827}}.lf-row-body{{font-size:11.5px;color:#374151;line-height:1.55}}
 @media print{{.recs-box{{-webkit-print-color-adjust:exact;print-color-adjust:exact}}.recs-grid{{grid-template-columns:1fr 1fr 1fr !important}}}}
 .hint{{text-align:center;margin:24px 0 0;font-size:12px;color:#94A3B8;border-top:1px dashed #E0E5FF;padding-top:14px}}
 @media print{{body{{padding:16px}}.patient,.emergency{{-webkit-print-color-adjust:exact;print-color-adjust:exact}}@page{{margin:15mm}}}}</style></head><body>
 <div class="hdr"><div class="hdr-logo">🩺 Asklepios AI Nurse</div><div class="hdr-date">Κλινική Εκτίμηση<br>{ts}</div></div>
 <div class="patient"><div class="patient-name">{name}</div><div class="patient-meta">{age} ετών · {sex}</div>
 <div class="patient-detail"><strong>Ιστορικό:</strong> {hx}<br><strong>Αλλεργίες:</strong> {allg}<br><strong>Φάρμακα:</strong> {meds}</div></div>
-{vitals_sec}<h2>Κλινική Αξιολόγηση</h2>{md2h(report_text or "")}{photo_html}{recs_html}{refs_html}
+{vitals_sec}<h2>Κλινική Αξιολόγηση</h2>{md2h(report_text or "")}{photo_html}{lab_html}{recs_html}{refs_html}
 <div class="emergency">🚨 ΣΕ ΕΠΕΙΓΟΥΣΑ ΑΝΑΓΚΗ: ΚΑΛΕΣΤΕ 166 (ΕΚΑΒ) ή 112</div>
 <div class="disclaimer">⚠️ AI-generated. Δεν αποτελεί ιατρική διάγνωση. Απαιτείται επίσκεψη σε επαγγελματία υγείας.</div>
 <div class="hint">💡 Ctrl+P → Save as PDF</div></body></html>"""
@@ -2293,6 +2444,110 @@ def render_photo_scan():
         st.info("👆 " + ("Ανεβάστε φωτογραφία για να ξεκινήσει η ανάλυση" if lang=="el"
                         else "Upload a photo to begin analysis"))
 
+
+def render_lab_analysis():
+    """Lab PDF/image upload + Claude interpretation. 2-stage flow at top level
+    (no nested buttons — same fix as photo scan).
+    
+    Privacy: file is sent to Claude API for analysis and discarded immediately.
+    Nothing about the lab values is stored on our servers.
+    """
+    p = st.session_state.profile
+    lang = st.session_state.lang
+    st.caption(("Ανέβασε PDF ή φωτογραφία αιματολογικών, ορμονολογικών, βιοχημικών ή ουρολογικών εξετάσεων."
+                if lang=="el" else
+                "Upload PDF or photo of blood, hormonal, biochemistry, or urinalysis results."))
+    st.markdown(f'<div class="disclaimer">{"⚠️ Εκπαιδευτικό εργαλείο, δεν αντικαθιστά ιατρό. Το αρχείο δεν αποθηκεύεται στους server μας." if lang=="el" else "⚠️ Educational tool, does not replace a doctor. The file is not stored on our servers."}</div>', unsafe_allow_html=True)
+    
+    uploaded_lab = st.file_uploader(
+        ("Εξετάσεις (PDF, JPG, PNG)" if lang=="el" else "Lab tests (PDF, JPG, PNG)"),
+        type=["pdf","jpg","jpeg","png","webp"],
+        key="lab_upload"
+    )
+    
+    _current_file_id = (f"{uploaded_lab.name}|{uploaded_lab.size}"
+                        if uploaded_lab else None)
+    
+    # ── STAGE 1: trigger analysis ──
+    if uploaded_lab:
+        c_info, c_btn = st.columns([2,1])
+        with c_info:
+            st.markdown(f"**📄 {uploaded_lab.name}** · {round(uploaded_lab.size/1024)} KB")
+        with c_btn:
+            if st.button("🔬 " + ("Ανάλυση" if lang=="el" else "Analyse"),
+                         type="primary", use_container_width=True, key="analyse_lab"):
+                file_bytes = uploaded_lab.read()
+                fname = uploaded_lab.name.lower()
+                if fname.endswith(".pdf"):
+                    mime = "application/pdf"
+                elif fname.endswith(".png"):
+                    mime = "image/png"
+                elif fname.endswith(".webp"):
+                    mime = "image/webp"
+                else:
+                    mime = "image/jpeg"
+                
+                with st.spinner(("Ο Asklepios ερμηνεύει τα αποτελέσματα..." if lang=="el"
+                                else "Asklepios is interpreting the results...")):
+                    analysis = claude_analyze_lab(
+                        file_bytes, mime,
+                        p, st.session_state.triage_chat, lang,
+                        file_name=uploaded_lab.name,
+                    )
+                
+                # Persist preview to state — Stage 2 renders OUTSIDE this button
+                # block so the "Add to assessment" button actually fires on click.
+                st.session_state["_lab_preview"] = {
+                    "file_id":   _current_file_id,
+                    "file_name": uploaded_lab.name,
+                    "mime":      mime,
+                    "analysis":  analysis,
+                }
+                st.rerun()
+    
+    # ── STAGE 2: preview + Add-to-assessment (TOP LEVEL — not nested) ──
+    preview = st.session_state.get("_lab_preview")
+    if preview:
+        # Stale preview detection: user uploaded a different file
+        if uploaded_lab and preview.get("file_id") and preview["file_id"] != _current_file_id:
+            st.session_state.pop("_lab_preview", None)
+            preview = None
+    if preview:
+        analysis = preview["analysis"]
+        st.markdown('<div class="card">', unsafe_allow_html=True)
+        st.markdown(analysis)
+        st.markdown('</div>', unsafe_allow_html=True)
+        
+        urgent_kw = ["επείγον","άμεσα","emergency","critical","κρίσιμ","ιατρό αμέσως","immediately"]
+        if any(k.lower() in analysis.lower() for k in urgent_kw):
+            st.error("🚨 " + ("Ευρήματα που χρήζουν άμεσης ιατρικής αξιολόγησης"
+                              if lang=="el" else
+                              "Findings requiring immediate medical evaluation"))
+        
+        if st.button("➤ " + ("Πρόσθεση στην εκτίμηση" if lang=="el" else "Add to assessment"),
+                     type="primary", use_container_width=True, key="lab_to_triage"):
+            _name = preview["file_name"]
+            msg = (f"Αποτέλεσμα ανάλυσης εξετάσεων ({_name}):\n\n{analysis}"
+                   if lang=="el" else
+                   f"Lab analysis result ({_name}):\n\n{analysis}")
+            st.session_state.triage_chat.append({"role":"user","content":msg})
+            _lf = st.session_state.get("lab_findings")
+            if not isinstance(_lf, list):
+                _lf = []
+            _lf.append({
+                "file_name": _name,
+                "analysis":  analysis,
+            })
+            st.session_state["lab_findings"] = _lf
+            st.session_state["lab_added"]    = True
+            st.session_state.pop("_lab_preview", None)
+            st.rerun()
+    elif not uploaded_lab:
+        st.info("👆 " + ("Ανεβάστε PDF ή φωτογραφία για να ξεκινήσει η ανάλυση"
+                        if lang=="el" else
+                        "Upload a PDF or photo to begin analysis"))
+
+
 def render_triage():
     render_stepper("triage")
     p=st.session_state.profile
@@ -2399,6 +2654,32 @@ def render_triage():
                                     "Optional. If Asklepios needs a photo for a visible symptom, "
                                     "it will say so — but you can also upload proactively."))
             render_photo_scan()
+    # Lab analysis — always available once Asklepios has started talking, since
+    # blood/hormonal/urinalysis results help for ANY complaint, not just visual.
+    if any(m["role"]=="assistant" for m in st.session_state.triage_chat):
+        _lf_list = st.session_state.get("lab_findings") or []
+        _has_lab = isinstance(_lf_list, list) and len(_lf_list) > 0
+        _lab_label = (("🧪 Ανέβασε άλλες εξετάσεις (αν χρειάζεται)"
+                       if _has_lab else
+                       "🧪 Ανάλυση εξετάσεων (αιματολογικά, ορμονολογικά, ούρα) — προαιρετικό")
+                      if st.session_state.lang=="el" else
+                      ("🧪 Upload more lab tests (if needed)"
+                       if _has_lab else
+                       "🧪 Lab analysis (blood, hormonal, urinalysis) — optional"))
+        with st.expander(_lab_label, expanded=False):
+            if _has_lab:
+                st.caption("💡 " + (f"{len(_lf_list)} αρχείο/α εξετάσεων έχουν προστεθεί. "
+                                    "Ανέβασε άλλο αν έχεις περισσότερες εξετάσεις."
+                                    if st.session_state.lang=="el" else
+                                    f"{len(_lf_list)} lab file(s) added. "
+                                    "Upload another if you have more tests."))
+            else:
+                st.caption("💡 " + ("Ανέβασε εργαστηριακές εξετάσεις (PDF ή φωτογραφία) "
+                                    "και ο Asklepios θα τις ερμηνεύσει ΜΕΣΑ στο πλαίσιο των συμπτωμάτων σου."
+                                    if st.session_state.lang=="el" else
+                                    "Upload lab tests (PDF or photo) and Asklepios will "
+                                    "interpret them WITHIN the context of your symptoms."))
+            render_lab_analysis()
     # Confirmation after a photo was added — guide the user to keep answering
     if st.session_state.get("photo_added"):
         last_q = next((m["content"] for m in reversed(st.session_state.triage_chat) if m["role"]=="assistant"), "")
@@ -2408,6 +2689,13 @@ def render_triage():
             st.success("✅ The image analysis was added to the assessment. Continue by answering Asklepios's last question below.")
         if last_q:
             st.info(("🩺 Τελευταία ερώτηση: " if st.session_state.lang=="el" else "🩺 Last question: ") + last_q)
+    # Same confirmation pattern for lab results — keeps the user on track
+    if st.session_state.get("lab_added"):
+        last_q = next((m["content"] for m in reversed(st.session_state.triage_chat) if m["role"]=="assistant"), "")
+        if st.session_state.lang=="el":
+            st.success("✅ Η ανάλυση των εξετάσεων προστέθηκε στην εκτίμηση. Συνέχισε απαντώντας στον Asklepios.")
+        else:
+            st.success("✅ The lab analysis was added to the assessment. Continue chatting with Asklepios.")
     ready_phrases=["έχω αρκετά στοιχεία","μπορούμε να δημιουργήσουμε","i have enough information","we can generate","full clinical report","πλήρη αναφορά"]
     last_kira=next((m["content"].lower() for m in reversed(st.session_state.triage_chat) if m["role"]=="assistant"),"")
     triage_ready=any(ph in last_kira for ph in ready_phrases)
@@ -2416,6 +2704,7 @@ def render_triage():
     if user_input or _auto_reply:
         if user_input:
             st.session_state.pop("photo_added", None)
+            st.session_state.pop("lab_added", None)
             st.session_state.triage_chat.append({"role":"user","content":user_input})
         with st.spinner("Asklepios..."):
             pp=p.get
@@ -2856,6 +3145,194 @@ def _render_health_pillars(profile, vitals, status_map, report_text, lang):
 """, unsafe_allow_html=True)
 
 
+def render_emergency_resources(lang):
+    """'Πού να απευθυνθώ' card with:
+      - Emergency numbers (166 EKAB, 112 EU, 1066 fire dept) as click-to-call
+      - Vrisko.gr links for ΕΟΠΥΥ doctors, on-duty hospitals, on-duty pharmacies
+        (these are public Greek directories — same ones nextdeal.gr / vrisko link to)
+      - Google Maps quick-search buttons for nearby facilities
+    Rendered on the report screen so the user knows their next step after triage."""
+    if lang == "el":
+        tx = {
+            "title":       "📍 ΠΟΥ ΝΑ ΑΠΕΥΘΥΝΘΩ",
+            "subtitle":    "Επόμενα βήματα — εφημερεύοντα, ΕΟΠΥΥ γιατροί, φαρμακεία",
+            "emerg_title": "🚨 ΣΕ ΕΠΕΙΓΟΥΣΑ ΑΝΑΓΚΗ",
+            "ekab":        "ΕΚΑΒ Ασθενοφόρο",
+            "eu_112":      "Ευρωπαϊκή Γραμμή Έκτακτης Ανάγκης",
+            "pfy":         "Πρωτοβάθμια Φροντίδα Υγείας (1135)",
+            "find_doc":    "🩺 Γιατρός ΕΟΠΥΥ",
+            "find_doc_sub":"Συμβεβλημένοι γιατροί",
+            "find_hosp":   "🚑 Εφημερεύοντα νοσοκομεία",
+            "find_hosp_sub":"Σήμερα",
+            "find_pharm":  "💊 Εφημερεύοντα φαρμακεία",
+            "find_pharm_sub":"Διανυκτερεύοντα",
+            "maps_title":  "Άνοιξε στο Google Maps",
+            "maps_hosp":   "Νοσοκομείο κοντά μου",
+            "maps_doc":    "Ιατρείο κοντά μου",
+            "maps_pharm":  "Φαρμακείο κοντά μου",
+        }
+        # Greek Google Maps queries (browser geolocates from device)
+        maps_q = {
+            "hosp":  "νοσοκομείο",
+            "doc":   "ιατρείο",
+            "pharm": "φαρμακείο",
+        }
+    else:
+        tx = {
+            "title":       "📍 NEXT STEPS — WHERE TO GO",
+            "subtitle":    "On-duty facilities, EOPYY doctors, pharmacies",
+            "emerg_title": "🚨 IN AN EMERGENCY",
+            "ekab":        "EKAB Ambulance",
+            "eu_112":      "European Emergency Line",
+            "pfy":         "Primary Care Helpline (1135)",
+            "find_doc":    "🩺 EOPYY Doctor",
+            "find_doc_sub":"Affiliated physicians",
+            "find_hosp":   "🚑 On-duty hospitals",
+            "find_hosp_sub":"Today",
+            "find_pharm":  "💊 On-duty pharmacies",
+            "find_pharm_sub":"Night/weekend",
+            "maps_title":  "Open in Google Maps",
+            "maps_hosp":   "Hospital near me",
+            "maps_doc":    "Doctor's office near me",
+            "maps_pharm":  "Pharmacy near me",
+        }
+        maps_q = {
+            "hosp":  "hospital",
+            "doc":   "doctor",
+            "pharm": "pharmacy",
+        }
+    import urllib.parse as _up
+    def _maps(q):
+        return f"https://www.google.com/maps/search/?api=1&query={_up.quote(q)}"
+    # Vrisko.gr public Greek directories (used by major Greek health/insurance sites)
+    URL_DOC   = "https://www.vrisko.gr/dir/giatroi-eopyy"
+    URL_HOSP  = "https://www.vrisko.gr/efimeries-nosokomeion"
+    URL_PHARM = "https://www.vrisko.gr/efimeries-farmakeion"
+    st.markdown(f"""
+<style>
+.er-card {{
+  background: white; border: 1px solid #E5E7EB; border-radius: 14px;
+  padding: 22px 24px; margin: 18px 0;
+  font-family: 'Inter', system-ui, sans-serif;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+}}
+.er-title {{
+  font-size: 11px; font-weight: 700; letter-spacing: 0.14em;
+  color: #6B7280; text-transform: uppercase;
+  border-bottom: 2px solid #E5E7EB; padding-bottom: 10px; margin-bottom: 4px;
+}}
+.er-subtitle {{
+  font-size: 12px; color: #9CA3AF; margin-bottom: 16px;
+}}
+.er-emerg {{
+  background: linear-gradient(135deg, #FEF2F2 0%, #FEE2E2 100%);
+  border: 1px solid #FCA5A5; border-radius: 12px;
+  padding: 14px 16px; margin-bottom: 16px;
+}}
+.er-emerg-title {{
+  font-size: 10.5px; font-weight: 800; color: #991B1B;
+  letter-spacing: 0.12em; text-transform: uppercase; margin-bottom: 10px;
+}}
+.er-emerg-row {{
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 8px 0; border-top: 1px dashed rgba(220,38,38,0.20);
+  gap: 12px;
+}}
+.er-emerg-row:first-of-type {{ border-top: none; padding-top: 4px; }}
+.er-emerg-label {{ font-size: 13px; color: #7F1D1D; font-weight: 600; flex: 1; min-width: 0; }}
+.er-call-btn {{
+  background: #DC2626; color: white; padding: 7px 16px; border-radius: 8px;
+  font-weight: 700; font-size: 14px; text-decoration: none;
+  font-variant-numeric: tabular-nums; white-space: nowrap; flex-shrink: 0;
+}}
+.er-call-btn:hover {{ background: #B91C1C; color: white; text-decoration: none; }}
+
+.er-grid {{
+  display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px;
+}}
+.er-link {{
+  display: block;
+  background: #F9FAFB; border: 1px solid #E5E7EB; border-radius: 10px;
+  padding: 14px; text-decoration: none; color: inherit;
+  transition: all 0.15s;
+}}
+.er-link:hover {{
+  background: white; border-color: #2D3FE7; text-decoration: none; color: inherit;
+  transform: translateY(-1px); box-shadow: 0 2px 6px rgba(45,63,231,0.10);
+}}
+.er-link-title {{ font-size: 13.5px; font-weight: 700; color: #1F2937; margin-bottom: 3px; }}
+.er-link-sub {{ font-size: 11px; color: #6B7280; }}
+
+.er-maps {{
+  margin-top: 16px; padding-top: 14px; border-top: 1px dashed #E5E7EB;
+}}
+.er-maps-title {{
+  font-size: 10.5px; font-weight: 700; letter-spacing: 0.12em;
+  color: #6B7280; text-transform: uppercase; margin-bottom: 10px;
+}}
+.er-maps-row {{ display: flex; gap: 8px; flex-wrap: wrap; }}
+.er-maps-btn {{
+  flex: 1; min-width: 140px;
+  display: inline-block; padding: 9px 14px;
+  background: white; border: 1px solid #C7D2FE; border-radius: 8px;
+  color: #2D3FE7; font-size: 12.5px; font-weight: 600;
+  text-decoration: none; text-align: center;
+}}
+.er-maps-btn:hover {{ background: #EFF6FF; color: #2D3FE7; text-decoration: none; }}
+
+@media (max-width: 640px) {{
+  .er-grid {{ grid-template-columns: 1fr; }}
+  .er-emerg-row {{ flex-wrap: wrap; }}
+  .er-maps-btn {{ min-width: 100%; }}
+}}
+</style>
+<div class="er-card">
+  <div class="er-title">{tx['title']}</div>
+  <div class="er-subtitle">{tx['subtitle']}</div>
+
+  <div class="er-emerg">
+    <div class="er-emerg-title">{tx['emerg_title']}</div>
+    <div class="er-emerg-row">
+      <span class="er-emerg-label">{tx['ekab']}</span>
+      <a class="er-call-btn" href="tel:166">📞 166</a>
+    </div>
+    <div class="er-emerg-row">
+      <span class="er-emerg-label">{tx['eu_112']}</span>
+      <a class="er-call-btn" href="tel:112">📞 112</a>
+    </div>
+    <div class="er-emerg-row">
+      <span class="er-emerg-label">{tx['pfy']}</span>
+      <a class="er-call-btn" href="tel:1135">📞 1135</a>
+    </div>
+  </div>
+
+  <div class="er-grid">
+    <a class="er-link" href="{URL_DOC}" target="_blank" rel="noopener">
+      <div class="er-link-title">{tx['find_doc']}</div>
+      <div class="er-link-sub">{tx['find_doc_sub']} ↗</div>
+    </a>
+    <a class="er-link" href="{URL_HOSP}" target="_blank" rel="noopener">
+      <div class="er-link-title">{tx['find_hosp']}</div>
+      <div class="er-link-sub">{tx['find_hosp_sub']} ↗</div>
+    </a>
+    <a class="er-link" href="{URL_PHARM}" target="_blank" rel="noopener">
+      <div class="er-link-title">{tx['find_pharm']}</div>
+      <div class="er-link-sub">{tx['find_pharm_sub']} ↗</div>
+    </a>
+  </div>
+
+  <div class="er-maps">
+    <div class="er-maps-title">📍 {tx['maps_title']}</div>
+    <div class="er-maps-row">
+      <a class="er-maps-btn" href="{_maps(maps_q['hosp'])}" target="_blank" rel="noopener">🚑 {tx['maps_hosp']}</a>
+      <a class="er-maps-btn" href="{_maps(maps_q['doc'])}" target="_blank" rel="noopener">🩺 {tx['maps_doc']}</a>
+      <a class="er-maps-btn" href="{_maps(maps_q['pharm'])}" target="_blank" rel="noopener">💊 {tx['maps_pharm']}</a>
+    </div>
+  </div>
+</div>
+""", unsafe_allow_html=True)
+
+
 def render_report():
     render_stepper("report")
     p=st.session_state.profile; lang=st.session_state.lang
@@ -3108,10 +3585,50 @@ Language: {"Greek" if lang=="el" else "English"}. Be direct. End with a one-line
             f'<div class="pf-card"><div class="pf-title">{_pf_title} · {_pf_count}</div>{_cards_html}</div>',
             unsafe_allow_html=True,
         )
+    # Lab findings card — mirrors the photo card style with a green accent for
+    # laboratory data. Same in-memory-only privacy: contents are session-only.
+    _lfs = st.session_state.get("lab_findings") or []
+    if isinstance(_lfs, list) and _lfs:
+        _lf_title = ("🧪 ΕΥΡΗΜΑΤΑ ΕΡΓΑΣΤΗΡΙΑΚΩΝ ΕΞΕΤΑΣΕΩΝ" if lang=="el"
+                     else "🧪 LAB FINDINGS")
+        _lf_count = len(_lfs)
+        import html as _html_lf, re as _re_lf
+        def _flat_lf(t): return _re_lf.sub(r"\s+", " ", (t or "").strip())
+        _lf_cards = ""
+        for i, lf in enumerate(_lfs, 1):
+            _fname = _html_lf.escape(lf.get("file_name","—"))
+            _an = _html_lf.escape(_flat_lf(lf.get("analysis","")))
+            _an = _re_lf.sub(r"\*\*(.+?)\*\*", r"<strong>\1</strong>", _an)
+            _lf_cards += (
+                f'<div class="lf-item">'
+                f'<div class="lf-head"><span class="lf-num">{i}</span>'
+                f'<span class="lf-label">📄 {_fname}</span></div>'
+                f'<div class="lf-body">{_an}</div>'
+                f'</div>'
+            )
+        st.markdown(
+            f'<style>'
+            f'.lf-card{{background:white;border:1px solid #E5E7EB;border-radius:14px;padding:22px 24px;margin:18px 0;font-family:Inter,system-ui,sans-serif;box-shadow:0 1px 3px rgba(0,0,0,0.04)}}'
+            f'.lf-title{{font-size:11px;font-weight:700;letter-spacing:0.14em;color:#6B7280;text-transform:uppercase;border-bottom:2px solid #E5E7EB;padding-bottom:10px;margin-bottom:14px}}'
+            f'.lf-item{{padding:14px 0;border-bottom:1px solid #F3F4F6}}'
+            f'.lf-item:last-child{{border-bottom:none;padding-bottom:0}}'
+            f'.lf-head{{display:flex;align-items:center;gap:10px;margin-bottom:8px}}'
+            f'.lf-num{{background:#D1FAE5;color:#065F46;font-size:11px;font-weight:700;width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center}}'
+            f'.lf-label{{font-size:13.5px;font-weight:700;color:#111827}}'
+            f'.lf-body{{font-size:13px;color:#374151;line-height:1.6}}'
+            f'.lf-body strong{{color:#1F2937}}'
+            f'</style>'
+            f'<div class="lf-card"><div class="lf-title">{_lf_title} · {_lf_count}</div>{_lf_cards}</div>',
+            unsafe_allow_html=True,
+        )
     # PNOE-style 3-pillar Recommendations card (Exercise / Nutrition / Lifestyle)
     if st.session_state.get("report_recs"):
         _render_recs_card(st.session_state.report_recs, lang,
                           refs=st.session_state.get("report_recs_refs") or {})
+    # Where-to-go card: emergency numbers + nearby clinics/pharmacies finder.
+    # Placed right after the personalised recs so the user has all the info
+    # needed to take the next step.
+    render_emergency_resources(lang)
     if st.session_state.report_pubmed:
         with st.expander(f"🔬 {t('pubmed')} ({len(st.session_state.report_pubmed)})"):
             for a in st.session_state.report_pubmed:
@@ -3210,7 +3727,8 @@ Language: {"Greek" if lang=="el" else "English"}. Be direct. End with a one-line
             for k,vv in defaults.items(): st.session_state[k]=vv
             for fbk in ("fb_comment","fb_rating","fb_sent","photo_added","photo_findings",
                         "_draft_hash","_from_facescan","_scan_injected","_vitals_nudge_off",
-                        "_gpt_integrated","_photo_preview"): st.session_state.pop(fbk, None)
+                        "_gpt_integrated","_photo_preview",
+                        "lab_added","lab_findings","_lab_preview"): st.session_state.pop(fbk, None)
             st.rerun()
     with c2:
         # TXT: report + recs (plain text) so the file is self-contained
@@ -3235,7 +3753,10 @@ Language: {"Greek" if lang=="el" else "English"}. Be direct. End with a one-line
         _pf_for_html = st.session_state.get("photo_findings") or []
         if not isinstance(_pf_for_html, list):
             _pf_for_html = []
-        st.download_button("📄 PDF/HTML",data=generate_html_report(st.session_state.profile,st.session_state.vitals,st.session_state.report,st.session_state.report_pubmed,lang=lang,recs=_recs_for_html,photo_findings=_pf_for_html),file_name=fname+".html",mime="text/html",use_container_width=True,help="Open in browser → Ctrl+P → Save as PDF")
+        _lf_for_html = st.session_state.get("lab_findings") or []
+        if not isinstance(_lf_for_html, list):
+            _lf_for_html = []
+        st.download_button("📄 PDF/HTML",data=generate_html_report(st.session_state.profile,st.session_state.vitals,st.session_state.report,st.session_state.report_pubmed,lang=lang,recs=_recs_for_html,photo_findings=_pf_for_html,lab_findings=_lf_for_html),file_name=fname+".html",mime="text/html",use_container_width=True,help="Open in browser → Ctrl+P → Save as PDF")
     with c4:
         import re as _re_wa
         wa_lines=[f"🩺 Asklepios AI Nurse",
