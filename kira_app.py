@@ -1532,7 +1532,7 @@ def _symptom_chips(profile, lang):
         g = "adult"
     return _CHIP_SETS[g]["el" if lang == "el" else "en"]
 
-def generate_html_report(profile, vitals, report_text, pubmed_refs, lang="el", recs=None):
+def generate_html_report(profile, vitals, report_text, pubmed_refs, lang="el", recs=None, photo_findings=None):
     import re as _re, html as _html
     name=_html.escape(str(profile.get("name","—"))); age=str(profile.get("age","—"))
     sex=_html.escape(str(profile.get("sex",""))); hx=_html.escape(str(profile.get("history","") or "—"))
@@ -1585,6 +1585,22 @@ def generate_html_report(profile, vitals, report_text, pubmed_refs, lang="el", r
             f'<div class="recs-box lifestyle"><div class="recs-lbl">🌿 {_t[3]}</div><div>{_li}</div>{_refs_box("lifestyle")}</div>'
             '</div>'
         )
+    # Photo findings — if visual analyses exist, add a section with each one.
+    photo_html = ""
+    if photo_findings and isinstance(photo_findings, list):
+        _pf_title = "📷 Ευρήματα από Φωτογραφίες" if lang=="el" else "📷 Photo Findings"
+        _pf_items = ""
+        for i, pf in enumerate(photo_findings, 1):
+            _lbl = _html.escape(pf.get("scan_label","—"))
+            _an = _re.sub(r"\s+", " ", (pf.get("analysis","") or "").strip())
+            _an = _html.escape(_an)
+            _an = _re.sub(r"\*\*(.+?)\*\*", r"<strong>\1</strong>", _an)
+            _pf_items += (
+                f'<div class="pf-row"><div class="pf-row-head">'
+                f'<span class="pf-row-num">{i}</span><span class="pf-row-lbl">{_lbl}</span>'
+                f'</div><div class="pf-row-body">{_an}</div></div>'
+            )
+        photo_html = f'<h2>{_pf_title}</h2><div class="pf-list">{_pf_items}</div>'
     html_out=f"""<!DOCTYPE html><html lang="{lang}"><head><meta charset="UTF-8"><title>Asklepios Report — {name}</title>
 <style>*{{box-sizing:border-box;margin:0;padding:0}}body{{font-family:'Inter',sans-serif;font-size:13px;color:#1A1A2E;max-width:820px;margin:0 auto;padding:32px 40px}}
 .hdr{{display:flex;justify-content:space-between;align-items:center;border-bottom:3px solid #2D3FE7;padding-bottom:14px;margin-bottom:20px}}
@@ -1607,13 +1623,17 @@ table.vitals tbody tr:nth-child(even){{background:#F8FAFF}}
 .recs-refs{{margin-top:8px;padding-top:6px;border-top:1px dashed rgba(0,0,0,0.10)}}
 .recs-refs-lbl{{font-size:9px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:#6B7280;margin-bottom:4px}}
 .recs-refs ul{{list-style:none;padding:0;margin:0}}.recs-refs li{{font-size:10.5px;line-height:1.4;margin-bottom:3px}}
+.pf-list{{margin:8px 0 16px}}.pf-row{{padding:10px 0;border-bottom:1px solid #F3F4F6}}.pf-row:last-child{{border-bottom:none}}
+.pf-row-head{{display:flex;align-items:center;gap:8px;margin-bottom:5px}}
+.pf-row-num{{background:#DBEAFE;color:#1E40AF;font-size:10px;font-weight:700;width:18px;height:18px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center}}
+.pf-row-lbl{{font-size:12px;font-weight:700;color:#111827}}.pf-row-body{{font-size:11.5px;color:#374151;line-height:1.55}}
 @media print{{.recs-box{{-webkit-print-color-adjust:exact;print-color-adjust:exact}}.recs-grid{{grid-template-columns:1fr 1fr 1fr !important}}}}
 .hint{{text-align:center;margin:24px 0 0;font-size:12px;color:#94A3B8;border-top:1px dashed #E0E5FF;padding-top:14px}}
 @media print{{body{{padding:16px}}.patient,.emergency{{-webkit-print-color-adjust:exact;print-color-adjust:exact}}@page{{margin:15mm}}}}</style></head><body>
 <div class="hdr"><div class="hdr-logo">🩺 Asklepios AI Nurse</div><div class="hdr-date">Κλινική Εκτίμηση<br>{ts}</div></div>
 <div class="patient"><div class="patient-name">{name}</div><div class="patient-meta">{age} ετών · {sex}</div>
 <div class="patient-detail"><strong>Ιστορικό:</strong> {hx}<br><strong>Αλλεργίες:</strong> {allg}<br><strong>Φάρμακα:</strong> {meds}</div></div>
-{vitals_sec}<h2>Κλινική Αξιολόγηση</h2>{md2h(report_text or "")}{recs_html}{refs_html}
+{vitals_sec}<h2>Κλινική Αξιολόγηση</h2>{md2h(report_text or "")}{photo_html}{recs_html}{refs_html}
 <div class="emergency">🚨 ΣΕ ΕΠΕΙΓΟΥΣΑ ΑΝΑΓΚΗ: ΚΑΛΕΣΤΕ 166 (ΕΚΑΒ) ή 112</div>
 <div class="disclaimer">⚠️ AI-generated. Δεν αποτελεί ιατρική διάγνωση. Απαιτείται επίσκεψη σε επαγγελματία υγείας.</div>
 <div class="hint">💡 Ctrl+P → Save as PDF</div></body></html>"""
@@ -2202,7 +2222,9 @@ def render_photo_scan():
                     st.error("🚨 " + ("Επείγοντα ευρήματα — επικοινωνήστε με ιατρό ΑΜΕΣΑ" if lang=="el"
                                       else "Urgent findings — contact a doctor IMMEDIATELY"))
 
-                st.session_state["photo_findings"] = {
+                # Preview-only — finding gets persisted to the list only when the
+                # user explicitly clicks "Add to assessment" below.
+                st.session_state["_photo_preview"] = {
                     "scan_type": scan_k, "scan_label": sel,
                     "florence_desc": f2_desc, "analysis": analysis,
                 }
@@ -2212,7 +2234,18 @@ def render_photo_scan():
                            if lang=="el" else
                            f"Photo analysis result ({sel}):\n\n{analysis}")
                     st.session_state.triage_chat.append({"role":"user","content":msg})
+                    # Append to the photo findings LIST so multiple uploads accumulate
+                    # and all become visible in the final report.
+                    _pf = st.session_state.get("photo_findings")
+                    if not isinstance(_pf, list):
+                        _pf = []
+                    _pf.append({
+                        "scan_type": scan_k, "scan_label": sel,
+                        "florence_desc": f2_desc, "analysis": analysis,
+                    })
+                    st.session_state["photo_findings"] = _pf
                     st.session_state["photo_added"] = True
+                    st.session_state.pop("_photo_preview", None)
                     st.rerun()
     else:
         st.info("👆 " + ("Ανεβάστε φωτογραφία για να ξεκινήσει η ανάλυση" if lang=="el"
@@ -2296,7 +2329,33 @@ def render_triage():
     # complaint is something visible (skin, eye, wound, throat, nails...). For
     # non-visual issues (e.g. chest pain) a photo adds nothing, so it stays hidden.
     if any(m["role"]=="assistant" for m in st.session_state.triage_chat) and _visual_relevant():
-        with st.expander("📷 " + ("Ανάλυση φωτογραφίας (προαιρετικό)" if st.session_state.lang=="el" else "Photo analysis (optional)")):
+        _pf_list = st.session_state.get("photo_findings") or []
+        _has_photo = isinstance(_pf_list, list) and len(_pf_list) > 0
+        # Label adapts so the user knows multiple uploads are allowed.
+        # Collapsed by default once a photo has been added — keeps the chat
+        # uncluttered but the option remains one click away.
+        _exp_label = (("📷 Ανέβασε άλλη φωτογραφία (αν χρειαστεί)"
+                       if _has_photo else
+                       "📷 Ανάλυση φωτογραφίας (προαιρετικό)")
+                      if st.session_state.lang=="el" else
+                      ("📷 Upload another photo (if needed)"
+                       if _has_photo else
+                       "📷 Photo analysis (optional)"))
+        with st.expander(_exp_label, expanded=not _has_photo):
+            if _has_photo:
+                st.caption("💡 " + (f"Έχουν προστεθεί {len(_pf_list)} φωτογραφία/ες. "
+                                    "Ανέβασε νέα μόνο αν ο Asklepios το ζητήσει "
+                                    "ή αν θέλεις άλλη πλευρά / άλλο σημείο."
+                                    if st.session_state.lang=="el" else
+                                    f"{len(_pf_list)} photo(s) already added. "
+                                    "Upload a new one only if Asklepios asks "
+                                    "or you want a different angle/area."))
+            else:
+                st.caption("💡 " + ("Προαιρετικό. Αν ο Asklepios χρειαστεί φωτογραφία για ορατό σύμπτωμα, "
+                                    "θα στο αναφέρει — αλλά μπορείς να ανεβάσεις και προληπτικά."
+                                    if st.session_state.lang=="el" else
+                                    "Optional. If Asklepios needs a photo for a visible symptom, "
+                                    "it will say so — but you can also upload proactively."))
             render_photo_scan()
     # Confirmation after a photo was added — guide the user to keep answering
     if st.session_state.get("photo_added"):
@@ -2400,11 +2459,15 @@ def _render_recs_card(recs, lang, refs=None):
             "li_lbl":  "LIFESTYLE",
             "refs":    "Guidelines & meta-analyses",
         }
-    ex = recs.get("exercise",  "—")
-    nu = recs.get("nutrition", "—")
-    li = recs.get("lifestyle", "—")
-    import html as _html_r
-    ex, nu, li = (_html_r.escape(ex), _html_r.escape(nu), _html_r.escape(li))
+    import html as _html_r, re as _re_rec
+    # Collapse internal whitespace BEFORE escaping. Newlines in recs content
+    # break Streamlit's markdown HTML mode → raw </div> tags leak as text
+    # (the bug visible in the user's screenshot). Recs are short prose, so a
+    # single-line collapse is safe and preserves readability.
+    def _flat(t): return _re_rec.sub(r"\s+", " ", (t or "—").strip()) or "—"
+    ex = _html_r.escape(_flat(recs.get("exercise")))
+    nu = _html_r.escape(_flat(recs.get("nutrition")))
+    li = _html_r.escape(_flat(recs.get("lifestyle")))
 
     def _refs_html(pillar_key):
         items = (refs or {}).get(pillar_key) or []
@@ -2498,33 +2561,24 @@ def _render_recs_card(recs, lang, refs=None):
 }}
 </style>
 <div class="pnoe-recs">
-  <div class="pnoe-recs-title">{tx['title']}</div>
-  <div class="pnoe-recs-grid">
-    <div class="pnoe-recs-col exercise">
-      <div class="pnoe-recs-head">
-        <span class="pnoe-recs-icon">🏃</span>
-        <span class="pnoe-recs-label">{tx['ex_lbl']}</span>
-      </div>
-      <div class="pnoe-recs-body">{ex}</div>
-      {_refs_html("exercise")}
-    </div>
-    <div class="pnoe-recs-col nutrition">
-      <div class="pnoe-recs-head">
-        <span class="pnoe-recs-icon">🥗</span>
-        <span class="pnoe-recs-label">{tx['nu_lbl']}</span>
-      </div>
-      <div class="pnoe-recs-body">{nu}</div>
-      {_refs_html("nutrition")}
-    </div>
-    <div class="pnoe-recs-col lifestyle">
-      <div class="pnoe-recs-head">
-        <span class="pnoe-recs-icon">🌿</span>
-        <span class="pnoe-recs-label">{tx['li_lbl']}</span>
-      </div>
-      <div class="pnoe-recs-body">{li}</div>
-      {_refs_html("lifestyle")}
-    </div>
-  </div>
+<div class="pnoe-recs-title">{tx['title']}</div>
+<div class="pnoe-recs-grid">
+<div class="pnoe-recs-col exercise">
+<div class="pnoe-recs-head"><span class="pnoe-recs-icon">🏃</span><span class="pnoe-recs-label">{tx['ex_lbl']}</span></div>
+<div class="pnoe-recs-body">{ex}</div>
+{_refs_html("exercise")}
+</div>
+<div class="pnoe-recs-col nutrition">
+<div class="pnoe-recs-head"><span class="pnoe-recs-icon">🥗</span><span class="pnoe-recs-label">{tx['nu_lbl']}</span></div>
+<div class="pnoe-recs-body">{nu}</div>
+{_refs_html("nutrition")}
+</div>
+<div class="pnoe-recs-col lifestyle">
+<div class="pnoe-recs-head"><span class="pnoe-recs-icon">🌿</span><span class="pnoe-recs-label">{tx['li_lbl']}</span></div>
+<div class="pnoe-recs-body">{li}</div>
+{_refs_html("lifestyle")}
+</div>
+</div>
 </div>
 """, unsafe_allow_html=True)
 
@@ -2661,10 +2715,15 @@ def _pillar_scale_html(score):
 
 def _render_health_pillars(profile, vitals, status_map, report_text, lang):
     """4-Pillar Health Profile card — replaces the placeholder wellness score
-    with a transparent, factor-explained breakdown (PNOE 'Overview' inspired)."""
+    with a transparent, factor-explained breakdown (PNOE 'Overview' inspired).
+    Only shown when at least ONE measurement-based pillar (cardio/resp/meta)
+    has data — symptom burden alone is not a 'health profile'."""
     pillars, overall = _compute_health_pillars(profile, vitals, status_map, report_text, lang)
-    if overall is None and not any(p["available"] for p in pillars):
-        return  # Nothing to show
+    # Require objective measurements — don't fabricate a "wellness score" from
+    # symptom-burden alone. If no vitals were taken, this card stays hidden.
+    has_measurements = any(p["available"] for p in pillars if p["key"] in ("cardio","resp","meta"))
+    if not has_measurements:
+        return
     if lang == "el":
         title    = "📊 ΠΡΟΦΙΛ ΥΓΕΙΑΣ"
         ov_lbl   = "Συνολικό σκορ"
@@ -2690,24 +2749,24 @@ def _render_health_pillars(profile, vitals, status_map, report_text, lang):
         score_disp = f"{p['score']}" if p["score"] is not None else "—"
         factors_disp = (" · ".join(p["factors"][:3])) if p["factors"] else no_data
         opacity = "1" if p["available"] else "0.55"
-        rows_html += f"""
-<div style="padding:12px 0;border-top:1px solid #F3F4F6;opacity:{opacity}">
-  <div style="display:flex;align-items:center;justify-content:space-between;gap:12px">
-    <div style="display:flex;align-items:center;gap:10px;min-width:0;flex:1">
-      <span style="font-size:20px;flex-shrink:0">{p['icon']}</span>
-      <span style="font-size:13.5px;font-weight:700;color:#1F2937">{label}</span>
-    </div>
-    <div style="display:flex;align-items:center;gap:10px;flex-shrink:0">
-      <span style="font-size:18px;font-weight:800;color:{gcolor};font-variant-numeric:tabular-nums">{score_disp}<span style="font-size:11px;color:#9CA3AF;font-weight:600">%</span></span>
-      <span style="background:{gcolor}15;color:{gcolor};font-size:10.5px;font-weight:700;padding:3px 9px;border-radius:99px;letter-spacing:0.04em;text-transform:uppercase">{grade}</span>
-    </div>
-  </div>
-  {_pillar_scale_html(p["score"])}
-  <div style="font-size:11px;color:#6B7280;margin-top:6px;line-height:1.5">
-    <span style="font-weight:700;letter-spacing:0.08em;text-transform:uppercase">{factors_lbl}:</span> {factors_disp}
-  </div>
-</div>
-"""
+        rows_html += (
+            f'<div style="padding:12px 0;border-top:1px solid #F3F4F6;opacity:{opacity}">'
+            f'<div style="display:flex;align-items:center;justify-content:space-between;gap:12px">'
+            f'<div style="display:flex;align-items:center;gap:10px;min-width:0;flex:1">'
+            f'<span style="font-size:20px;flex-shrink:0">{p["icon"]}</span>'
+            f'<span style="font-size:13.5px;font-weight:700;color:#1F2937">{label}</span>'
+            f'</div>'
+            f'<div style="display:flex;align-items:center;gap:10px;flex-shrink:0">'
+            f'<span style="font-size:18px;font-weight:800;color:{gcolor};font-variant-numeric:tabular-nums">{score_disp}<span style="font-size:11px;color:#9CA3AF;font-weight:600">%</span></span>'
+            f'<span style="background:{gcolor}15;color:{gcolor};font-size:10.5px;font-weight:700;padding:3px 9px;border-radius:99px;letter-spacing:0.04em;text-transform:uppercase">{grade}</span>'
+            f'</div>'
+            f'</div>'
+            f'{_pillar_scale_html(p["score"])}'
+            f'<div style="font-size:11px;color:#6B7280;margin-top:6px;line-height:1.5">'
+            f'<span style="font-weight:700;letter-spacing:0.08em;text-transform:uppercase">{factors_lbl}:</span> {factors_disp}'
+            f'</div>'
+            f'</div>'
+        )
     st.markdown(f"""
 <style>
 .hp-card {{
@@ -2744,16 +2803,13 @@ def _render_health_pillars(profile, vitals, status_map, report_text, lang):
 }}
 </style>
 <div class="hp-card">
-  <div class="hp-title">{title}</div>
-  <div class="hp-overall">
-    <div class="ov-num">{overall_disp}<span style="font-size:18px;color:#9CA3AF;font-weight:600">%</span></div>
-    <div class="ov-meta">
-      <div class="ov-lbl">{ov_lbl}</div>
-      <div class="ov-grade">{ov_grade}</div>
-    </div>
-  </div>
-  {rows_html}
-  <div class="hp-method">ℹ️ {method}</div>
+<div class="hp-title">{title}</div>
+<div class="hp-overall">
+<div class="ov-num">{overall_disp}<span style="font-size:18px;color:#9CA3AF;font-weight:600">%</span></div>
+<div class="ov-meta"><div class="ov-lbl">{ov_lbl}</div><div class="ov-grade">{ov_grade}</div></div>
+</div>
+{rows_html}
+<div class="hp-method">ℹ️ {method}</div>
 </div>
 """, unsafe_allow_html=True)
 
@@ -2970,6 +3026,46 @@ Language: {"Greek" if lang=="el" else "English"}. Be direct. End with a one-line
 </div>
 """, unsafe_allow_html=True)
     st.markdown(st.session_state.report)
+    # Photo findings card — if the user uploaded any photos during triage, the
+    # AI vision analyses become visible evidence in the final report. Each card
+    # shows scan type + Claude's interpretation. (Florence-2 description is
+    # already woven into the analysis so we don't duplicate it.)
+    _pfs = st.session_state.get("photo_findings") or []
+    if isinstance(_pfs, list) and _pfs:
+        _pf_title = ("📷 ΕΥΡΗΜΑΤΑ ΑΠΟ ΦΩΤΟΓΡΑΦΙΕΣ" if lang=="el"
+                     else "📷 PHOTO FINDINGS")
+        _pf_count = len(_pfs)
+        import html as _html_pf, re as _re_pf
+        def _flat_pf(t): return _re_pf.sub(r"\s+", " ", (t or "").strip())
+        _cards_html = ""
+        for i, pf in enumerate(_pfs, 1):
+            _label = _html_pf.escape(pf.get("scan_label","—"))
+            _analysis = _flat_pf(pf.get("analysis",""))
+            # Keep markdown bold/headers in the analysis readable inside the card —
+            # convert ** ** → <strong>, leave the rest as text after escape.
+            _analysis = _html_pf.escape(_analysis)
+            _analysis = _re_pf.sub(r"\*\*(.+?)\*\*", r"<strong>\1</strong>", _analysis)
+            _cards_html += (
+                f'<div class="pf-item">'
+                f'<div class="pf-head"><span class="pf-num">{i}</span><span class="pf-label">{_label}</span></div>'
+                f'<div class="pf-body">{_analysis}</div>'
+                f'</div>'
+            )
+        st.markdown(
+            f'<style>'
+            f'.pf-card{{background:white;border:1px solid #E5E7EB;border-radius:14px;padding:22px 24px;margin:18px 0;font-family:Inter,system-ui,sans-serif;box-shadow:0 1px 3px rgba(0,0,0,0.04)}}'
+            f'.pf-title{{font-size:11px;font-weight:700;letter-spacing:0.14em;color:#6B7280;text-transform:uppercase;border-bottom:2px solid #E5E7EB;padding-bottom:10px;margin-bottom:14px}}'
+            f'.pf-item{{padding:14px 0;border-bottom:1px solid #F3F4F6}}'
+            f'.pf-item:last-child{{border-bottom:none;padding-bottom:0}}'
+            f'.pf-head{{display:flex;align-items:center;gap:10px;margin-bottom:8px}}'
+            f'.pf-num{{background:#DBEAFE;color:#1E40AF;font-size:11px;font-weight:700;width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center}}'
+            f'.pf-label{{font-size:13.5px;font-weight:700;color:#111827}}'
+            f'.pf-body{{font-size:13px;color:#374151;line-height:1.6}}'
+            f'.pf-body strong{{color:#1F2937}}'
+            f'</style>'
+            f'<div class="pf-card"><div class="pf-title">{_pf_title} · {_pf_count}</div>{_cards_html}</div>',
+            unsafe_allow_html=True,
+        )
     # PNOE-style 3-pillar Recommendations card (Exercise / Nutrition / Lifestyle)
     if st.session_state.get("report_recs"):
         _render_recs_card(st.session_state.report_recs, lang,
@@ -3072,7 +3168,7 @@ Language: {"Greek" if lang=="el" else "English"}. Be direct. End with a one-line
             for k,vv in defaults.items(): st.session_state[k]=vv
             for fbk in ("fb_comment","fb_rating","fb_sent","photo_added","photo_findings",
                         "_draft_hash","_from_facescan","_scan_injected","_vitals_nudge_off",
-                        "_gpt_integrated"): st.session_state.pop(fbk, None)
+                        "_gpt_integrated","_photo_preview"): st.session_state.pop(fbk, None)
             st.rerun()
     with c2:
         # TXT: report + recs (plain text) so the file is self-contained
@@ -3094,7 +3190,10 @@ Language: {"Greek" if lang=="el" else "English"}. Be direct. End with a one-line
         _recs_for_html = dict(st.session_state.get("report_recs") or {})
         if _recs_for_html:
             _recs_for_html["_refs"] = st.session_state.get("report_recs_refs") or {}
-        st.download_button("📄 PDF/HTML",data=generate_html_report(st.session_state.profile,st.session_state.vitals,st.session_state.report,st.session_state.report_pubmed,lang=lang,recs=_recs_for_html),file_name=fname+".html",mime="text/html",use_container_width=True,help="Open in browser → Ctrl+P → Save as PDF")
+        _pf_for_html = st.session_state.get("photo_findings") or []
+        if not isinstance(_pf_for_html, list):
+            _pf_for_html = []
+        st.download_button("📄 PDF/HTML",data=generate_html_report(st.session_state.profile,st.session_state.vitals,st.session_state.report,st.session_state.report_pubmed,lang=lang,recs=_recs_for_html,photo_findings=_pf_for_html),file_name=fname+".html",mime="text/html",use_container_width=True,help="Open in browser → Ctrl+P → Save as PDF")
     with c4:
         import re as _re_wa
         wa_lines=[f"🩺 Asklepios AI Nurse",
