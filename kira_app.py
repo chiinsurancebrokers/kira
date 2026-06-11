@@ -2370,6 +2370,7 @@ def render_home():
     _render_symptom_tracker(lang)
 
 
+def render_intake():
     render_stepper("intake")
     lang = st.session_state.lang
     render_doc_header(
