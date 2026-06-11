@@ -1356,6 +1356,7 @@ defaults = {
     "report_recs_refs": {},  # {"exercise": [...refs...], "nutrition": [...], "lifestyle": [...]}
     "photo_findings": [],  # list of dicts — visual analyses added to assessment
     "lab_findings": [],    # list of dicts — lab PDF/image analyses added to assessment
+    "_voice_widget_counter": 0,  # increments to force audio_input widget reset
     "medications": [],
     "med_inputs": [],
     "symptom_chips": [],
@@ -3177,7 +3178,7 @@ def render_triage():
                                     "Press the microphone, speak naturally, stop. Audio is not stored."))
                 _audio = st.audio_input(
                     ("Πες τι νιώθεις" if st.session_state.lang=="el" else "Say what you feel"),
-                    key="voice_input_widget",
+                    key=f"voice_input_widget_{st.session_state.get('_voice_widget_counter', 0)}",
                     label_visibility="collapsed",
                 )
                 # Track by hash so the same audio isn't transcribed twice across reruns
@@ -3216,6 +3217,8 @@ def render_triage():
                             st.session_state.pop("lab_added", None)
                             st.session_state.pop("_voice_transcript", None)
                             st.session_state.pop("_voice_last_hash", None)
+                            # Increment counter → new key on next render → fresh widget, no error
+                            st.session_state["_voice_widget_counter"] = st.session_state.get("_voice_widget_counter", 0) + 1
                             st.session_state["_voice_send_pending"] = True
                             st.rerun()
                     with _vc2:
@@ -3223,6 +3226,8 @@ def render_triage():
                                      use_container_width=True, key="voice_cancel"):
                             st.session_state.pop("_voice_transcript", None)
                             st.session_state.pop("_voice_last_hash", None)
+                            # Increment counter → fresh widget so user can record again
+                            st.session_state["_voice_widget_counter"] = st.session_state.get("_voice_widget_counter", 0) + 1
                             st.rerun()
 
         # ── Tab 2: Web Speech API — browser-native, no API key, Greek support ─
