@@ -101,6 +101,89 @@ def claude_vision_human(image_b64, image_type, prompt, system=""):
             return json.loads(r.read())["content"][0]["text"]
     except Exception as e: return f"⚠️ {e}"
 
+def transcribe_audio(audio_bytes, lang="el", mime="audio/webm", filename="recording.webm"):
+    """Transcribe a short voice recording → text. Groq Whisper large-v3 primary
+    (fast, free tier, Greek-capable), OpenAI Whisper-1 fallback.
+    
+    Input expected from st.audio_input → WebM/Opus, small (~1MB per minute).
+    Both APIs use multipart/form-data. We build it manually with urllib to
+    avoid adding requests as a dep.
+    
+    Privacy: audio goes to the chosen STT API for processing, NEVER stored
+    on our side. Only the resulting transcript text enters session state."""
+    import uuid as _uuid
+    boundary = f"----asklepios{_uuid.uuid4().hex}"
+    
+    def _multipart(parts):
+        """parts: list of (name, value, filename_or_None, content_type_or_None)"""
+        body = bytearray()
+        for name, value, fn, ct in parts:
+            body += f"--{boundary}\r\n".encode()
+            if fn:
+                body += f'Content-Disposition: form-data; name="{name}"; filename="{fn}"\r\n'.encode()
+                body += f"Content-Type: {ct or 'application/octet-stream'}\r\n\r\n".encode()
+                body += value
+                body += b"\r\n"
+            else:
+                body += f'Content-Disposition: form-data; name="{name}"\r\n\r\n'.encode()
+                body += str(value).encode()
+                body += b"\r\n"
+        body += f"--{boundary}--\r\n".encode()
+        return bytes(body)
+    
+    # Try Groq Whisper large-v3 first
+    groq_key = get_groq_key()
+    if groq_key:
+        try:
+            body = _multipart([
+                ("file",  audio_bytes, filename, mime),
+                ("model", "whisper-large-v3", None, None),
+                ("language", lang, None, None),
+                ("response_format", "text", None, None),
+            ])
+            req = urllib.request.Request(
+                "https://api.groq.com/openai/v1/audio/transcriptions",
+                data=body,
+                headers={
+                    "Authorization": f"Bearer {groq_key}",
+                    "Content-Type": f"multipart/form-data; boundary={boundary}",
+                },
+            )
+            with urllib.request.urlopen(req, timeout=60) as r:
+                txt = r.read().decode("utf-8", errors="replace").strip()
+            if txt:
+                return txt.strip('"'), "groq"
+        except Exception:
+            pass
+    
+    # Fallback: OpenAI Whisper-1
+    openai_key = get_openai_key()
+    if openai_key:
+        try:
+            body = _multipart([
+                ("file",  audio_bytes, filename, mime),
+                ("model", "whisper-1", None, None),
+                ("language", lang, None, None),
+                ("response_format", "text", None, None),
+            ])
+            req = urllib.request.Request(
+                "https://api.openai.com/v1/audio/transcriptions",
+                data=body,
+                headers={
+                    "Authorization": f"Bearer {openai_key}",
+                    "Content-Type": f"multipart/form-data; boundary={boundary}",
+                },
+            )
+            with urllib.request.urlopen(req, timeout=60) as r:
+                txt = r.read().decode("utf-8", errors="replace").strip()
+            if txt:
+                return txt.strip('"'), "openai"
+        except Exception as e:
+            return f"⚠️ Σφάλμα μεταγραφής: {e}", None
+    
+    return "⚠️ Καμία STT API key δεν είναι ρυθμισμένη (Groq ή OpenAI).", None
+
+
 def claude_analyze_lab(file_bytes, mime_type, profile, conversation, lang, file_name=""):
     """Analyze lab results (PDF or image) via Claude with native document support.
     
@@ -128,6 +211,19 @@ def claude_analyze_lab(file_bytes, mime_type, profile, conversation, lang, file_
     sex = profile.get("sex", "")
     history = profile.get("history", "") or "—"
     meds = profile.get("meds_raw", "") or "—"
+    # Special-population flags affect reference ranges + drug warnings
+    flags = []
+    if profile.get("pregnancy"):
+        flags.append("ΕΓΚΥΟΣ" if lang=="el" else "PREGNANT")
+    if profile.get("for_whom") == "other":
+        flags.append("Caregiver-mode" if lang=="el" else "Caregiver-mode")
+    try:
+        _aint = int(age)
+        if _aint < 18:
+            flags.append(f"ΠΑΙΔΙΑΤΡΙΚΟΣ {_aint}" if lang=="el" else f"PEDIATRIC {_aint}")
+    except (TypeError, ValueError):
+        pass
+    flags_line = (" | ".join(flags)) if flags else ("—" if lang=="el" else "—")
     
     if lang == "el":
         system = ("Είσαι έμπειρος ιατρός νοσηλευτής που ερμηνεύει εργαστηριακές εξετάσεις "
@@ -406,6 +502,7 @@ def _key(name, fallback=""):
 
 def get_claude_key():  return _key("Claude_API_Key")
 def get_openai_key():  return _key("OPENAI_API_KEY")
+def get_groq_key():    return _key("GROQ_API_KEY")
 def get_ncbi_key():    return _key("NCBI_API_KEY")
 
 # ── AUTH (Supabase email-OTP — gates the premium report) ──────────────────────
@@ -1175,6 +1272,42 @@ def gpt4o(prompt, system="", max_tokens=900):
     except Exception as e:
         return f"GPT-4o unavailable: {e}"
 
+# ── WHISPER (voice → text) ────────────────────────────────────────────────────
+def whisper_transcribe(audio_bytes, filename="recording.webm", lang="el"):
+    """Greek/English voice → text via OpenAI Whisper. Reuses the existing
+    OPENAI_API_KEY — no new dependency. The transcribed text is shown to the
+    user for review/edit BEFORE sending to chat (safety + privacy).
+    
+    Audio is sent to OpenAI for processing but NEVER stored on our side.
+    Returns (text, error) where one of them is None.
+    """
+    key = get_openai_key()
+    if not key:
+        return None, "⚠️ OpenAI API key not set."
+    try:
+        import requests
+        # Map common audio MIME types so Whisper recognises the format
+        mime = "audio/webm"
+        if filename.lower().endswith(".wav"):  mime = "audio/wav"
+        elif filename.lower().endswith(".mp3"): mime = "audio/mpeg"
+        elif filename.lower().endswith(".m4a"): mime = "audio/mp4"
+        files = {"file": (filename, audio_bytes, mime)}
+        data = {
+            "model": "whisper-1",
+            "language": lang if lang in ("el","en") else "el",
+            "response_format": "text",
+        }
+        r = requests.post(
+            "https://api.openai.com/v1/audio/transcriptions",
+            headers={"Authorization": f"Bearer {key}"},
+            files=files, data=data, timeout=60,
+        )
+        if r.status_code == 200:
+            return r.text.strip(), None
+        return None, f"⚠️ Whisper {r.status_code}: {r.text[:200]}"
+    except Exception as e:
+        return None, f"⚠️ {e}"
+
 # ── CLAUDE ────────────────────────────────────────────────────────────────────
 def claude(messages, system="", max_tokens=1200, timeout=60):
     """Call Claude via raw HTTP."""
@@ -1425,40 +1558,103 @@ def render_stepper(current):
     html += "</div>"
     st.markdown(html, unsafe_allow_html=True)
 
-def classify_vitals(v):
+def classify_vitals(v, age=None):
+    """Classify vitals as green/yellow/red. Age-aware: pediatric ranges differ
+    significantly from adult, especially HR and BR.
+    
+    Reference ranges (PALS/AHA + WHO):
+      Infant <1y:   HR 100-160, BR 30-60, SBP >70+(age×2)
+      Toddler 1-3:  HR 90-150,  BR 24-40
+      Preschool 3-5: HR 80-140, BR 22-34
+      School 6-12:  HR 70-120,  BR 18-30
+      Adolescent 13-17: HR 60-100, BR 12-20
+      Adult 18+:    HR 60-100,  BR 12-20
+    
+    Temp, SpO2, BMI are essentially the same across ages (pediatric BMI uses
+    percentiles, but our coarse green/yellow/red still gives useful signal).
+    """
     status = {}
+    a = age if age is not None else 99  # treat unknown as adult
+    
+    # Heart rate — age-stratified
     hr = v.get("hr")
     if hr:
-        if 60<=hr<=100: status["hr"]="green"
-        elif 50<=hr<=110: status["hr"]="yellow"
-        else: status["hr"]="red"
-    sys = v.get("bp_sys"); dia = v.get("bp_dia")
-    if sys and dia:
-        if sys<120 and dia<80: status["bp"]="green"
-        elif sys<130: status["bp"]="yellow"
-        elif sys<140 or dia<90: status["bp"]="yellow"
-        else: status["bp"]="red"
+        if a < 1:
+            g_lo, g_hi, y_lo, y_hi = 100, 160, 90, 180
+        elif a < 3:
+            g_lo, g_hi, y_lo, y_hi = 90, 150, 80, 170
+        elif a < 6:
+            g_lo, g_hi, y_lo, y_hi = 80, 140, 70, 160
+        elif a < 13:
+            g_lo, g_hi, y_lo, y_hi = 70, 120, 60, 140
+        else:
+            g_lo, g_hi, y_lo, y_hi = 60, 100, 50, 110
+        if g_lo <= hr <= g_hi:  status["hr"] = "green"
+        elif y_lo <= hr <= y_hi: status["hr"] = "yellow"
+        else:                   status["hr"] = "red"
+    
+    # Blood pressure
+    sys_ = v.get("bp_sys"); dia = v.get("bp_dia")
+    if sys_ and dia:
+        if a < 13:
+            # Pediatric: rough rule "70 + 2×age" for hypotension threshold,
+            # pediatric hypertension >95th percentile (~ 1.2× normal). Use
+            # coarse ranges — recommend physician for accurate pediatric BP.
+            expected_sys = 90 + (a * 2) if a >= 1 else 70 + (a * 2)
+            if sys_ < expected_sys - 15 or sys_ > expected_sys + 25:
+                status["bp"] = "red"
+            elif sys_ < expected_sys - 5 or sys_ > expected_sys + 15:
+                status["bp"] = "yellow"
+            else:
+                status["bp"] = "green"
+        else:
+            if sys_ < 120 and dia < 80:        status["bp"] = "green"
+            elif sys_ < 130:                   status["bp"] = "yellow"
+            elif sys_ < 140 or dia < 90:       status["bp"] = "yellow"
+            else:                              status["bp"] = "red"
+    
+    # Breathing rate — age-stratified
     br = v.get("br")
     if br:
-        if 12<=br<=20: status["br"]="green"
-        elif 10<=br<=24: status["br"]="yellow"
-        else: status["br"]="red"
+        if a < 1:
+            g_lo, g_hi, y_lo, y_hi = 30, 60, 24, 70
+        elif a < 3:
+            g_lo, g_hi, y_lo, y_hi = 24, 40, 20, 50
+        elif a < 6:
+            g_lo, g_hi, y_lo, y_hi = 22, 34, 18, 40
+        elif a < 13:
+            g_lo, g_hi, y_lo, y_hi = 18, 30, 14, 36
+        else:
+            g_lo, g_hi, y_lo, y_hi = 12, 20, 10, 24
+        if g_lo <= br <= g_hi:   status["br"] = "green"
+        elif y_lo <= br <= y_hi: status["br"] = "yellow"
+        else:                    status["br"] = "red"
+    
+    # SpO2 — same across ages
     spo2 = v.get("spo2")
     if spo2:
-        if spo2>=95: status["spo2"]="green"
-        elif spo2>=90: status["spo2"]="yellow"
-        else: status["spo2"]="red"
+        if spo2 >= 95:   status["spo2"] = "green"
+        elif spo2 >= 90: status["spo2"] = "yellow"
+        else:            status["spo2"] = "red"
+    
+    # Temperature — same
     temp = v.get("temp")
     if temp:
-        if 36.1<=temp<=37.2: status["temp"]="green"
-        elif 37.3<=temp<=38.0: status["temp"]="yellow"
-        else: status["temp"]="red"
-    w=v.get("weight"); h=v.get("height")
+        if 36.1 <= temp <= 37.2:  status["temp"] = "green"
+        elif 37.3 <= temp <= 38.0: status["temp"] = "yellow"
+        else:                      status["temp"] = "red"
+    
+    # BMI — only for adults (pediatric BMI requires percentile charts)
+    w = v.get("weight"); h = v.get("height")
     if w and h:
-        bmi=w/((h/100)**2); v["bmi"]=round(bmi,1)
-        if 18.5<=bmi<=24.9: status["bmi"]="green"
-        elif 25<=bmi<=29.9: status["bmi"]="yellow"
-        else: status["bmi"]="red"
+        bmi = w / ((h/100)**2); v["bmi"] = round(bmi, 1)
+        if a >= 18:
+            if 18.5 <= bmi <= 24.9:  status["bmi"] = "green"
+            elif 25 <= bmi <= 29.9:  status["bmi"] = "yellow"
+            else:                    status["bmi"] = "red"
+        # For pediatric, we don't classify — the value is recorded but no
+        # green/yellow/red without percentile data
+    
     return status
 
 def demographic_bp_risk(age, bmi, hr, weight=None, height=None):
@@ -1802,6 +1998,209 @@ table.vitals tbody tr:nth-child(even){{background:#F8FAFF}}
 <div class="hint">💡 Ctrl+P → Save as PDF</div></body></html>"""
     return html_out.encode("utf-8")
 
+def _render_symptom_tracker(lang):
+    """Browser-only symptom log. All data in localStorage — nothing on servers.
+    User can add dated entries (symptom + severity + notes), view history,
+    and export as text. Built as a self-contained HTML/JS component so it works
+    regardless of login state. Privacy: we never see this data.
+    """
+    # Symptom tracker uses st.iframe (HTML string mode)
+    _title = "📅 Ημερολόγιο Συμπτωμάτων" if lang=="el" else "📅 Symptom Log"
+    _privacy = ("Αποθηκεύεται μόνο στον browser σου — δεν αποστέλλεται πουθενά."
+                if lang=="el" else
+                "Stored only in your browser — never sent anywhere.")
+    with st.expander(f"{_title} — {_privacy}", expanded=False):
+        if lang == "el":
+            tx = {
+                "add_title":   "Προσθήκη σημερινού συμπτώματος",
+                "symptom_ph":  "π.χ. πονοκέφαλος, βήχας, κοιλιακός πόνος",
+                "sev_lbl":     "Βαρύτητα (1–10)",
+                "notes_ph":    "Επιπλέον παρατηρήσεις (προαιρετικό)",
+                "add_btn":     "➕ Καταχώρηση",
+                "history":     "Ιστορικό",
+                "no_entries":  "Κανένα σύμπτωμα ακόμη.",
+                "clear_btn":   "🗑️ Διαγραφή όλων",
+                "export_btn":  "📋 Αντιγραφή ιστορικού",
+                "exported":    "✅ Αντιγράφηκε!",
+                "sev_prefix":  "Βαρύτητα",
+                "confirm_clear":"Διαγραφή ΟΛΩΝ των συμπτωμάτων; Δεν αναιρείται.",
+            }
+        else:
+            tx = {
+                "add_title":   "Log today's symptom",
+                "symptom_ph":  "e.g. headache, cough, stomach pain",
+                "sev_lbl":     "Severity (1–10)",
+                "notes_ph":    "Additional notes (optional)",
+                "add_btn":     "➕ Add entry",
+                "history":     "History",
+                "no_entries":  "No symptoms logged yet.",
+                "clear_btn":   "🗑️ Clear all",
+                "export_btn":  "📋 Copy log",
+                "exported":    "✅ Copied!",
+                "sev_prefix":  "Severity",
+                "confirm_clear":"Delete ALL symptom entries? Cannot be undone.",
+            }
+        st.iframe(f"""<!DOCTYPE html><html><head><meta charset="UTF-8">
+<style>
+*{{box-sizing:border-box;margin:0;padding:0;font-family:system-ui,sans-serif}}
+body{{background:transparent;padding:0;font-size:14px;color:#1F2937}}
+.st-card{{background:white;border:1px solid #E5E7EB;border-radius:12px;padding:16px 18px;margin-bottom:12px}}
+.st-card h3{{font-size:12px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:#6B7280;margin-bottom:12px}}
+.st-row{{display:flex;gap:8px;align-items:flex-end;flex-wrap:wrap}}
+input[type=text],textarea{{width:100%;border:1px solid #D1D5DB;border-radius:8px;padding:8px 10px;font-size:13px;color:#1F2937;background:white}}
+input[type=text]:focus,textarea:focus{{outline:none;border-color:#2D3FE7;box-shadow:0 0 0 2px rgba(45,63,231,.10)}}
+textarea{{resize:vertical;min-height:48px}}
+input[type=range]{{width:100%;accent-color:#2D3FE7}}
+.sev-row{{display:flex;align-items:center;gap:8px}}
+.sev-label{{font-size:11px;color:#6B7280;white-space:nowrap}}
+.sev-val{{font-size:18px;font-weight:700;color:#2D3FE7;min-width:24px;text-align:right}}
+.btn{{padding:9px 16px;border-radius:8px;border:none;cursor:pointer;font-weight:600;font-size:13px;transition:all .15s}}
+.btn-primary{{background:#2D3FE7;color:white}}.btn-primary:hover{{background:#1E30CC}}
+.btn-ghost{{background:#F3F4F6;color:#374151;border:1px solid #E5E7EB}}.btn-ghost:hover{{background:#E5E7EB}}
+.btn-danger{{background:#FEF2F2;color:#DC2626;border:1px solid #FCA5A5}}.btn-danger:hover{{background:#FEE2E2}}
+.entry{{border-bottom:1px solid #F3F4F6;padding:10px 0;display:flex;justify-content:space-between;align-items:flex-start;gap:8px}}
+.entry:last-child{{border-bottom:none}}
+.entry-main{{flex:1}}
+.entry-date{{font-size:11px;color:#9CA3AF;margin-bottom:2px}}
+.entry-symptom{{font-size:14px;font-weight:600;color:#111827}}
+.entry-sev{{display:inline-block;padding:2px 8px;border-radius:20px;font-size:11px;font-weight:700;margin-left:6px}}
+.entry-notes{{font-size:12px;color:#6B7280;margin-top:3px}}
+.del-btn{{background:none;border:none;cursor:pointer;color:#9CA3AF;font-size:16px;padding:2px 4px;flex-shrink:0}}.del-btn:hover{{color:#DC2626}}
+.empty{{text-align:center;padding:24px;color:#9CA3AF;font-size:13px}}
+.tools{{display:flex;gap:8px;margin-top:8px}}
+</style></head><body>
+
+<div class="st-card">
+  <h3>{tx['add_title']}</h3>
+  <input type="text" id="symp" placeholder="{tx['symptom_ph']}" />
+  <div style="margin-top:10px">
+    <div class="sev-row">
+      <span class="sev-label">{tx['sev_lbl']}</span>
+      <input type="range" id="sev" min="1" max="10" value="5"
+             oninput="document.getElementById('sev-val').textContent=this.value" />
+      <span class="sev-val" id="sev-val">5</span>
+    </div>
+  </div>
+  <textarea id="notes" placeholder="{tx['notes_ph']}" style="margin-top:10px"></textarea>
+  <div style="margin-top:10px">
+    <button class="btn btn-primary" onclick="addEntry()">{tx['add_btn']}</button>
+  </div>
+</div>
+
+<div class="st-card">
+  <h3>{tx['history']}</h3>
+  <div id="list"></div>
+  <div class="tools" id="tools" style="display:none">
+    <button class="btn btn-ghost" onclick="exportLog()">{tx['export_btn']}</button>
+    <button class="btn btn-danger" onclick="clearAll()">{tx['clear_btn']}</button>
+  </div>
+</div>
+
+<script>
+var STORE_KEY = "asklepios_symptoms_v1";
+
+function load() {{
+  try {{ return JSON.parse(localStorage.getItem(STORE_KEY) || "[]"); }}
+  catch(e) {{ return []; }}
+}}
+function save(entries) {{
+  localStorage.setItem(STORE_KEY, JSON.stringify(entries));
+}}
+
+function sevColor(s) {{
+  if(s<=3) return "#ECFDF5;color:#065F46";
+  if(s<=6) return "#FFFBEB;color:#92400E";
+  return "#FEF2F2;color:#991B1B";
+}}
+
+function renderList() {{
+  var entries = load();
+  var el = document.getElementById("list");
+  var tools = document.getElementById("tools");
+  if(!entries.length) {{
+    el.innerHTML = '<div class="empty">{tx['no_entries']}</div>';
+    tools.style.display = "none";
+    return;
+  }}
+  tools.style.display = "flex";
+  // newest first
+  var html = "";
+  for(var i=entries.length-1; i>=0; i--) {{
+    var e = entries[i];
+    var sc = sevColor(e.sev);
+    var sc_parts = sc.split(";color:");
+    var bg = sc_parts[0];
+    var fg = sc_parts[1] || "#111";
+    html += '<div class="entry">';
+    html += '<div class="entry-main">';
+    html += '<div class="entry-date">'+e.date+'</div>';
+    html += '<div class="entry-symptom">'+escape_html(e.symptom);
+    html += ' <span class="entry-sev" style="background:'+bg+';color:'+fg+'">'+e.sev+'/10</span></div>';
+    if(e.notes) html += '<div class="entry-notes">'+escape_html(e.notes)+'</div>';
+    html += '</div>';
+    html += '<button class="del-btn" onclick="deleteEntry('+i+')" title="Delete">✕</button>';
+    html += '</div>';
+  }}
+  el.innerHTML = html;
+}}
+
+function escape_html(s) {{
+  return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+}}
+
+function addEntry() {{
+  var symp = document.getElementById("symp").value.trim();
+  if(!symp) {{ document.getElementById("symp").focus(); return; }}
+  var sev  = parseInt(document.getElementById("sev").value);
+  var notes= document.getElementById("notes").value.trim();
+  var now  = new Date();
+  var date = now.toLocaleDateString("{("el-GR" if lang=="el" else "en-GB")}",
+    {{day:"2-digit",month:"short",year:"numeric",hour:"2-digit",minute:"2-digit"}});
+  var entries = load();
+  entries.push({{date:date, symptom:symp, sev:sev, notes:notes}});
+  save(entries);
+  document.getElementById("symp").value="";
+  document.getElementById("notes").value="";
+  document.getElementById("sev").value=5;
+  document.getElementById("sev-val").textContent="5";
+  renderList();
+}}
+
+function deleteEntry(idx) {{
+  var entries = load();
+  entries.splice(idx,1);
+  save(entries);
+  renderList();
+}}
+
+function clearAll() {{
+  if(confirm("{tx['confirm_clear']}")) {{
+    localStorage.removeItem(STORE_KEY);
+    renderList();
+  }}
+}}
+
+function exportLog() {{
+  var entries = load();
+  if(!entries.length) return;
+  var txt = entries.map(function(e){{
+    var line = e.date+" | "+e.symptom+" | {tx['sev_prefix']}: "+e.sev+"/10";
+    if(e.notes) line += " | "+e.notes;
+    return line;
+  }}).join("\\n");
+  navigator.clipboard.writeText(txt).then(function(){{
+    var b = document.querySelector(".btn-ghost");
+    var orig = b.textContent;
+    b.textContent="{tx['exported']}";
+    setTimeout(function(){{b.textContent=orig;}},2000);
+  }});
+}}
+
+renderList();
+</script>
+</body></html>""", height=520)
+
+
 def render_home():
     lang = st.session_state.lang
     p = st.session_state.profile
@@ -1965,19 +2364,61 @@ def render_home():
     with col2:
         if st.button(txt["start"], type="primary", use_container_width=True, key="home_start"):
             st.session_state.screen = "intake"; st.rerun()
+    # ── Symptom Tracker ────────────────────────────────────────────────────────
+    # localStorage-only: nothing goes to our servers. The tracker lives entirely
+    # in the browser. Privacy note shown inline.
+    _render_symptom_tracker(lang)
 
-def render_intake():
+
     render_stepper("intake")
+    lang = st.session_state.lang
     render_doc_header(
         "Πες μας λίγα για σένα", "Tell us about yourself",
         icon="👤",
         sub_el="Όνομα, ηλικία, ιατρικό ιστορικό",
         sub_en="Name, age, medical history",
     )
+    # ── Caregiver toggle ───────────────────────────────────────────────────
+    # First question: is this assessment for the user themselves or someone
+    # they care for (γιαγιά, παιδί, κλπ). Affects copy + Claude system prompt.
+    _caregiver_q = ("Για ποιον είναι αυτή η αξιολόγηση;" if lang=="el"
+                    else "Who is this assessment for?")
+    _opt_self = "Για μένα" if lang=="el" else "For me"
+    _opt_other = "Για άλλο άτομο που φροντίζω" if lang=="el" else "For someone I care for"
+    _current = st.session_state.profile.get("for_whom", "self")
+    _choice = st.radio(
+        _caregiver_q,
+        [_opt_self, _opt_other],
+        index=(0 if _current == "self" else 1),
+        horizontal=True,
+        key="intake_for_whom",
+    )
+    is_caregiver = (_choice == _opt_other)
+    if is_caregiver:
+        st.info("💡 " + ("Συμπλήρωσε τα στοιχεία του ατόμου που φροντίζεις (όχι τα δικά σου)."
+                         if lang=="el" else
+                         "Fill in details of the person you care for (not your own)."))
+        _name_lbl = "Όνομα του ασθενούς" if lang=="el" else "Patient's name"
+        _name_ph  = "π.χ. Γιαγιά Ελένη" if lang=="el" else "e.g. Grandma Helen"
+    else:
+        _name_lbl = t("name")
+        _name_ph  = "Χριστόφορος"
     c1,c2,c3=st.columns([2,1,1])
-    with c1: name=st.text_input(t("name"),value=st.session_state.profile.get("name",""),placeholder="Χριστόφορος")
+    with c1: name=st.text_input(_name_lbl,value=st.session_state.profile.get("name",""),placeholder=_name_ph)
     with c2: age=st.number_input(t("age"),min_value=0,max_value=120,value=st.session_state.profile.get("age",40))
     with c3: sex=st.selectbox(t("sex"),[t("male"),t("female"),t("other")])
+    # ── Pregnancy checkbox ──────────────────────────────────────────────────
+    # Only shown for female + age 12-55 (reproductive age). Affects drug
+    # contraindications + Claude system prompt + recs.
+    pregnancy = False
+    _is_female = sex in ("Γυναίκα", "Female")
+    if _is_female and 12 <= age <= 55:
+        _preg_lbl = "🤰 Είναι έγκυος;" if lang=="el" else "🤰 Is she pregnant?"
+        pregnancy = st.checkbox(_preg_lbl, value=st.session_state.profile.get("pregnancy", False))
+        if pregnancy:
+            st.info("💡 " + ("Σημειώνεται για έλεγχο αντενδείξεων φαρμάκων και συστάσεων."
+                             if lang=="el" else
+                             "Noted — used to flag drug contraindications and adjusted recommendations."))
     history=st.text_area(t("history"),value=st.session_state.profile.get("history",""),height=90,placeholder="Π.χ. Υπέρταση, Τ2 Διαβήτης")
     allergies=st.text_input(t("allergies"),value=st.session_state.profile.get("allergies",""),placeholder="Π.χ. Πενικιλλίνη")
     st.markdown("**"+t("meds")+"**")
@@ -1997,7 +2438,12 @@ def render_intake():
     with col_n:
         if st.button(t("next"),type="primary",use_container_width=True):
             if name:
-                st.session_state.profile={"name":name,"age":age,"sex":sex,"history":history,"allergies":allergies,"meds_raw":meds_raw}
+                st.session_state.profile={
+                    "name":name, "age":age, "sex":sex,
+                    "history":history, "allergies":allergies, "meds_raw":meds_raw,
+                    "for_whom": "other" if is_caregiver else "self",
+                    "pregnancy": bool(pregnancy),
+                }
                 st.session_state.medications=[{"name":m.strip(),"freq":"","notes":""} for m in meds_raw.split(",") if m.strip()] if meds_raw else []
                 if st.session_state.get("_from_facescan") and st.session_state.vitals:
                     st.session_state.screen="triage"
@@ -2078,7 +2524,7 @@ def render_vitals():
             if dev_wt:   vd["weight"] = float(dev_wt)
             if dev_ht:   vd["height"] = int(dev_ht)
             if vd:
-                classify_vitals(vd)
+                classify_vitals(vd, age=p.get("age"))
                 st.session_state.vitals = vd
                 st.session_state["_device_loaded"] = True
             else:
@@ -2147,7 +2593,7 @@ Use a certified upper-arm cuff device, note systolic/diastolic values
             if height: vd["height"]=height
             for extra in ["hrv","stress","cardio"]:
                 if extra in st.session_state.vitals: vd[extra]=st.session_state.vitals[extra]
-            st.session_state.vitals=vd; classify_vitals(vd)
+            st.session_state.vitals=vd; classify_vitals(vd, age=p.get("age"))
             if vd:
                 with st.spinner("Ανάλυση..."):
                     vtext="\n".join(f"- {k}: {val}" for k,val in vd.items())
@@ -2254,7 +2700,7 @@ Use a certified upper-arm cuff device, note systolic/diastolic values
 def render_vitals_summary():
     v=st.session_state.vitals
     if not v: return
-    status=classify_vitals(v)
+    status=classify_vitals(v, age=st.session_state.profile.get("age"))
     LABELS={"hr":("❤️","Heart Rate","bpm"),"bp":("🩸","Blood Pressure","mmHg"),"br":("🌬️","Breathing","/min"),"spo2":("💧","SpO2","%"),"temp":("🌡️","Temp","°C"),"bmi":("⚖️","BMI","kg/m²")}
     badges=[]
     if "hr" in v: badges.append(("hr",v["hr"],"bpm",status.get("hr","green")))
@@ -2699,16 +3145,194 @@ def render_triage():
     ready_phrases=["έχω αρκετά στοιχεία","μπορούμε να δημιουργήσουμε","i have enough information","we can generate","full clinical report","πλήρη αναφορά"]
     last_kira=next((m["content"].lower() for m in reversed(st.session_state.triage_chat) if m["role"]=="assistant"),"")
     triage_ready=any(ph in last_kira for ph in ready_phrases)
+    # ── Voice input ───────────────────────────────────────────────────────────
+    # Always shown — Tab 1 (Web Speech API) needs no API key at all.
+    # Tab 2 (Whisper) needs Groq or OpenAI key.
+    # Critical for 60+ demographic: IOBE data shows this group has the highest
+    # unmet healthcare needs and lowest digital comfort.
+    _voice_lbl = ("🎤 Φωνητική εισαγωγή (μίλα αντί να γράφεις)"
+                  if st.session_state.lang=="el" else
+                  "🎤 Voice input (speak instead of typing)")
+    with st.expander(_voice_lbl, expanded=False):
+        # Web Speech API — uses st.iframe (HTML string mode)
+        _has_stt = bool(get_groq_key() or get_openai_key())
+        _whisper_tab_lbl = ("🎙️ Whisper AI (Ελληνικά ✓)"
+                            if _has_stt else
+                            "🎙️ Whisper AI (απαιτεί OPENAI_API_KEY)")
+        _wsapi_tab_lbl = ("🌐 Browser (δωρεάν, Chrome/Safari)"
+                          if st.session_state.lang=="el" else
+                          "🌐 Browser (free, Chrome/Safari)")
+        _v_tab1, _v_tab2 = st.tabs([_whisper_tab_lbl, _wsapi_tab_lbl])
+
+        # ── Tab 1: st.audio_input + Whisper ──────────────────────────────────
+        with _v_tab1:
+            if not _has_stt:
+                st.info("💡 " + ("Πρόσθεσε `OPENAI_API_KEY` ή `GROQ_API_KEY` στα Railway env vars για να ενεργοποιήσεις το Whisper."
+                                 if st.session_state.lang=="el" else
+                                 "Add `OPENAI_API_KEY` or `GROQ_API_KEY` to Railway env vars to enable Whisper."))
+            else:
+                st.caption("💡 " + ("Πάτησε το μικρόφωνο, μίλα φυσικά, σταμάτα. Η ηχογράφηση δεν αποθηκεύεται."
+                                    if st.session_state.lang=="el" else
+                                    "Press the microphone, speak naturally, stop. Audio is not stored."))
+                _audio = st.audio_input(
+                    ("Πες τι νιώθεις" if st.session_state.lang=="el" else "Say what you feel"),
+                    key="voice_input_widget",
+                    label_visibility="collapsed",
+                )
+                # Track by hash so the same audio isn't transcribed twice across reruns
+                if _audio is not None:
+                    _audio_bytes = _audio.getvalue()
+                    _audio_hash = hashlib.sha256(_audio_bytes).hexdigest()[:16]
+                    if st.session_state.get("_voice_last_hash") != _audio_hash:
+                        with st.spinner("🎙️ " + ("Μεταγραφή με Whisper..." if st.session_state.lang=="el"
+                                                  else "Transcribing with Whisper...")):
+                            text, _ = transcribe_audio(
+                                _audio_bytes, lang=st.session_state.lang,
+                                mime="audio/webm", filename="voice.webm",
+                            )
+                        st.session_state["_voice_last_hash"] = _audio_hash
+                        if text and not text.startswith("⚠️"):
+                            st.session_state["_voice_transcript"] = text
+                            st.rerun()
+                        else:
+                            st.error(text or "—")
+                # Transcript review + confirm (never auto-submit — Whisper can mishear)
+                _pending = st.session_state.get("_voice_transcript")
+                if _pending:
+                    st.success("📝 " + ("Μεταγραφή — διόρθωσε αν χρειαστεί:" if st.session_state.lang=="el"
+                                        else "Transcription — edit if needed:"))
+                    _edited = st.text_area("transcript_edit", value=_pending,
+                                           label_visibility="collapsed", height=80,
+                                           key="voice_edit_area")
+                    _vc1, _vc2 = st.columns([3, 1])
+                    with _vc1:
+                        if st.button(("✓ Αποστολή στον Asklepios" if st.session_state.lang=="el"
+                                      else "✓ Send to Asklepios"),
+                                     type="primary", use_container_width=True, key="voice_send"):
+                            _msg = _edited.strip() or _pending
+                            st.session_state.triage_chat.append({"role":"user","content":_msg})
+                            st.session_state.pop("photo_added", None)
+                            st.session_state.pop("lab_added", None)
+                            st.session_state.pop("_voice_transcript", None)
+                            st.session_state.pop("_voice_last_hash", None)
+                            st.session_state["_voice_send_pending"] = True
+                            st.rerun()
+                    with _vc2:
+                        if st.button(("🗑️ Ακύρωση" if st.session_state.lang=="el" else "🗑️ Cancel"),
+                                     use_container_width=True, key="voice_cancel"):
+                            st.session_state.pop("_voice_transcript", None)
+                            st.session_state.pop("_voice_last_hash", None)
+                            st.rerun()
+
+        # ── Tab 2: Web Speech API — browser-native, no API key, Greek support ─
+        # Same pattern as HAL project. Works on Chrome/Safari.
+        # Result shown below the widget for the user to copy → paste into chat.
+        with _v_tab2:
+            _ws_lang = "el-GR" if st.session_state.lang=="el" else "en-US"
+            _ws_hint = ("Μίλα φυσικά — το κείμενο εμφανίζεται αυτόματα."
+                        if st.session_state.lang=="el" else
+                        "Speak naturally — text appears automatically.")
+            _ws_copy_lbl = "📋 Αντιγραφή" if st.session_state.lang=="el" else "📋 Copy"
+            _ws_not_sup = ("Δεν υποστηρίζεται — χρησιμοποίησε Chrome ή Safari"
+                           if st.session_state.lang=="el" else
+                           "Not supported — use Chrome or Safari")
+            _ws_listening = "🔴 Ακούω..." if st.session_state.lang=="el" else "🔴 Listening..."
+            _ws_idle = ("Πάτησε 🎙️ για ηχογράφηση" if st.session_state.lang=="el"
+                        else "Press 🎙️ to record")
+            _ws_done = ("✅ Αντίγραψε και επικόλλησε στο chat ↓"
+                        if st.session_state.lang=="el" else
+                        "✅ Copy and paste into chat ↓")
+            st.iframe(f"""<!DOCTYPE html><html><head><style>
+body{{margin:0;padding:0;font-family:system-ui,sans-serif;background:transparent}}
+#wrap{{display:flex;align-items:flex-start;gap:10px;background:#F0F4FF;border:1px solid #C7D2FE;border-radius:10px;padding:10px 14px;flex-wrap:wrap}}
+#mic{{background:none;border:2px solid #2D3FE7;border-radius:50%;width:38px;height:38px;font-size:18px;cursor:pointer;color:#2D3FE7;flex-shrink:0;transition:all .2s}}
+#mic.active{{background:#2D3FE7;color:white;box-shadow:0 0 0 4px rgba(45,63,231,.15)}}
+#status{{font-size:12px;color:#6B7280;flex:1;padding-top:10px}}
+#result{{display:none;width:100%;background:white;border:1px solid #C7D2FE;border-radius:8px;padding:8px 12px;font-size:14px;color:#1F2937;line-height:1.5;margin-top:6px;word-break:break-word}}
+#copy{{display:none;background:#2D3FE7;color:white;border:none;border-radius:8px;padding:8px 18px;font-weight:700;cursor:pointer;font-size:13px;margin-top:6px}}
+#copy:hover{{background:#1E30CC}}
+</style></head><body>
+<div id="wrap">
+  <button id="mic" onclick="toggleVoice()">🎙️</button>
+  <div id="status">{_ws_idle}</div>
+  <div id="result"></div>
+  <button id="copy" onclick="copyText()">{_ws_copy_lbl}</button>
+</div>
+<script>
+var recognition,listening=false,transcript="";
+function toggleVoice(){{
+  if(!("webkitSpeechRecognition"in window||"SpeechRecognition"in window)){{
+    document.getElementById("status").textContent="{_ws_not_sup}";return;
+  }}
+  if(listening){{recognition.stop();return;}}
+  recognition=new(window.SpeechRecognition||window.webkitSpeechRecognition)();
+  recognition.lang="{_ws_lang}";recognition.interimResults=true;recognition.continuous=false;
+  recognition.onstart=function(){{
+    listening=true;
+    document.getElementById("mic").classList.add("active");
+    document.getElementById("status").textContent="{_ws_listening}";
+    document.getElementById("result").style.display="none";
+    document.getElementById("copy").style.display="none";
+  }};
+  recognition.onresult=function(e){{
+    transcript=Array.from(e.results).map(r=>r[0].transcript).join("");
+    document.getElementById("result").textContent=transcript;
+    document.getElementById("result").style.display="block";
+  }};
+  recognition.onend=function(){{
+    listening=false;
+    document.getElementById("mic").classList.remove("active");
+    if(transcript){{
+      document.getElementById("status").textContent="{_ws_done}";
+      document.getElementById("copy").style.display="inline-block";
+    }}else{{
+      document.getElementById("status").textContent="{_ws_idle}";
+    }}
+  }};
+  recognition.onerror=function(e){{
+    listening=false;
+    document.getElementById("mic").classList.remove("active");
+    document.getElementById("status").textContent="Error: "+e.error;
+  }};
+  recognition.start();
+}}
+function copyText(){{
+  if(!transcript)return;
+  navigator.clipboard.writeText(transcript).then(function(){{
+    var b=document.getElementById("copy");
+    b.textContent="✅ OK!";
+    setTimeout(function(){{b.textContent="{_ws_copy_lbl}";}},2000);
+  }});
+}}
+</script></body></html>""", height=100)
+            st.caption("↑ " + ("Αντίγραψε το κείμενο και επικόλλησέ το στο chat παρακάτω."
+                                if st.session_state.lang=="el" else
+                                "Copy the text and paste it into the chat below."))
+
     user_input=st.chat_input(t("triage_placeholder"),key="triage_input")
     _auto_reply = st.session_state.pop("_scan_reply_pending", False)
-    if user_input or _auto_reply:
+    _voice_reply = st.session_state.pop("_voice_send_pending", False)
+    if user_input or _auto_reply or _voice_reply:
         if user_input:
             st.session_state.pop("photo_added", None)
             st.session_state.pop("lab_added", None)
             st.session_state.triage_chat.append({"role":"user","content":user_input})
         with st.spinner("Asklepios..."):
             pp=p.get
-            profile_ctx=f"Patient: {pp('name')}, {pp('age')}yo {pp('sex')}, Hx: {pp('history','none')}, Allergies: {pp('allergies','none')}, Meds: {pp('meds_raw','none')}"
+            _flags = []
+            if pp("pregnancy"):
+                _flags.append("ΕΓΚΥΟΣ — πρόσεξε αντενδείξεις φαρμάκων/εξετάσεων κατηγορίας D/X" if st.session_state.lang=="el"
+                              else "PREGNANT — flag drug/test contraindications (Category D/X)")
+            if pp("for_whom") == "other":
+                _flags.append("Αξιολόγηση από φροντιστή για άλλο άτομο" if st.session_state.lang=="el"
+                              else "Caregiver-mode: user is asking on behalf of another person")
+            _age_v = pp("age", 0) or 0
+            if _age_v < 18:
+                _flags.append(f"ΠΑΙΔΙΑΤΡΙΚΟΣ ΑΣΘΕΝΗΣ (ηλικία {_age_v}) — χρησιμοποίησε παιδιατρικές δόσεις/όρια"
+                              if st.session_state.lang=="el" else
+                              f"PEDIATRIC PATIENT (age {_age_v}) — use pediatric dosing/ranges")
+            _flags_str = (" | ".join(_flags) + " | ") if _flags else ""
+            profile_ctx=f"Patient: {pp('name')}, {pp('age')}yo {pp('sex')}, {_flags_str}Hx: {pp('history','none')}, Allergies: {pp('allergies','none')}, Meds: {pp('meds_raw','none')}"
             vitals_ctx="Vitals: "+", ".join(f"{k}={val}" for k,val in st.session_state.vitals.items()) if st.session_state.vitals else "Vitals: not provided"
             system_ctx=kira_system()+f"\n\n{profile_ctx}\n{vitals_ctx}"
             reply=claude([{"role":m["role"],"content":m["content"]} for m in st.session_state.triage_chat],system=system_ctx,max_tokens=1500)
@@ -3204,9 +3828,10 @@ def render_emergency_resources(lang):
     import urllib.parse as _up
     def _maps(q):
         return f"https://www.google.com/maps/search/?api=1&query={_up.quote(q)}"
-    # Vrisko.gr public Greek directories (used by major Greek health/insurance sites)
+    # Official Ministry of Health page for Athens hospital duty schedule.
+    # vrisko.gr was a 3rd-party aggregator; moh.gov.gr is the authoritative source.
     URL_DOC   = "https://www.vrisko.gr/dir/giatroi-eopyy"
-    URL_HOSP  = "https://www.vrisko.gr/efimeries-nosokomeion"
+    URL_HOSP  = "https://www.moh.gov.gr/articles/citizen/efhmeries-nosokomeiwn/68-efhmeries-nosokomeiwn-attikhs"
     URL_PHARM = "https://www.vrisko.gr/efimeries-farmakeion"
     st.markdown(f"""
 <style>
@@ -3357,8 +3982,18 @@ def render_report():
             refs=pubmed_search(search_query,n=3); st.session_state.report_pubmed=refs
         pubmed_ctx="\n".join(f"- {a['title']} ({a['journal']}, {a['date']}) {a['url']}" for a in refs) if refs else "None found."
         pp=p.get
+        # Special-population flags that the report MUST respect
+        _rep_flags = []
+        if pp("pregnancy"):
+            _rep_flags.append("PREGNANT — exclude Category D/X drugs; flag teratogenic risks; recommend OB-GYN consultation")
+        if pp("for_whom") == "other":
+            _rep_flags.append("Caregiver-mode: report addresses the caregiver; use third person for the patient")
+        _age_r = pp("age", 0) or 0
+        if _age_r < 18:
+            _rep_flags.append(f"PEDIATRIC ({_age_r} yo) — use pediatric vital ranges, dosing by weight, age-appropriate red flags")
+        _rep_flags_str = ("\nSPECIAL CONSIDERATIONS: " + " | ".join(_rep_flags)) if _rep_flags else ""
         report_prompt=f"""Generate a concise clinical assessment for:
-PATIENT: {pp('name')}, {pp('age')}yo {pp('sex')}
+PATIENT: {pp('name')}, {pp('age')}yo {pp('sex')}{_rep_flags_str}
 HISTORY: {pp('history','none')} | ALLERGIES: {pp('allergies','none')} | MEDS: {pp('meds_raw','none')}
 VITALS: {vitals_text}
 VITALS ANALYSIS: {vitals_analysis}
@@ -3686,7 +4321,7 @@ Language: {"Greek" if lang=="el" else "English"}. Be direct. End with a one-line
     # Honest, factor-explained — Cardiovascular / Respiratory / Metabolic /
     # Symptom burden — each backed by the vitals + history items that drove it.
     v=st.session_state.vitals
-    _status_map = classify_vitals(dict(v)) if v else {}
+    _status_map = classify_vitals(dict(v), age=st.session_state.profile.get("age")) if v else {}
     _render_health_pillars(st.session_state.profile, v, _status_map,
                            st.session_state.report, lang)
     urgent_kw=["chest pain","πόνος στήθους","stroke","εγκεφαλικό","anaphylaxis","αναφυλαξία","166","112","emergency","επείγον","unconscious","αναίσθητος"]
