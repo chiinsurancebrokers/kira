@@ -504,133 +504,41 @@ def get_claude_key():  return _key("Claude_API_Key")
 def get_openai_key():  return _key("OPENAI_API_KEY")
 def get_groq_key():    return _key("GROQ_API_KEY")
 def get_ncbi_key():    return _key("NCBI_API_KEY")
-def get_rehab_key():   return _key("REHABMYPATIENT_API_KEY")
-
-# ── REHABMYPATIENT INTEGRATION ────────────────────────────────────────────────
-# API: https://app2.rehabmypatient.com/settings/api
-# Used for: physiotherapy exercise library search + psychology resource lookup.
-# Graceful degradation: if key is missing, sections are hidden silently.
-_REHAB_BASE = "https://app2.rehabmypatient.com/api"
-
-def rehab_search_exercises(query, body_part=None, n=5):
-    """Search RehabMyPatient exercise library.
-    Returns list of dicts: {name, description, body_part, url} or [] on failure."""
-    key = get_rehab_key()
-    if not key:
-        return []
-    try:
-        params = {"search": query, "limit": n}
-        if body_part:
-            params["body_part"] = body_part
-        url = f"{_REHAB_BASE}/exercises?" + urllib.parse.urlencode(params)
-        req = urllib.request.Request(url, headers={
-            "Authorization": f"Bearer {key}",
-            "Accept": "application/json",
-        })
-        with urllib.request.urlopen(req, timeout=10) as r:
-            data = json.loads(r.read())
-        items = data.get("data") or data.get("exercises") or (data if isinstance(data, list) else [])
-        results = []
-        for item in items[:n]:
-            results.append({
-                "name":        item.get("name") or item.get("title", "—"),
-                "description": item.get("description") or item.get("summary", ""),
-                "body_part":   item.get("body_part") or item.get("bodyPart", ""),
-                "url":         item.get("url") or item.get("link", ""),
-                "category":    item.get("category", ""),
-            })
-        return results
-    except Exception:
-        return []
-
-def rehab_search_programs(query, n=3):
-    """Search RehabMyPatient patient programs/plans."""
-    key = get_rehab_key()
-    if not key:
-        return []
-    try:
-        params = {"search": query, "limit": n}
-        url = f"{_REHAB_BASE}/programs?" + urllib.parse.urlencode(params)
-        req = urllib.request.Request(url, headers={
-            "Authorization": f"Bearer {key}",
-            "Accept": "application/json",
-        })
-        with urllib.request.urlopen(req, timeout=10) as r:
-            data = json.loads(r.read())
-        items = data.get("data") or data.get("programs") or (data if isinstance(data, list) else [])
-        results = []
-        for item in items[:n]:
-            results.append({
-                "name":        item.get("name") or item.get("title", "—"),
-                "description": item.get("description") or "",
-                "url":         item.get("url") or "",
-                "exercises":   item.get("exercise_count") or item.get("exercises", ""),
-            })
-        return results
-    except Exception:
-        return []
 
 def render_physio_card(condition_hint, lang="el"):
-    """Render a Physiotherapy recommendations card using RehabMyPatient API.
-    Shows up to 5 exercises + 2 programs relevant to the condition.
-    Falls back gracefully if API key is missing or returns no results."""
-    key = get_rehab_key()
-    # Always show the card structure; API results fill it dynamically
-    title     = "🏃 Φυσιοθεραπεία & Αποκατάσταση" if lang == "el" else "🏃 Physiotherapy & Rehabilitation"
-    sub       = ("Εξατομικευμένες ασκήσεις από το RehabMyPatient — συζήτησε με φυσιοθεραπευτή πριν ξεκινήσεις."
-                 if lang == "el" else
-                 "Personalised exercises from RehabMyPatient — discuss with a physiotherapist before starting.")
-    no_key_msg = ("Πρόσθεσε REHABMYPATIENT_API_KEY στα secrets για να ενεργοποιηθεί η ενότητα φυσιοθεραπείας."
-                  if lang == "el" else
-                  "Add REHABMYPATIENT_API_KEY to secrets to enable the physiotherapy section.")
-    api_lbl   = "🔗 RehabMyPatient"
+    """Render a Physiotherapy & Rehabilitation evidence card.
+    Sources refs from st.session_state.report_physio_refs (PEDro-equivalent
+    search over PubMed/MEDLINE — see pedro_pillar_search). No API key required;
+    this runs on the same NCBI eutils access already used for PubMed citations."""
+    title = "🏃 Φυσιοθεραπεία & Αποκατάσταση" if lang == "el" else "🏃 Physiotherapy & Rehabilitation"
+    sub   = ("Σχετική βιβλιογραφία φυσικοθεραπείας (RCT/συστηματικές ανασκοπήσεις) — "
+             "συζήτησε με φυσιοθεραπευτή πριν ξεκινήσεις οποιαδήποτε άσκηση."
+             if lang == "el" else
+             "Relevant physiotherapy evidence (RCTs / systematic reviews) — "
+             "discuss with a physiotherapist before starting any exercise.")
+    refs = st.session_state.get("report_physio_refs") or []
 
-    exercises = rehab_search_exercises(condition_hint, n=5) if key else []
-    programs  = rehab_search_programs(condition_hint,  n=2) if key else []
-
-    if not key:
-        st.info(f"🏃 **{title}** — {no_key_msg}")
-        return
-
-    ex_html = ""
-    if exercises:
-        for ex in exercises:
-            bp  = f" · {ex['body_part']}" if ex.get("body_part") else ""
-            cat = f" · {ex['category']}"  if ex.get("category")  else ""
-            lnk = (f'<a href="{ex["url"]}" target="_blank" style="color:#059669;font-size:11px;'
-                   f'font-weight:700;text-decoration:none">↗ RehabMyPatient</a>'
-                   if ex.get("url") else "")
-            ex_html += (
-                f'<div class="physio-ex">'
-                f'<div class="physio-ex-name">{ex["name"]}<span class="physio-ex-meta">{bp}{cat}</span></div>'
-                f'<div class="physio-ex-desc">{ex["description"][:180] if ex["description"] else ""}</div>'
-                f'<div class="physio-ex-link">{lnk}</div>'
-                f'</div>'
-            )
+    import html as _html_p
+    if refs:
+        items_html = "".join(
+            f'<div class="physio-ref">'
+            f'<a href="{_html_p.escape(r.get("url","") or "")}" target="_blank" '
+            f'class="physio-ref-title">{_html_p.escape((r.get("title","—") or "")[:160])}</a>'
+            f'<div class="physio-ref-meta">{_html_p.escape(r.get("journal","") or "")}'
+            f'{(" · " + _html_p.escape(r.get("date","")[:4])) if r.get("date") else ""}</div>'
+            f'</div>'
+            for r in refs
+        )
     else:
-        no_ex = ("Δεν βρέθηκαν ασκήσεις για αυτήν την πάθηση." if lang == "el"
-                 else "No exercises found for this condition.")
-        ex_html = f'<div class="physio-empty">{no_ex}</div>'
+        no_res = ("Δεν βρέθηκε σχετική βιβλιογραφία φυσικοθεραπείας για αυτήν την πάθηση — "
+                  "ζήτησε αξιολόγηση από φυσιοθεραπευτή." if lang == "el" else
+                  "No relevant physiotherapy literature found for this condition — "
+                  "ask a physiotherapist for a direct assessment.")
+        items_html = f'<div class="physio-empty">{no_res}</div>'
 
-    prog_html = ""
-    if programs:
-        prog_title = "📋 Προγράμματα" if lang == "el" else "📋 Programs"
-        prog_html += f'<div class="physio-prog-title">{prog_title}</div>'
-        for pr in programs:
-            ex_count = f" · {pr['exercises']} ασκήσεις" if pr.get("exercises") else ""
-            lnk = (f'<a href="{pr["url"]}" target="_blank" style="color:#059669;font-size:11px;'
-                   f'font-weight:700;text-decoration:none">↗ Άνοιγμα</a>'
-                   if pr.get("url") else "")
-            prog_html += (
-                f'<div class="physio-prog">'
-                f'<div class="physio-prog-name">{pr["name"]}{ex_count}</div>'
-                f'<div class="physio-prog-desc">{pr["description"][:120] if pr.get("description") else ""}</div>'
-                f'<div>{lnk}</div></div>'
-            )
-
-    api_credit = (f'<div class="physio-credit">Powered by <a href="https://app2.rehabmypatient.com" '
-                  f'target="_blank" style="color:#059669;font-weight:700;text-decoration:none">'
-                  f'{api_lbl}</a></div>')
+    credit = ("Αναζήτηση μέσω PubMed/MEDLINE — εύρος αντίστοιχο PEDro (φυσιοθεραπευτικά RCT/MeSH)."
+              if lang == "el" else
+              "Searched via PubMed/MEDLINE — PEDro-equivalent scope (physiotherapy RCT/MeSH).")
 
     st.markdown(f"""
 <style>
@@ -646,31 +554,17 @@ def render_physio_card(condition_hint, lang="el"):
 .physio-sub {{
   font-size: 12px; color: #6B7280; margin-bottom: 14px; line-height: 1.5;
 }}
-.physio-ex {{
+.physio-ref {{
   border: 1px solid #ECFDF5; border-radius: 10px; padding: 11px 13px;
   margin-bottom: 8px; background: #F0FDF4;
 }}
-.physio-ex-name {{
-  font-size: 13.5px; font-weight: 700; color: #1F2937; margin-bottom: 4px;
+.physio-ref-title {{
+  font-size: 13.5px; font-weight: 700; color: #065F46; text-decoration: none;
+  display: block; margin-bottom: 4px; line-height: 1.4;
 }}
-.physio-ex-meta {{
-  font-size: 11px; color: #6B7280; font-weight: 400; margin-left: 6px;
-}}
-.physio-ex-desc {{
-  font-size: 12.5px; color: #374151; line-height: 1.5; margin-bottom: 4px;
-}}
-.physio-ex-link {{ font-size: 11px; }}
+.physio-ref-title:hover {{ text-decoration: underline; }}
+.physio-ref-meta {{ font-size: 11.5px; color: #6B7280; }}
 .physio-empty {{ font-size: 13px; color: #9CA3AF; padding: 10px 0; }}
-.physio-prog-title {{
-  font-size: 11px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase;
-  color: #6B7280; margin: 14px 0 8px;
-}}
-.physio-prog {{
-  border: 1px solid #E5E7EB; border-radius: 10px; padding: 10px 13px;
-  margin-bottom: 6px; background: white;
-}}
-.physio-prog-name {{ font-size: 13px; font-weight: 700; color: #1F2937; margin-bottom: 3px; }}
-.physio-prog-desc {{ font-size: 12px; color: #6B7280; margin-bottom: 4px; }}
 .physio-credit {{
   font-size: 11px; color: #9CA3AF; margin-top: 14px; padding-top: 10px;
   border-top: 1px dashed #E5E7EB; text-align: right;
@@ -679,9 +573,8 @@ def render_physio_card(condition_hint, lang="el"):
 <div class="physio-card">
   <div class="physio-title">{title}</div>
   <div class="physio-sub">{sub}</div>
-  {ex_html}
-  {prog_html}
-  {api_credit}
+  {items_html}
+  <div class="physio-credit">{credit}</div>
 </div>
 """, unsafe_allow_html=True)
 
@@ -765,6 +658,29 @@ def render_psychology_card(lang="el"):
             f'</div></div>'
         )
 
+    # ── Related research (PubMed/MEDLINE, peer-reviewed) — additive, below the
+    # crisis/directory resources above. Those resources are unaffected; this
+    # only adds literature.
+    import html as _html_q
+    _psych_refs = st.session_state.get("report_psych_refs") or []
+    research_lbl = "📚 Σχετική Έρευνα (PubMed)" if lang == "el" else "📚 Related Research (PubMed)"
+    if _psych_refs:
+        research_items = "".join(
+            f'<div class="psych-ref">'
+            f'<a href="{_html_q.escape(r.get("url","") or "")}" target="_blank" '
+            f'class="psych-ref-title">{_html_q.escape((r.get("title","—") or "")[:160])}</a>'
+            f'<div class="psych-ref-meta">{_html_q.escape(r.get("journal","") or "")}'
+            f'{(" · " + _html_q.escape(r.get("date","")[:4])) if r.get("date") else ""}</div>'
+            f'</div>'
+            for r in _psych_refs
+        )
+        research_html = (
+            f'<div class="psych-research"><div class="psych-research-lbl">{research_lbl}</div>'
+            f'{research_items}</div>'
+        )
+    else:
+        research_html = ""
+
     st.markdown(f"""
 <style>
 .psych-card {{
@@ -784,11 +700,27 @@ def render_psychology_card(lang="el"):
 .psych-body {{ flex: 1; min-width: 0; }}
 .psych-label {{ font-size: 13.5px; font-weight: 700; color: #1F2937; margin-bottom: 3px; }}
 .psych-desc {{ font-size: 12.5px; color: #4B5563; line-height: 1.5; }}
+.psych-research {{ margin-top: 16px; padding-top: 14px; border-top: 1px dashed #E5E7EB; }}
+.psych-research-lbl {{
+  font-size: 11px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase;
+  color: #6B7280; margin-bottom: 10px;
+}}
+.psych-ref {{
+  border: 1px solid #EEF2FF; border-radius: 10px; padding: 11px 13px;
+  margin-bottom: 8px; background: #F5F7FF;
+}}
+.psych-ref-title {{
+  font-size: 13.5px; font-weight: 700; color: #3730A3; text-decoration: none;
+  display: block; margin-bottom: 4px; line-height: 1.4;
+}}
+.psych-ref-title:hover {{ text-decoration: underline; }}
+.psych-ref-meta {{ font-size: 11.5px; color: #6B7280; }}
 </style>
 <div class="psych-card">
   <div class="psych-title">{title}</div>
   <div class="psych-sub">{sub}</div>
   {cards_html}
+  {research_html}
 </div>
 """, unsafe_allow_html=True)
 # Graceful degradation: if SUPABASE_URL / SUPABASE_ANON_KEY are not set (or the
@@ -1511,6 +1443,52 @@ def pubmed_pillar_search(condition, pillar, n=2):
     # Fallback: drop ptype filter — still MeSH-scoped, just any pub type
     return pubmed_search(f"{cond_q} AND {mesh}", n=n)
 
+# ── PHYSIOTHERAPY EVIDENCE (PubMed/MEDLINE, PEDro-equivalent MeSH scope) ─────
+# PEDro (pedro.org.au) itself has no public API — it is search-UI only — so we
+# reuse the existing NCBI eutils pipeline (same one powering pubmed_search) but
+# scope the query to physiotherapy/rehabilitation MeSH headings + high-evidence
+# publication types. This mirrors how PEDro itself prioritises RCTs/systematic
+# reviews/guidelines, using infrastructure we already have a key for.
+_PHYSIO_MESH = ('("Physical Therapy Modalities"[MeSH] OR "Exercise Therapy"[MeSH] OR '
+                '"Rehabilitation"[MeSH] OR "Musculoskeletal Manipulations"[MeSH])')
+
+def pedro_pillar_search(condition_hint, n=3):
+    """Physiotherapy-evidence search (PEDro-equivalent) via PubMed/MEDLINE.
+    Returns the same list-of-dicts shape as pubmed_search: pmid/title/authors/
+    journal/date/url. Falls back to a looser query if the strict combo is empty."""
+    if not condition_hint:
+        return []
+    cond_q = condition_hint.strip()
+    strict = f"{cond_q} AND {_PHYSIO_MESH} AND {_PILLAR_PTYPE}"
+    res = pubmed_search(strict, n=n)
+    if res:
+        return res
+    return pubmed_search(f"{cond_q} AND {_PHYSIO_MESH}", n=n)
+
+# ── PSYCHOLOGY EVIDENCE (PubMed/MEDLINE — peer-reviewed, same as physio) ────
+# Earlier version of this used OSF/PsyArXiv (preprints, not peer-reviewed) —
+# the same quality objection raised against medRxiv applies there too, so it
+# was replaced. PubMed/MEDLINE already indexes the bulk of psychology and
+# psychiatry literature (it includes journals covering psychotherapy, CBT,
+# anxiety/mood disorders, etc.), so this reuses the same eutils pipeline and
+# the same high-evidence publication-type filter as pedro_pillar_search.
+_PSYCH_MESH = ('("Psychotherapy"[MeSH] OR "Cognitive Behavioral Therapy"[MeSH] OR '
+               '"Mental Health"[MeSH] OR "Anxiety Disorders"[MeSH] OR '
+               '"Stress, Psychological"[MeSH] OR "Counseling"[MeSH])')
+
+def psychology_pillar_search(condition_hint, n=3):
+    """Psychology-evidence search via PubMed/MEDLINE (peer-reviewed).
+    Returns the same list-of-dicts shape as pubmed_search: pmid/title/authors/
+    journal/date/url. Falls back to a looser query if the strict combo is empty."""
+    if not condition_hint:
+        return []
+    cond_q = condition_hint.strip()
+    strict = f"{cond_q} AND {_PSYCH_MESH} AND {_PILLAR_PTYPE}"
+    res = pubmed_search(strict, n=n)
+    if res:
+        return res
+    return pubmed_search(f"{cond_q} AND {_PSYCH_MESH}", n=n)
+
 def rxnorm_interactions(names):
     try:
         cuis = []
@@ -1639,6 +1617,8 @@ defaults = {
     "report_gpt": "",
     "report_recs": None,  # {"exercise": "...", "nutrition": "...", "lifestyle": "..."} from Claude
     "report_recs_refs": {},  # {"exercise": [...refs...], "nutrition": [...], "lifestyle": [...]}
+    "report_physio_refs": [],  # PEDro-equivalent PubMed refs for the physiotherapy card
+    "report_psych_refs": [],   # PubMed/MEDLINE refs for the psychology card
     "photo_findings": [],  # list of dicts — visual analyses added to assessment
     "lab_findings": [],    # list of dicts — lab PDF/image analyses added to assessment
     "_voice_widget_counter": 0,  # increments to force audio_input widget reset
@@ -4531,18 +4511,26 @@ Language: {"Greek" if lang=="el" else "English"}. Be direct. End with a one-line
             st.session_state.report_recs = _recs
             # Fetch high-evidence PubMed refs PER PILLAR (Exercise/Nutrition/Lifestyle)
             # using MeSH + Practice-Guideline/Systematic-Review/Meta-Analysis filters.
-            # Runs the 3 queries in parallel to keep total latency reasonable.
+            # Also fetch Physiotherapy (PEDro-equivalent via PubMed) and Psychology
+            # (PubMed/MEDLINE, peer-reviewed) evidence in the same parallel batch.
             _condition = (_recs or {}).get("condition", "").strip()
             if _condition:
                 from concurrent.futures import ThreadPoolExecutor as _TPE
                 with st.spinner("📚 " + ("Αναζήτηση οδηγιών ανά πυλώνα..." if lang=="el"
                                           else "Searching guideline-level evidence per pillar...")):
-                    with _TPE(max_workers=3) as _ex:
+                    with _TPE(max_workers=5) as _ex:
                         _futs = {p: _ex.submit(pubmed_pillar_search, _condition, p, 2)
                                  for p in ("exercise","nutrition","lifestyle")}
-                        st.session_state.report_recs_refs = {p: f.result() for p,f in _futs.items()}
+                        _futs["physio"]     = _ex.submit(pedro_pillar_search, _condition, 3)
+                        _futs["psychology"] = _ex.submit(psychology_pillar_search, _condition, 3)
+                        _all_refs = {p: f.result() for p,f in _futs.items()}
+                st.session_state.report_recs_refs = {p: _all_refs[p] for p in ("exercise","nutrition","lifestyle")}
+                st.session_state.report_physio_refs = _all_refs.get("physio", [])
+                st.session_state.report_psych_refs  = _all_refs.get("psychology", [])
             else:
                 st.session_state.report_recs_refs = {}
+                st.session_state.report_physio_refs = []
+                st.session_state.report_psych_refs  = []
         # Clear the loading overlay now that we have data — rerun will render the report
         _overlay.empty()
         st.rerun()
@@ -4769,7 +4757,7 @@ Language: {"Greek" if lang=="el" else "English"}. Be direct. End with a one-line
         _render_recs_card(st.session_state.report_recs, lang,
                           refs=st.session_state.get("report_recs_refs") or {})
 
-    # ── PHYSIOTHERAPY CARD (RehabMyPatient API) ───────────────────────────────
+    # ── PHYSIOTHERAPY CARD (PEDro-equivalent evidence via PubMed/MEDLINE) ─────
     # Build a condition hint from the report_recs["condition"] field (English
     # MeSH term) so the exercise search is clinically targeted.
     _physio_hint = (st.session_state.get("report_recs") or {}).get("condition", "")
