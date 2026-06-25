@@ -504,8 +504,293 @@ def get_claude_key():  return _key("Claude_API_Key")
 def get_openai_key():  return _key("OPENAI_API_KEY")
 def get_groq_key():    return _key("GROQ_API_KEY")
 def get_ncbi_key():    return _key("NCBI_API_KEY")
+def get_rehab_key():   return _key("REHABMYPATIENT_API_KEY")
 
-# ── AUTH (Supabase email-OTP — gates the premium report) ──────────────────────
+# ── REHABMYPATIENT INTEGRATION ────────────────────────────────────────────────
+# API: https://app2.rehabmypatient.com/settings/api
+# Used for: physiotherapy exercise library search + psychology resource lookup.
+# Graceful degradation: if key is missing, sections are hidden silently.
+_REHAB_BASE = "https://app2.rehabmypatient.com/api"
+
+def rehab_search_exercises(query, body_part=None, n=5):
+    """Search RehabMyPatient exercise library.
+    Returns list of dicts: {name, description, body_part, url} or [] on failure."""
+    key = get_rehab_key()
+    if not key:
+        return []
+    try:
+        params = {"search": query, "limit": n}
+        if body_part:
+            params["body_part"] = body_part
+        url = f"{_REHAB_BASE}/exercises?" + urllib.parse.urlencode(params)
+        req = urllib.request.Request(url, headers={
+            "Authorization": f"Bearer {key}",
+            "Accept": "application/json",
+        })
+        with urllib.request.urlopen(req, timeout=10) as r:
+            data = json.loads(r.read())
+        items = data.get("data") or data.get("exercises") or (data if isinstance(data, list) else [])
+        results = []
+        for item in items[:n]:
+            results.append({
+                "name":        item.get("name") or item.get("title", "—"),
+                "description": item.get("description") or item.get("summary", ""),
+                "body_part":   item.get("body_part") or item.get("bodyPart", ""),
+                "url":         item.get("url") or item.get("link", ""),
+                "category":    item.get("category", ""),
+            })
+        return results
+    except Exception:
+        return []
+
+def rehab_search_programs(query, n=3):
+    """Search RehabMyPatient patient programs/plans."""
+    key = get_rehab_key()
+    if not key:
+        return []
+    try:
+        params = {"search": query, "limit": n}
+        url = f"{_REHAB_BASE}/programs?" + urllib.parse.urlencode(params)
+        req = urllib.request.Request(url, headers={
+            "Authorization": f"Bearer {key}",
+            "Accept": "application/json",
+        })
+        with urllib.request.urlopen(req, timeout=10) as r:
+            data = json.loads(r.read())
+        items = data.get("data") or data.get("programs") or (data if isinstance(data, list) else [])
+        results = []
+        for item in items[:n]:
+            results.append({
+                "name":        item.get("name") or item.get("title", "—"),
+                "description": item.get("description") or "",
+                "url":         item.get("url") or "",
+                "exercises":   item.get("exercise_count") or item.get("exercises", ""),
+            })
+        return results
+    except Exception:
+        return []
+
+def render_physio_card(condition_hint, lang="el"):
+    """Render a Physiotherapy recommendations card using RehabMyPatient API.
+    Shows up to 5 exercises + 2 programs relevant to the condition.
+    Falls back gracefully if API key is missing or returns no results."""
+    key = get_rehab_key()
+    # Always show the card structure; API results fill it dynamically
+    title     = "🏃 Φυσιοθεραπεία & Αποκατάσταση" if lang == "el" else "🏃 Physiotherapy & Rehabilitation"
+    sub       = ("Εξατομικευμένες ασκήσεις από το RehabMyPatient — συζήτησε με φυσιοθεραπευτή πριν ξεκινήσεις."
+                 if lang == "el" else
+                 "Personalised exercises from RehabMyPatient — discuss with a physiotherapist before starting.")
+    no_key_msg = ("Πρόσθεσε REHABMYPATIENT_API_KEY στα secrets για να ενεργοποιηθεί η ενότητα φυσιοθεραπείας."
+                  if lang == "el" else
+                  "Add REHABMYPATIENT_API_KEY to secrets to enable the physiotherapy section.")
+    api_lbl   = "🔗 RehabMyPatient"
+
+    exercises = rehab_search_exercises(condition_hint, n=5) if key else []
+    programs  = rehab_search_programs(condition_hint,  n=2) if key else []
+
+    if not key:
+        st.info(f"🏃 **{title}** — {no_key_msg}")
+        return
+
+    ex_html = ""
+    if exercises:
+        for ex in exercises:
+            bp  = f" · {ex['body_part']}" if ex.get("body_part") else ""
+            cat = f" · {ex['category']}"  if ex.get("category")  else ""
+            lnk = (f'<a href="{ex["url"]}" target="_blank" style="color:#059669;font-size:11px;'
+                   f'font-weight:700;text-decoration:none">↗ RehabMyPatient</a>'
+                   if ex.get("url") else "")
+            ex_html += (
+                f'<div class="physio-ex">'
+                f'<div class="physio-ex-name">{ex["name"]}<span class="physio-ex-meta">{bp}{cat}</span></div>'
+                f'<div class="physio-ex-desc">{ex["description"][:180] if ex["description"] else ""}</div>'
+                f'<div class="physio-ex-link">{lnk}</div>'
+                f'</div>'
+            )
+    else:
+        no_ex = ("Δεν βρέθηκαν ασκήσεις για αυτήν την πάθηση." if lang == "el"
+                 else "No exercises found for this condition.")
+        ex_html = f'<div class="physio-empty">{no_ex}</div>'
+
+    prog_html = ""
+    if programs:
+        prog_title = "📋 Προγράμματα" if lang == "el" else "📋 Programs"
+        prog_html += f'<div class="physio-prog-title">{prog_title}</div>'
+        for pr in programs:
+            ex_count = f" · {pr['exercises']} ασκήσεις" if pr.get("exercises") else ""
+            lnk = (f'<a href="{pr["url"]}" target="_blank" style="color:#059669;font-size:11px;'
+                   f'font-weight:700;text-decoration:none">↗ Άνοιγμα</a>'
+                   if pr.get("url") else "")
+            prog_html += (
+                f'<div class="physio-prog">'
+                f'<div class="physio-prog-name">{pr["name"]}{ex_count}</div>'
+                f'<div class="physio-prog-desc">{pr["description"][:120] if pr.get("description") else ""}</div>'
+                f'<div>{lnk}</div></div>'
+            )
+
+    api_credit = (f'<div class="physio-credit">Powered by <a href="https://app2.rehabmypatient.com" '
+                  f'target="_blank" style="color:#059669;font-weight:700;text-decoration:none">'
+                  f'{api_lbl}</a></div>')
+
+    st.markdown(f"""
+<style>
+.physio-card {{
+  background: white; border: 1px solid #A7F3D0; border-radius: 16px;
+  padding: 20px 22px; margin: 16px 0;
+  font-family: 'Inter', system-ui, sans-serif;
+  box-shadow: 0 2px 8px rgba(5,150,105,0.07);
+}}
+.physio-title {{
+  font-size: 15px; font-weight: 800; color: #065F46; margin-bottom: 4px;
+}}
+.physio-sub {{
+  font-size: 12px; color: #6B7280; margin-bottom: 14px; line-height: 1.5;
+}}
+.physio-ex {{
+  border: 1px solid #ECFDF5; border-radius: 10px; padding: 11px 13px;
+  margin-bottom: 8px; background: #F0FDF4;
+}}
+.physio-ex-name {{
+  font-size: 13.5px; font-weight: 700; color: #1F2937; margin-bottom: 4px;
+}}
+.physio-ex-meta {{
+  font-size: 11px; color: #6B7280; font-weight: 400; margin-left: 6px;
+}}
+.physio-ex-desc {{
+  font-size: 12.5px; color: #374151; line-height: 1.5; margin-bottom: 4px;
+}}
+.physio-ex-link {{ font-size: 11px; }}
+.physio-empty {{ font-size: 13px; color: #9CA3AF; padding: 10px 0; }}
+.physio-prog-title {{
+  font-size: 11px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase;
+  color: #6B7280; margin: 14px 0 8px;
+}}
+.physio-prog {{
+  border: 1px solid #E5E7EB; border-radius: 10px; padding: 10px 13px;
+  margin-bottom: 6px; background: white;
+}}
+.physio-prog-name {{ font-size: 13px; font-weight: 700; color: #1F2937; margin-bottom: 3px; }}
+.physio-prog-desc {{ font-size: 12px; color: #6B7280; margin-bottom: 4px; }}
+.physio-credit {{
+  font-size: 11px; color: #9CA3AF; margin-top: 14px; padding-top: 10px;
+  border-top: 1px dashed #E5E7EB; text-align: right;
+}}
+</style>
+<div class="physio-card">
+  <div class="physio-title">{title}</div>
+  <div class="physio-sub">{sub}</div>
+  {ex_html}
+  {prog_html}
+  {api_credit}
+</div>
+""", unsafe_allow_html=True)
+
+
+# MENTAL HEALTH RESOURCES (psychology support section)
+# Hardcoded trusted Greek resources — no third-party API available for Greek
+# psychology directories. Links are official or well-established organisations.
+PSYCHOLOGY_RESOURCES_EL = [
+    ("🧠", "Ψυχολόγος ΕΣΥ / Ψυχιατρικές Κλινικές",
+     "Δωρεάν πρόσβαση μέσω παραπομπής γιατρού ΕΣΥ.",
+     "https://www.moh.gov.gr"),
+    ("📞", "Γραμμή Ψυχολογικής Υποστήριξης (10306)",
+     "Δωρεάν 24ωρη γραμμή ψυχολογικής υποστήριξης — ΕΚΕΠΥ.",
+     "tel:10306"),
+    ("💬", "Γραμμή Παρέμβασης Αυτοκτονίας (1018)",
+     "Κέντρο Πρόληψης ΚΕΘΕΑ — 24ωρη γραμμή κρίσης.",
+     "tel:1018"),
+    ("🏥", "Ψυχιατρικό Νοσοκομείο Αττικής",
+     "Επείγοντα ψυχιατρικά περιστατικά.",
+     "https://www.psyhat.gr"),
+    ("🌐", "ΕΤΗΕΑ — Ελληνική Εταιρεία Κλινικής Ψυχολογίας",
+     "Μητρώο αδειοδοτημένων ψυχολόγων.",
+     "https://www.etheaclinicalpsy.gr"),
+    ("🌿", "MindHub Greece",
+     "Online ψυχολογική υποστήριξη από αδειοδοτημένους ψυχολόγους.",
+     "https://www.mindhub.gr"),
+]
+PSYCHOLOGY_RESOURCES_EN = [
+    ("🧠", "NHS-equivalent (ESY) Psychiatry",
+     "Free access via GP referral through the national health system.",
+     "https://www.moh.gov.gr"),
+    ("📞", "Psychological Support Line (10306)",
+     "Free 24h psychological support line — EΚΕΠΥ.",
+     "tel:10306"),
+    ("💬", "Suicide Prevention Line (1018)",
+     "KETHEA crisis centre — 24h line.",
+     "tel:1018"),
+    ("🏥", "Attica Psychiatric Hospital",
+     "Psychiatric emergencies in the Attica region.",
+     "https://www.psyhat.gr"),
+    ("🌐", "ETHEΑ — Greek Clinical Psychology Society",
+     "Registry of licensed clinical psychologists.",
+     "https://www.etheaclinicalpsy.gr"),
+    ("🌿", "MindHub Greece",
+     "Online psychological support from licensed psychologists.",
+     "https://www.mindhub.gr"),
+]
+
+def render_psychology_card(lang="el"):
+    """Render a Mental Health & Psychology support card.
+    Shows curated Greek resources: helplines, directories, organisations.
+    AI-generated guidance (via Claude) is appended for psychoeducation."""
+    title = "🧠 Ψυχολογική Υποστήριξη & Ψυχική Υγεία" if lang == "el" else "🧠 Psychological Support & Mental Health"
+    sub   = ("Επίσημες υπηρεσίες, γραμμές κρίσης και αδειοδοτημένοι ψυχολόγοι — η αξιολόγηση γίνεται πάντα από επαγγελματία."
+             if lang == "el" else
+             "Official services, crisis lines and licensed psychologists — assessment is always done by a professional.")
+    resources = PSYCHOLOGY_RESOURCES_EL if lang == "el" else PSYCHOLOGY_RESOURCES_EN
+
+    cards_html = ""
+    for icon, label, desc, url in resources:
+        is_tel = url.startswith("tel:")
+        num    = url.replace("tel:", "")
+        if is_tel:
+            link_html = (f'<a href="{url}" style="display:inline-block;background:#6366F1;color:white;'
+                         f'padding:5px 14px;border-radius:8px;font-size:13px;font-weight:700;'
+                         f'text-decoration:none;margin-top:6px">📞 {num}</a>')
+        else:
+            link_html = (f'<a href="{url}" target="_blank" style="display:inline-block;background:#EEF2FF;'
+                         f'color:#4338CA;padding:5px 14px;border-radius:8px;font-size:12px;font-weight:700;'
+                         f'text-decoration:none;margin-top:6px">↗ Άνοιγμα</a>' if lang == "el" else
+                         f'<a href="{url}" target="_blank" style="display:inline-block;background:#EEF2FF;'
+                         f'color:#4338CA;padding:5px 14px;border-radius:8px;font-size:12px;font-weight:700;'
+                         f'text-decoration:none;margin-top:6px">↗ Open</a>')
+        cards_html += (
+            f'<div class="psych-item">'
+            f'<div class="psych-icon">{icon}</div>'
+            f'<div class="psych-body">'
+            f'<div class="psych-label">{label}</div>'
+            f'<div class="psych-desc">{desc}</div>'
+            f'{link_html}'
+            f'</div></div>'
+        )
+
+    st.markdown(f"""
+<style>
+.psych-card {{
+  background: white; border: 1px solid #C7D2FE; border-radius: 16px;
+  padding: 20px 22px; margin: 16px 0;
+  font-family: 'Inter', system-ui, sans-serif;
+  box-shadow: 0 2px 8px rgba(99,102,241,0.07);
+}}
+.psych-title {{ font-size: 15px; font-weight: 800; color: #3730A3; margin-bottom: 4px; }}
+.psych-sub {{ font-size: 12px; color: #6B7280; margin-bottom: 14px; line-height: 1.5; }}
+.psych-item {{
+  display: flex; gap: 12px; align-items: flex-start;
+  border-bottom: 1px solid #F3F4F6; padding: 12px 0;
+}}
+.psych-item:last-child {{ border-bottom: none; padding-bottom: 0; }}
+.psych-icon {{ font-size: 22px; flex-shrink: 0; padding-top: 2px; }}
+.psych-body {{ flex: 1; min-width: 0; }}
+.psych-label {{ font-size: 13.5px; font-weight: 700; color: #1F2937; margin-bottom: 3px; }}
+.psych-desc {{ font-size: 12.5px; color: #4B5563; line-height: 1.5; }}
+</style>
+<div class="psych-card">
+  <div class="psych-title">{title}</div>
+  <div class="psych-sub">{sub}</div>
+  {cards_html}
+</div>
+""", unsafe_allow_html=True)
 # Graceful degradation: if SUPABASE_URL / SUPABASE_ANON_KEY are not set (or the
 # supabase package is missing), auth stays OFF and the whole app is open — so the
 # demo keeps working. Set the secrets to switch the gate on automatically.
@@ -1362,6 +1647,7 @@ defaults = {
     "symptom_chips": [],
     "fb_rating": "",
     "fb_sent": False,
+    "output_lang": None,  # AI response language; None = follow UI lang
 }
 for k, v in defaults.items():
     if k not in st.session_state:
@@ -1723,8 +2009,60 @@ Vitals: If the symptoms are cardiac/autonomic (palpitations, racing heart, chest
 
 def kira_system(): return KIRA_SYSTEM_EL if st.session_state.lang=="el" else KIRA_SYSTEM_EN
 
-# Symptoms where measuring a specific vital genuinely adds value → surface the
-# relevant measurement contextually instead of forcing vitals on everyone.
+# ── MULTILINGUAL AI OUTPUT ─────────────────────────────────────────────────────
+# Decoupled from the UI language so Bulgarian/Romanian/Albanian etc. speakers
+# can receive the report and chat in their native language while the UI stays el/en.
+OUTPUT_LANGUAGES = {
+    "el": ("🇬🇷 Ελληνικά",  "Greek (Ελληνικά)"),
+    "en": ("🇬🇧 English",   "English"),
+    "bg": ("🇧🇬 Български", "Bulgarian (Български)"),
+    "ro": ("🇷🇴 Română",    "Romanian (Română)"),
+    "al": ("🇦🇱 Shqip",     "Albanian (Shqip)"),
+    "ru": ("🇷🇺 Русский",   "Russian (Русский)"),
+    "de": ("🇩🇪 Deutsch",   "German (Deutsch)"),
+    "fr": ("🇫🇷 Français",  "French (Français)"),
+}
+
+def output_lang_code():
+    """Effective AI-output language. Falls back to UI language if not set."""
+    code = st.session_state.get("output_lang")
+    if code and code in OUTPUT_LANGUAGES:
+        return code
+    return st.session_state.get("lang", "el")
+
+def output_language_directive():
+    """Append to any Claude prompt to force response into the chosen output language.
+    Returns empty string when output lang matches UI lang (no override needed)."""
+    code = output_lang_code()
+    if code == st.session_state.get("lang", "el"):
+        return ""
+    name = OUTPUT_LANGUAGES[code][1]
+    return (
+        f"\n\nOUTPUT LANGUAGE OVERRIDE: Respond ONLY in {name}. "
+        "This overrides any earlier language instruction. "
+        "Use correct clinical terminology in the target language. "
+        "Do NOT mix languages within a sentence."
+    )
+
+def render_output_language_picker(lang, *, key_suffix=""):
+    """Compact dropdown to pick the AI-output language."""
+    label = ("🌍 Γλώσσα αναφοράς & AI απαντήσεων" if lang == "el"
+             else "🌍 Report & AI response language")
+    codes   = list(OUTPUT_LANGUAGES.keys())
+    current = output_lang_code()
+    try:    idx = codes.index(current)
+    except: idx = 0
+    choice = st.selectbox(
+        label, codes, index=idx,
+        format_func=lambda c: OUTPUT_LANGUAGES[c][0],
+        key=f"output_lang_picker_{key_suffix}",
+        help=("Το UI παραμένει στα ελληνικά/αγγλικά. Η αναφορά και η συνομιλία AI θα εμφανίζονται στη γλώσσα που επιλέγεις."
+              if lang=="el" else
+              "The UI stays in Greek/English. The report and AI chat will appear in the selected language."),
+    )
+    if choice != current:
+        st.session_state["output_lang"] = choice
+        st.rerun()
 def _strip_accents(s):
     return "".join(c for c in unicodedata.normalize("NFD", s.lower())
                    if unicodedata.category(c) != "Mn")
@@ -2894,10 +3232,11 @@ def render_photo_scan():
 
 
 def render_lab_analysis():
-    """Lab PDF/image upload + Claude interpretation. 2-stage flow at top level
-    (no nested buttons — same fix as photo scan).
+    """Lab PDF/image upload + Claude interpretation. Multi-file support:
+    user can upload αιμοδιάγραμμα + βιοχημικό + ούρα in a single pass.
+    Each file is analysed individually and added to the assessment.
     
-    Privacy: file is sent to Claude API for analysis and discarded immediately.
+    Privacy: files are sent to Claude API for analysis and discarded immediately.
     Nothing about the lab values is stored on our servers.
     """
     p = st.session_state.profile
@@ -2905,95 +3244,110 @@ def render_lab_analysis():
     st.caption(("Ανέβασε PDF ή φωτογραφία αιματολογικών, ορμονολογικών, βιοχημικών ή ουρολογικών εξετάσεων."
                 if lang=="el" else
                 "Upload PDF or photo of blood, hormonal, biochemistry, or urinalysis results."))
-    st.markdown(f'<div class="disclaimer">{"⚠️ Εκπαιδευτικό εργαλείο, δεν αντικαθιστά ιατρό. Το αρχείο δεν αποθηκεύεται στους server μας." if lang=="el" else "⚠️ Educational tool, does not replace a doctor. The file is not stored on our servers."}</div>', unsafe_allow_html=True)
-    
-    uploaded_lab = st.file_uploader(
-        ("Εξετάσεις (PDF, JPG, PNG)" if lang=="el" else "Lab tests (PDF, JPG, PNG)"),
-        type=["pdf","jpg","jpeg","png","webp"],
-        key="lab_upload"
+    st.markdown(f'<div class="disclaimer">{"⚠️ Εκπαιδευτικό εργαλείο, δεν αντικαθιστά ιατρό. Τα αρχεία δεν αποθηκεύονται στους server μας." if lang=="el" else "⚠️ Educational tool, does not replace a doctor. Files are not stored on our servers."}</div>', unsafe_allow_html=True)
+
+    lab_files = st.file_uploader(
+        ("Εξετάσεις (PDF, JPG, PNG — πολλαπλά αρχεία)" if lang=="el"
+         else "Lab tests (PDF, JPG, PNG — multiple files)"),
+        type=["pdf","jpg","jpeg","png","webp","heic","heif"],
+        key="lab_upload",
+        accept_multiple_files=True,
+        help=("Μπορείς να ανεβάσεις πολλαπλά αρχεία ταυτόχρονα — π.χ. αιμοδιάγραμμα + βιοχημικό + ορμόνες."
+              if lang=="el" else
+              "Upload multiple files at once — e.g. CBC + biochemistry + hormonal panel.")
     )
-    
-    _current_file_id = (f"{uploaded_lab.name}|{uploaded_lab.size}"
-                        if uploaded_lab else None)
-    
-    # ── STAGE 1: trigger analysis ──
-    if uploaded_lab:
-        c_info, c_btn = st.columns([2,1])
-        with c_info:
-            st.markdown(f"**📄 {uploaded_lab.name}** · {round(uploaded_lab.size/1024)} KB")
-        with c_btn:
-            if st.button("🔬 " + ("Ανάλυση" if lang=="el" else "Analyse"),
-                         type="primary", use_container_width=True, key="analyse_lab"):
-                file_bytes = uploaded_lab.read()
-                fname = uploaded_lab.name.lower()
-                if fname.endswith(".pdf"):
-                    mime = "application/pdf"
-                elif fname.endswith(".png"):
-                    mime = "image/png"
-                elif fname.endswith(".webp"):
-                    mime = "image/webp"
-                else:
-                    mime = "image/jpeg"
-                
-                with st.spinner(("Ο Asklepios ερμηνεύει τα αποτελέσματα..." if lang=="el"
-                                else "Asklepios is interpreting the results...")):
-                    analysis = claude_analyze_lab(
-                        file_bytes, mime,
-                        p, st.session_state.triage_chat, lang,
-                        file_name=uploaded_lab.name,
-                    )
-                
-                # Persist preview to state — Stage 2 renders OUTSIDE this button
-                # block so the "Add to assessment" button actually fires on click.
-                st.session_state["_lab_preview"] = {
-                    "file_id":   _current_file_id,
-                    "file_name": uploaded_lab.name,
-                    "mime":      mime,
-                    "analysis":  analysis,
-                }
-                st.rerun()
-    
-    # ── STAGE 2: preview + Add-to-assessment (TOP LEVEL — not nested) ──
-    preview = st.session_state.get("_lab_preview")
-    if preview:
-        # Stale preview detection: user uploaded a different file
-        if uploaded_lab and preview.get("file_id") and preview["file_id"] != _current_file_id:
-            st.session_state.pop("_lab_preview", None)
-            preview = None
-    if preview:
-        analysis = preview["analysis"]
-        st.markdown('<div class="card">', unsafe_allow_html=True)
-        st.markdown(analysis)
-        st.markdown('</div>', unsafe_allow_html=True)
-        
-        urgent_kw = ["επείγον","άμεσα","emergency","critical","κρίσιμ","ιατρό αμέσως","immediately"]
-        if any(k.lower() in analysis.lower() for k in urgent_kw):
-            st.error("🚨 " + ("Ευρήματα που χρήζουν άμεσης ιατρικής αξιολόγησης"
-                              if lang=="el" else
-                              "Findings requiring immediate medical evaluation"))
-        
-        if st.button("➤ " + ("Πρόσθεση στην εκτίμηση" if lang=="el" else "Add to assessment"),
-                     type="primary", use_container_width=True, key="lab_to_triage"):
-            _name = preview["file_name"]
-            msg = (f"Αποτέλεσμα ανάλυσης εξετάσεων ({_name}):\n\n{analysis}"
-                   if lang=="el" else
-                   f"Lab analysis result ({_name}):\n\n{analysis}")
-            st.session_state.triage_chat.append({"role":"user","content":msg})
-            _lf = st.session_state.get("lab_findings")
-            if not isinstance(_lf, list):
-                _lf = []
-            _lf.append({
-                "file_name": _name,
-                "analysis":  analysis,
-            })
-            st.session_state["lab_findings"] = _lf
-            st.session_state["lab_added"]    = True
-            st.session_state.pop("_lab_preview", None)
-            st.rerun()
-    elif not uploaded_lab:
+
+    if lab_files:
+        st.caption((f"📎 {len(lab_files)} αρχεία: " if lang=="el" else f"📎 {len(lab_files)} files: ")
+                   + ", ".join(f.name for f in lab_files))
+
+        # Already-analysed filenames (skip re-analysis on rerun)
+        _already = {lf.get("file_name", "") for lf in (st.session_state.get("lab_findings") or [])}
+        _to_run  = [f for f in lab_files if f.name not in _already]
+
+        btn_lbl = (f"🔬 Ανάλυση {len(_to_run)} αρχείων" if len(_to_run) != 1
+                   else "🔬 Ανάλυση εξέτασης") if lang == "el" else (
+                   f"🔬 Analyse {len(_to_run)} files" if len(_to_run) != 1
+                   else "🔬 Analyse lab result")
+
+        if _to_run:
+            if st.button(btn_lbl, type="primary", use_container_width=True, key="analyse_lab"):
+                _added = 0
+                status_msg = ("Ανάλυση εξετάσεων…" if lang=="el" else "Analysing lab results…")
+                with st.status(status_msg, expanded=True) as _stat:
+                    for idx, lab_file in enumerate(_to_run, 1):
+                        _stat.update(label=(f"📄 ({idx}/{len(_to_run)}) {lab_file.name}"))
+                        file_bytes = lab_file.read()
+                        fname_lower = lab_file.name.lower()
+
+                        # MIME type detection + HEIC conversion
+                        if fname_lower.endswith((".heic", ".heif")):
+                            if HEIC_OK:
+                                try:
+                                    file_bytes, mime = convert_heic_human(file_bytes)
+                                except Exception as e:
+                                    st.error(f"HEIC conversion failed for {lab_file.name}: {e}")
+                                    continue
+                            else:
+                                st.error("⚠️ Οι φωτογραφίες HEIC χρειάζονται pillow-heif." if lang=="el"
+                                         else "⚠️ HEIC photos need pillow-heif.")
+                                continue
+                        elif fname_lower.endswith(".pdf"):   mime = "application/pdf"
+                        elif fname_lower.endswith(".png"):   mime = "image/png"
+                        elif fname_lower.endswith(".webp"):  mime = "image/webp"
+                        else:                                mime = "image/jpeg"
+
+                        if not file_bytes:
+                            continue
+
+                        try:
+                            analysis = claude_analyze_lab(
+                                file_bytes, mime, p,
+                                st.session_state.triage_chat, lang,
+                                file_name=lab_file.name,
+                            )
+                        except Exception as e:
+                            st.error(f"⚠️ {lab_file.name}: {e}")
+                            continue
+
+                        st.markdown(f"#### 📄 {lab_file.name}")
+                        st.markdown(analysis)
+
+                        # Add to findings + inject into triage chat
+                        _lf = st.session_state.get("lab_findings")
+                        if not isinstance(_lf, list):
+                            _lf = []
+                        _lf.append({"file_name": lab_file.name, "analysis": analysis})
+                        st.session_state["lab_findings"] = _lf
+
+                        msg = (f"Αποτέλεσμα ανάλυσης εξετάσεων ({lab_file.name}):\n\n{analysis}"
+                               if lang=="el" else
+                               f"Lab analysis result ({lab_file.name}):\n\n{analysis}")
+                        st.session_state.triage_chat.append({"role": "user", "content": msg})
+                        _added += 1
+
+                    _final = (f"✅ Ολοκληρώθηκαν {_added}/{len(_to_run)} εξετάσεις" if lang=="el"
+                              else f"✅ Completed {_added}/{len(_to_run)} files")
+                    _stat.update(label=_final, state="complete", expanded=False)
+
+                if _added:
+                    st.session_state["lab_added"] = True
+                    st.success("✅ " + (f"Προστέθηκαν {_added} εξετάσεις στην εκτίμηση."
+                                       if lang=="el" else
+                                       f"Added {_added} lab result(s) to the assessment."))
+                    st.rerun()
+        else:
+            st.info("ℹ️ " + ("Όλα τα αρχεία έχουν ήδη αναλυθεί." if lang=="el"
+                              else "All files have already been analysed."))
+
+    if st.session_state.get("lab_findings"):
+        _lf_names = [lf.get("file_name","") for lf in st.session_state["lab_findings"]]
+        st.caption(("✅ Αναλύθηκαν: " if lang=="el" else "✅ Analysed: ")
+                   + ", ".join(_lf_names))
+    elif not lab_files:
         st.info("👆 " + ("Ανεβάστε PDF ή φωτογραφία για να ξεκινήσει η ανάλυση"
-                        if lang=="el" else
-                        "Upload a PDF or photo to begin analysis"))
+                         if lang=="el" else
+                         "Upload a PDF or photo to begin analysis"))
 
 
 def render_triage():
@@ -3348,6 +3702,8 @@ function copyText(){{
     with col_b:
         if st.button(t("back")): st.session_state.screen="vitals"; st.rerun()
     with col_r:
+        # Language picker: lets non-Greek speakers get report in their language
+        render_output_language_picker(st.session_state.lang, key_suffix="triage")
         enabled=triage_ready or len(st.session_state.triage_chat)>=6
         if st.button(t("generate_report"),type="primary",use_container_width=True,disabled=not enabled):
             st.session_state.screen="report"; st.rerun()
@@ -3800,6 +4156,20 @@ def render_emergency_resources(lang):
             "maps_hosp":   "Νοσοκομείο κοντά μου",
             "maps_doc":    "Ιατρείο κοντά μου",
             "maps_pharm":  "Φαρμακείο κοντά μου",
+            "gov_title":   "Ηλεκτρονικές Υπηρεσίες Υγείας (gov.gr)",
+            "gov_note":    "Ανοίγουν σε νέα καρτέλα στο gov.gr — δεν αποθηκεύουμε δεδομένα.",
+            "gov_links": [
+                ("📂", "Ηλεκτρονικός Φάκελος Υγείας",
+                 "https://www.gov.gr/ipiresies/ugeia-kai-pronoia/phakelos-ugeias"),
+                ("💊", "e-Συνταγογράφηση",
+                 "https://www.e-prescription.gr"),
+                ("🩺", "Γιατροί ΕΟΠΥΥ",
+                 "https://www.eopyy.gov.gr"),
+                ("📋", "ΑΜΚΑ",
+                 "https://www.gov.gr/ipiresies/apasxolisi-kai-syntaxiodotisi/amka"),
+                ("🔔", "ΕΟΔΥ — Εθνικός Οργανισμός Δημόσιας Υγείας",
+                 "https://eody.gov.gr"),
+            ],
         }
         # Greek Google Maps queries (browser geolocates from device)
         maps_q = {
@@ -3825,6 +4195,20 @@ def render_emergency_resources(lang):
             "maps_hosp":   "Hospital near me",
             "maps_doc":    "Doctor's office near me",
             "maps_pharm":  "Pharmacy near me",
+            "gov_title":   "Digital Health Services (gov.gr)",
+            "gov_note":    "Open in a new tab on gov.gr — we store no data.",
+            "gov_links": [
+                ("📂", "Electronic Health Record",
+                 "https://www.gov.gr/ipiresies/ugeia-kai-pronoia/phakelos-ugeias"),
+                ("💊", "e-Prescription",
+                 "https://www.e-prescription.gr"),
+                ("🩺", "EOPYY Doctors",
+                 "https://www.eopyy.gov.gr"),
+                ("📋", "AMKA",
+                 "https://www.gov.gr/ipiresies/apasxolisi-kai-syntaxiodotisi/amka"),
+                ("🔔", "EODY — Public Health",
+                 "https://eody.gov.gr"),
+            ],
         }
         maps_q = {
             "hosp":  "hospital",
@@ -3911,10 +4295,29 @@ def render_emergency_resources(lang):
 }}
 .er-maps-btn:hover {{ background: #EFF6FF; color: #2D3FE7; text-decoration: none; }}
 
+.er-gov-section {{
+  margin-top: 20px; padding-top: 16px; border-top: 1px solid #E5E7EB;
+}}
+.er-gov-title {{
+  font-size: 11px; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase;
+  color: #059669; margin-bottom: 10px;
+}}
+.er-gov-grid {{
+  display: flex; flex-wrap: wrap; gap: 8px;
+}}
+.er-gov-link {{
+  background: #ECFDF5; border: 1px solid #A7F3D0; border-radius: 8px;
+  padding: 8px 14px; font-size: 12.5px; font-weight: 600; color: #065F46;
+  text-decoration: none; display: inline-flex; align-items: center; gap: 6px;
+}}
+.er-gov-link:hover {{ background: #D1FAE5; color: #065F46; text-decoration: none; }}
+.er-gov-note {{ font-size: 11px; color: #9CA3AF; margin-top: 8px; }}
+
 @media (max-width: 640px) {{
   .er-grid {{ grid-template-columns: 1fr; }}
   .er-emerg-row {{ flex-wrap: wrap; }}
   .er-maps-btn {{ min-width: 100%; }}
+  .er-gov-link {{ font-size: 11.5px; }}
 }}
 </style>
 <div class="er-card">
@@ -3960,6 +4363,14 @@ def render_emergency_resources(lang):
       <a class="er-maps-btn" href="{_maps(maps_q['pharm'])}" target="_blank" rel="noopener">💊 {tx['maps_pharm']}</a>
     </div>
   </div>
+
+  <div class="er-gov-section">
+    <div class="er-gov-title">🇬🇷 {tx['gov_title']}</div>
+    <div class="er-gov-grid">
+      {"".join(f'<a class="er-gov-link" href="{url}" target="_blank" rel="noopener">{icon} {label}</a>' for icon,label,url in tx['gov_links'])}
+    </div>
+    <div class="er-gov-note">{tx['gov_note']}</div>
+  </div>
 </div>
 """, unsafe_allow_html=True)
 
@@ -3984,6 +4395,81 @@ def render_report():
         vitals_analysis=st.session_state.vitals_analysis or "Not available"
         last_user=next((m["content"] for m in reversed(st.session_state.triage_chat) if m["role"]=="user"),"")
         search_query=last_user[:80]+" diagnosis management" if last_user else "symptom assessment management"
+
+        # ── Loading banner overlay (full-viewport, animated) ─────────────────
+        # The report header pushes the inline spinner below the fold — users
+        # stare at an apparently frozen page for 20-40s. This overlay sits on
+        # top via position:fixed and keeps animating during the blocking API call.
+        _nm_disp = p.get("name") or ("τον/την ασθενή" if lang=="el" else "the patient")
+        _overlay = st.empty()
+        _overlay.markdown(f"""
+<style>
+@keyframes ask-float{{0%,100%{{transform:translateY(0)}}50%{{transform:translateY(-10px)}}}}
+@keyframes ask-bounce{{0%,80%,100%{{transform:scale(0.55);opacity:.35}}40%{{transform:scale(1.1);opacity:1}}}}
+@keyframes ask-spin{{from{{transform:rotate(0deg)}}to{{transform:rotate(360deg)}}}}
+@keyframes ask-fadein{{from{{opacity:0}}to{{opacity:1}}}}
+@keyframes ask-msg{{0%{{opacity:0;transform:translateY(6px)}}8%{{opacity:1;transform:translateY(0)}}88%{{opacity:1;transform:translateY(0)}}96%{{opacity:0;transform:translateY(-4px)}}100%{{opacity:0}}}}
+.ask-overlay{{position:fixed;inset:0;z-index:2147483600;background:rgba(15,23,42,.55);
+  backdrop-filter:blur(6px);display:flex;align-items:center;justify-content:center;
+  animation:ask-fadein 220ms ease-out;font-family:Inter,system-ui,sans-serif;padding:16px}}
+.ask-card{{background:linear-gradient(160deg,#EFF6FF 0%,#fff 100%);border-radius:28px;
+  border:2px solid #BFDBFE;padding:36px 28px 28px;width:min(94vw,400px);text-align:center;
+  box-shadow:0 30px 80px rgba(37,99,235,.25)}}
+.ask-avatar-wrap{{position:relative;width:100px;height:100px;margin:0 auto;
+  animation:ask-float 2.6s ease-in-out infinite}}
+.ask-aura{{position:absolute;inset:-8px;border-radius:50%;
+  background:conic-gradient(from 0deg,#2563EB,#7C3AED,#2563EB,#1D4ED8,#2563EB);
+  animation:ask-spin 8s linear infinite;opacity:.8}}
+.ask-avatar{{position:relative;width:100px;height:100px;border-radius:50%;background:#fff;
+  border:4px solid #3B82F6;display:flex;align-items:center;justify-content:center;
+  font-size:48px;overflow:hidden}}
+.ask-super{{font-size:11px;font-weight:700;letter-spacing:5px;color:#2563EB;margin-top:18px}}
+.ask-name{{font-size:24px;font-weight:800;color:#1E3A5F;margin-top:2px;line-height:1.1;word-break:break-word}}
+.ask-bubble{{position:relative;margin-top:18px;background:#DBEAFE;border:2px solid #93C5FD;
+  border-radius:18px 18px 18px 4px;padding:13px 15px;min-height:50px;
+  display:flex;align-items:center;justify-content:center;
+  color:#1E40AF;font-size:14px;font-weight:600}}
+.ask-msg-stack{{position:relative;width:100%;min-height:20px}}
+.ask-msg{{position:absolute;left:0;right:0;opacity:0;
+  animation:ask-msg 18s infinite ease-in-out}}
+.ask-msg:nth-child(1){{animation-delay:0s}}
+.ask-msg:nth-child(2){{animation-delay:3s}}
+.ask-msg:nth-child(3){{animation-delay:6s}}
+.ask-msg:nth-child(4){{animation-delay:9s}}
+.ask-msg:nth-child(5){{animation-delay:12s}}
+.ask-msg:nth-child(6){{animation-delay:15s}}
+.ask-dots{{display:flex;gap:8px;justify-content:center;margin-top:18px}}
+.ask-dot{{width:10px;height:10px;border-radius:50%;background:#3B82F6;animation:ask-bounce 1s infinite}}
+.ask-dot:nth-child(2){{animation-delay:.15s}}
+.ask-dot:nth-child(3){{animation-delay:.30s}}
+.ask-foot{{font-size:12px;color:#475569;margin-top:18px;line-height:1.55}}
+</style>
+<div class="ask-overlay">
+<div class="ask-card">
+  <div class="ask-avatar-wrap">
+    <div class="ask-aura"></div>
+    <div class="ask-avatar">🩺</div>
+  </div>
+  <div class="ask-super">{"ASKLEPIOS AI NURSE" if lang=="el" else "ASKLEPIOS AI NURSE"}</div>
+  <div class="ask-name">{_nm_disp}</div>
+  <div class="ask-bubble">
+    <div class="ask-msg-stack">
+      <span class="ask-msg">{"🔬 Αναζήτηση PubMed…" if lang=="el" else "🔬 Searching PubMed…"}</span>
+      <span class="ask-msg">{"📚 Ανάλυση βιβλιογραφίας…" if lang=="el" else "📚 Analysing literature…"}</span>
+      <span class="ask-msg">{"🩺 Σύνταξη κλινικής εκτίμησης…" if lang=="el" else "🩺 Writing clinical assessment…"}</span>
+      <span class="ask-msg">{"💊 Έλεγχος φαρμάκων & αντενδείξεων…" if lang=="el" else "💊 Checking medications…"}</span>
+      <span class="ask-msg">{"📍 Εξατομικευμένες συστάσεις…" if lang=="el" else "📍 Personalised recommendations…"}</span>
+      <span class="ask-msg">{"✨ Σχεδόν έτοιμο!" if lang=="el" else "✨ Almost ready!"}</span>
+    </div>
+  </div>
+  <div class="ask-dots">
+    <div class="ask-dot"></div><div class="ask-dot"></div><div class="ask-dot"></div>
+  </div>
+  <div class="ask-foot">{"Μην κλείσεις τη σελίδα — η αναφορά δημιουργείται (20–40″)." if lang=="el" else "Don't close the page — report is being generated (20–40s)."}</div>
+</div>
+</div>
+""", unsafe_allow_html=True)
+
         with st.spinner("🔬 PubMed..." if lang=="el" else "🔬 Searching PubMed..."):
             refs=pubmed_search(search_query,n=3); st.session_state.report_pubmed=refs
         pubmed_ctx="\n".join(f"- {a['title']} ({a['journal']}, {a['date']}) {a['url']}" for a in refs) if refs else "None found."
@@ -4017,10 +4503,11 @@ NUTRITION: [2-3 sentences of personalised nutrition advice for this patient — 
 LIFESTYLE: [2-3 sentences on sleep, stress, smoking, alcohol — tailored to this case. {"Σε Ελληνικά." if lang=="el" else "In English."}]
 RECS>>>
 
-Language: {"Greek" if lang=="el" else "English"}. Be direct. End with a one-line AI disclaimer."""
+Language: {"Greek" if lang=="el" else "English"}. Be direct. End with a one-line AI disclaimer.{output_language_directive()}"""
         with st.spinner("Δημιουργία αναφοράς..." if lang=="el" else "Generating report..."):
             result=claude([{"role":"user","content":report_prompt}],system=kira_system(),max_tokens=4000,timeout=120)
             if result.startswith("⚠️"):
+                _overlay.empty()
                 st.error(result)
                 if st.button("🔄 Retry"): st.rerun()
                 return
@@ -4044,6 +4531,9 @@ Language: {"Greek" if lang=="el" else "English"}. Be direct. End with a one-line
                         st.session_state.report_recs_refs = {p: f.result() for p,f in _futs.items()}
             else:
                 st.session_state.report_recs_refs = {}
+        # Clear the loading overlay now that we have data — rerun will render the report
+        _overlay.empty()
+        st.rerun()
     if not st.session_state.report:
         if st.button("🔄 "+("Δοκιμή ξανά" if lang=="el" else "Retry"),type="primary"): st.rerun()
         return
@@ -4266,6 +4756,24 @@ Language: {"Greek" if lang=="el" else "English"}. Be direct. End with a one-line
     if st.session_state.get("report_recs"):
         _render_recs_card(st.session_state.report_recs, lang,
                           refs=st.session_state.get("report_recs_refs") or {})
+
+    # ── PHYSIOTHERAPY CARD (RehabMyPatient API) ───────────────────────────────
+    # Build a condition hint from the report_recs["condition"] field (English
+    # MeSH term) so the exercise search is clinically targeted.
+    _physio_hint = (st.session_state.get("report_recs") or {}).get("condition", "")
+    if not _physio_hint:
+        # Fall back to the last user message as a keyword hint
+        _physio_hint = next((m["content"][:60] for m in reversed(st.session_state.triage_chat)
+                             if m["role"] == "user"), "musculoskeletal pain")
+    with st.expander("🏃 " + ("Φυσιοθεραπεία & Αποκατάσταση" if lang=="el"
+                               else "Physiotherapy & Rehabilitation"), expanded=False):
+        render_physio_card(_physio_hint, lang)
+
+    # ── PSYCHOLOGY & MENTAL HEALTH CARD ──────────────────────────────────────
+    with st.expander("🧠 " + ("Ψυχολογική Υποστήριξη" if lang=="el"
+                               else "Psychological Support"), expanded=False):
+        render_psychology_card(lang)
+
     # Where-to-go card: emergency numbers + nearby clinics/pharmacies finder.
     # Placed right after the personalised recs so the user has all the info
     # needed to take the next step.
