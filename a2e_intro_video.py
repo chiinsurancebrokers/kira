@@ -72,12 +72,19 @@ def _request(path, payload=None, method="POST", api_key="", query=None):
     url = f"{A2E_BASE}{path}"
     if query:
         url += "?" + urllib.parse.urlencode(query)
-    data = json.dumps(payload).encode("utf-8") if payload is not None else (
-        b"{}" if method == "GET" else None
-    )
+    # GET requests must NOT carry a body — even an empty "{}" body on a GET
+    # is technically malformed HTTP and gets silently blocked by CloudFront/
+    # WAF before the request ever reaches A2E's backend (manifests as a
+    # generic 403 "request could not be satisfied" HTML page, easy to
+    # mistake for an auth/API-key problem). Only POST gets a JSON body.
+    data = json.dumps(payload).encode("utf-8") if (payload is not None and method != "GET") else None
     req = urllib.request.Request(url, data=data, method=method)
     req.add_header("Authorization", f"Bearer {api_key}")
-    req.add_header("Content-Type", "application/json")
+    if data is not None:
+        req.add_header("Content-Type", "application/json")
+    # Without a User-Agent, A2E's CloudFront CDN can also return that same
+    # generic 403 page — belt-and-suspenders fix alongside the no-GET-body one.
+    req.add_header("User-Agent", "Mozilla/5.0 (compatible; AsklepiosIntroBuilder/1.0)")
     try:
         with urllib.request.urlopen(req, timeout=30) as resp:
             return json.loads(resp.read().decode("utf-8"))
