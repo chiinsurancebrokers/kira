@@ -1570,8 +1570,7 @@ def render_login_screen():
     _gov_links = [
         ("📂", "Ηλεκτρονικός Φάκελος Υγείας" if lang=="el" else "Health Record",
          "https://www.gov.gr/ipiresies/ugeia-kai-pronoia/phakelos-ugeias"),
-        ("💊", "e-Συνταγογράφηση" if lang=="el" else "e-Prescription",
-         "https://esyntagografisi.amka.gr"),
+
         ("👨\u200d⚕️", "Ιατροί ΕΟΠΥΥ" if lang=="el" else "EOPYY Doctors",
          "https://www.eopyy.gov.gr"),
         ("📋", "ΑΜΚΑ" if lang=="el" else "AMKA",
@@ -1664,16 +1663,23 @@ def render_login_screen():
   margin:4px 0 12px;font-family:'Inter',system-ui,sans-serif;direction:{_dir};">{t("hero_login_title")}</div>
 """, unsafe_allow_html=True)
 
-    if is_logged_in():
-        col1, col2, col3 = st.columns([1, 2, 1])
-        with col2:
+    col1, col2, col3 = st.columns([1, 2, 1])
+    with col2:
+        if is_logged_in():
+            # Already authenticated — show CTA to proceed to home
             if st.button(t("hero_cta"), type="primary", use_container_width=True, key="hero_cta_loggedin"):
                 st.session_state["_hero_seen"] = True
                 st.rerun()
-    else:
-        col1, col2, col3 = st.columns([1, 2, 1])
-        with col2:
+        elif auth_enabled():
+            # Supabase is configured — require OTP login
             render_login_gate()
+            # render_login_gate calls st.rerun() on success, which will
+            # hit is_logged_in() above on the next render.
+        else:
+            # No Supabase (local dev) — CTA proceeds directly
+            if st.button(t("hero_cta"), type="primary", use_container_width=True, key="hero_cta_noauth"):
+                st.session_state["_hero_seen"] = True
+                st.rerun()
 
     st.markdown(f'<div class="disclaimer" dir="{_dir}">{t("disclaimer_main")}</div>', unsafe_allow_html=True)
 
@@ -2314,6 +2320,14 @@ T = {
         "second_opinion": "Δεύτερη Γνώμη GPT-4o",
         "pubmed": "Επιστημονικές Αναφορές PubMed",
         "skip_vitals": "Παράλειψη (χωρίς μετρήσεις)",
+        "stepper_profile": '1 Στοιχεία',
+        "stepper_vitals": '2 Ζωτικές',
+        "stepper_symptoms": '3 Συμπτώματα',
+        "stepper_report": '4 Αναφορά',
+        "please_enter_name": 'Παρακαλώ βάλε το όνομά σου.',
+        "bp_risk_title": 'Εκτίμηση Κινδύνου Αρτηριακής Πίεσης',
+        "articles_label": 'Άρθρα',
+        "read_more": 'Διάβασε περισσότερα',
         "triage_explainer": '👇 Βήμα 3 — Περίγραψε εδώ τι σε απασχολεί (π.χ. «πόνος στο μάτι 2 μέρες»). Ο Asklepios θα σου κάνει ερωτήσεις και στο τέλος θα δημιουργήσει αναφορά.',
         "triage_quick_select": 'Γρήγορη επιλογή',
         "triage_send_selected": 'Αποστολή επιλεγμένων',
@@ -2409,6 +2423,14 @@ T = {
         "second_opinion": "GPT-4o Second Opinion",
         "pubmed": "PubMed Evidence",
         "skip_vitals": "Skip (no measurements)",
+        "stepper_profile": '1 Profile',
+        "stepper_vitals": '2 Vitals',
+        "stepper_symptoms": '3 Symptoms',
+        "stepper_report": '4 Report',
+        "please_enter_name": 'Please enter your name.',
+        "bp_risk_title": 'Blood Pressure Risk Estimate',
+        "articles_label": 'Articles',
+        "read_more": 'Read more',
         "triage_explainer": "👇 Step 3 — Describe what's bothering you (e.g. 'eye pain for 2 days'). Asklepios will ask follow-up questions and then generate a report.",
         "triage_quick_select": 'Quick select',
         "triage_send_selected": 'Send selected',
@@ -2504,6 +2526,14 @@ T = {
         "second_opinion": "GPT-4o दूसरी राय",
         "pubmed": "PubMed शोध संदर्भ",
         "skip_vitals": "छोड़ें (माप के बिना)",
+        "stepper_profile": '1 प्रोफ़ाइल',
+        "stepper_vitals": '2 संकेत',
+        "stepper_symptoms": '3 लक्षण',
+        "stepper_report": '4 रिपोर्ट',
+        "please_enter_name": 'कृपया अपना नाम दर्ज करें।',
+        "bp_risk_title": 'रक्तचाप जोखिम अनुमान',
+        "articles_label": 'लेख',
+        "read_more": 'और पढ़ें',
         "triage_explainer": "👇 चरण 3 — यहाँ बताएं क्या परेशान कर रहा है (जैसे 'आँख में दर्द 2 दिन से')। Asklepios सवाल पूछेगा और फिर रिपोर्ट बनाएगा।",
         "triage_quick_select": 'त्वरित चयन',
         "triage_send_selected": 'चुने हुए भेजें',
@@ -2599,6 +2629,14 @@ T = {
         "second_opinion": "GPT-4o دوسری رائے",
         "pubmed": "PubMed تحقیقی حوالہ جات",
         "skip_vitals": "چھوڑیں (پیمائش کے بغیر)",
+        "stepper_profile": '1 پروفائل',
+        "stepper_vitals": '2 علامات',
+        "stepper_symptoms": '3 علامات',
+        "stepper_report": '4 رپورٹ',
+        "please_enter_name": 'براہ کرم اپنا نام درج کریں۔',
+        "bp_risk_title": 'بلڈ پریشر خطرہ تخمینہ',
+        "articles_label": 'مضامین',
+        "read_more": 'مزید پڑھیں',
         "triage_explainer": "👇 مرحلہ 3 — یہاں بتائیں کیا پریشان کر رہا ہے (جیسے 'آنکھ میں درد 2 دن سے')۔ Asklepios سوال پوچھے گا اور پھر رپورٹ بنائے گا۔",
         "triage_quick_select": 'فوری انتخاب',
         "triage_send_selected": 'منتخب بھیجیں',
@@ -2694,6 +2732,14 @@ T = {
         "second_opinion": "رأي ثانٍ من GPT-4o",
         "pubmed": "مراجع PubMed العلمية",
         "skip_vitals": "تخطَّ (بدون قياسات)",
+        "stepper_profile": '1 الملف',
+        "stepper_vitals": '2 الحيوية',
+        "stepper_symptoms": '3 الأعراض',
+        "stepper_report": '4 التقرير',
+        "please_enter_name": 'يرجى إدخال اسمك.',
+        "bp_risk_title": 'تقدير خطر ضغط الدم',
+        "articles_label": 'مقالات',
+        "read_more": 'اقرأ أكثر',
         "triage_explainer": "👇 الخطوة 3 — صف هنا ما يزعجك (مثل 'ألم في العين منذ يومين'). سيطرح عليك Asklepios أسئلة ثم ينشئ تقريراً.",
         "triage_quick_select": 'اختيار سريع',
         "triage_send_selected": 'إرسال المختار',
@@ -2789,6 +2835,14 @@ T = {
         "second_opinion": "GPT-4o দ্বিতীয় মতামত",
         "pubmed": "PubMed গবেষণা তথ্যসূত্র",
         "skip_vitals": "এড়িয়ে যান (পরিমাপ ছাড়া)",
+        "stepper_profile": '1 প্রোফাইল',
+        "stepper_vitals": '2 লক্ষণ',
+        "stepper_symptoms": '3 উপসর্গ',
+        "stepper_report": '4 রিপোর্ট',
+        "please_enter_name": 'অনুগ্রহ করে আপনার নাম লিখুন।',
+        "bp_risk_title": 'রক্তচাপ ঝুঁকি অনুমান',
+        "articles_label": 'নিবন্ধ',
+        "read_more": 'আরও পড়ুন',
         "triage_explainer": "👇 ধাপ 3 — এখানে বলুন কী সমস্যা হচ্ছে (যেমন 'চোখে ব্যথা ২ দিন')। Asklepios প্রশ্ন করবে এবং রিপোর্ট তৈরি করবে।",
         "triage_quick_select": 'দ্রুত নির্বাচন',
         "triage_send_selected": 'নির্বাচিত পাঠান',
@@ -2871,6 +2925,14 @@ T = {
         "generate_report": "Генерирай пълен доклад", "report_title": "Подробна здравна оценка",
         "second_opinion": "Второ мнение GPT-4o", "pubmed": "PubMed научни референции",
         "skip_vitals": "Пропусни (без измервания)",
+        "stepper_profile": '1 Профил',
+        "stepper_vitals": '2 Показатели',
+        "stepper_symptoms": '3 Симптоми',
+        "stepper_report": '4 Доклад',
+        "please_enter_name": 'Моля, въведете вашето име.',
+        "bp_risk_title": 'Оценка на риска от кръвно налягане',
+        "articles_label": 'Статии',
+        "read_more": 'Прочети повече',
         "triage_explainer": "👇 Стъпка 3 — Опишете какво ви притеснява (напр. 'болка в окото 2 дни'). Asklepios ще задава въпроси и ще изготви доклад.",
         "triage_quick_select": 'Бърз избор',
         "triage_send_selected": 'Изпрати избраните',
@@ -2953,6 +3015,14 @@ T = {
         "generate_report": "Generați raport complet", "report_title": "Evaluare detaliată a sănătății",
         "second_opinion": "A doua opinie GPT-4o", "pubmed": "Referințe PubMed",
         "skip_vitals": "Omiteți (fără măsurători)",
+        "stepper_profile": '1 Profil',
+        "stepper_vitals": '2 Vitale',
+        "stepper_symptoms": '3 Simptome',
+        "stepper_report": '4 Raport',
+        "please_enter_name": 'Vă rugăm să introduceți numele dvs.',
+        "bp_risk_title": 'Estimarea riscului tensiunii arteriale',
+        "articles_label": 'Articole',
+        "read_more": 'Citește mai mult',
         "triage_explainer": "👇 Pasul 3 — Descrieți ce vă deranjează (de ex. 'durere la ochi 2 zile'). Asklepios va pune întrebări și va genera un raport.",
         "triage_quick_select": 'Selecție rapidă',
         "triage_send_selected": 'Trimite selectate',
@@ -3035,6 +3105,14 @@ T = {
         "generate_report": "Gjenero raport të plotë", "report_title": "Vlerësim i detajuar shëndetësor",
         "second_opinion": "Mendim i dytë GPT-4o", "pubmed": "Referenca PubMed",
         "skip_vitals": "Kalo (pa matje)",
+        "stepper_profile": '1 Profili',
+        "stepper_vitals": '2 Vitale',
+        "stepper_symptoms": '3 Simptoma',
+        "stepper_report": '4 Raport',
+        "please_enter_name": 'Ju lutemi vendosni emrin tuaj.',
+        "bp_risk_title": 'Vlerësimi i rrezikut të presionit të gjakut',
+        "articles_label": 'Artikuj',
+        "read_more": 'Lexo më shumë',
         "triage_explainer": "👇 Hapi 3 — Përshkruani çfarë ju shqetëson (p.sh. 'dhimbje syri 2 ditë'). Asklepios do të bëjë pyetje dhe do të gjenerojë raport.",
         "triage_quick_select": 'Zgjidhje e shpejtë',
         "triage_send_selected": 'Dërgoni të zgjedhurat',
@@ -3117,6 +3195,14 @@ T = {
         "generate_report": "Создать полный отчёт", "report_title": "Подробная оценка здоровья",
         "second_opinion": "Второе мнение GPT-4o", "pubmed": "Научные ссылки PubMed",
         "skip_vitals": "Пропустить (без измерений)",
+        "stepper_profile": '1 Профиль',
+        "stepper_vitals": '2 Показатели',
+        "stepper_symptoms": '3 Симптомы',
+        "stepper_report": '4 Отчёт',
+        "please_enter_name": 'Пожалуйста, введите ваше имя.',
+        "bp_risk_title": 'Оценка риска артериального давления',
+        "articles_label": 'Статьи',
+        "read_more": 'Читать далее',
         "triage_explainer": "👇 Шаг 3 — Опишите здесь что беспокоит (напр. 'боль в глазу 2 дня'). Asklepios задаст вопросы и составит отчёт.",
         "triage_quick_select": 'Быстрый выбор',
         "triage_send_selected": 'Отправить выбранные',
@@ -3199,6 +3285,14 @@ T = {
         "generate_report": "生成完整临床报告", "report_title": "详细健康评估",
         "second_opinion": "GPT-4o第二意见", "pubmed": "PubMed参考文献",
         "skip_vitals": "跳过（无测量值）",
+        "stepper_profile": '1 档案',
+        "stepper_vitals": '2 体征',
+        "stepper_symptoms": '3 症状',
+        "stepper_report": '4 报告',
+        "please_enter_name": '请输入您的姓名。',
+        "bp_risk_title": '血压风险评估',
+        "articles_label": '文章',
+        "read_more": '阅读更多',
         "triage_explainer": "👇 第3步 — 在此描述困扰您的问题（例如'眼睛痛2天'）。Asklepios将提问并生成报告。",
         "triage_quick_select": '快速选择',
         "triage_send_selected": '发送所选',
@@ -3281,6 +3375,14 @@ T = {
         "generate_report": "اعمل تقرير طبي كامل", "report_title": "تقييم صحي مفصّل",
         "second_opinion": "رأي ثاني من GPT-4o", "pubmed": "مراجع PubMed العلمية",
         "skip_vitals": "تخطَّ (بدون قياسات)",
+        "stepper_profile": '1 الملف',
+        "stepper_vitals": '2 الحيوية',
+        "stepper_symptoms": '3 الأعراض',
+        "stepper_report": '4 التقرير',
+        "please_enter_name": 'رجاء أدخل اسمك.',
+        "bp_risk_title": 'تقدير خطر ضغط الدم',
+        "articles_label": 'مقالات',
+        "read_more": 'اقرأ أكثر',
         "triage_explainer": "👇 خطوة 3 — وصف هون شو عم يضايقك (مثلاً 'ألم بالعين يومين'). Asklepios رح يسأل ويعمل تقرير.",
         "triage_quick_select": 'اختيار سريع',
         "triage_send_selected": 'ارسل المختار',
@@ -3363,6 +3465,14 @@ T = {
         "generate_report": "צור דוח קליני מלא", "report_title": "הערכת בריאות מפורטת",
         "second_opinion": "חוות דעת שנייה GPT-4o", "pubmed": "מקורות PubMed",
         "skip_vitals": "דלג (ללא מדידות)",
+        "stepper_profile": '1 פרופיל',
+        "stepper_vitals": '2 חיוניים',
+        "stepper_symptoms": '3 תסמינים',
+        "stepper_report": '4 דוח',
+        "please_enter_name": 'אנא הזן את שמך.',
+        "bp_risk_title": 'הערכת סיכון לחץ דם',
+        "articles_label": 'מאמרים',
+        "read_more": 'קרא עוד',
         "triage_explainer": "👇 שלב 3 — תאר כאן מה מטריד אותך (למשל 'כאב עין יומיים'). Asklepios ישאל שאלות ואז ייצור דוח.",
         "triage_quick_select": 'בחירה מהירה',
         "triage_send_selected": 'שלח נבחרים',
@@ -3445,6 +3555,14 @@ T = {
         "generate_report": "ਪੂਰੀ ਰਿਪੋਰਟ ਬਣਾਓ", "report_title": "ਵਿਸਤ੍ਰਿਤ ਸਿਹਤ ਮੁਲਾਂਕਣ",
         "second_opinion": "GPT-4o ਦੂਜੀ ਰਾਏ", "pubmed": "PubMed ਹਵਾਲੇ",
         "skip_vitals": "ਛੱਡੋ (ਮਾਪ ਤੋਂ ਬਿਨਾਂ)",
+        "stepper_profile": '1 ਪ੍ਰੋਫਾਈਲ',
+        "stepper_vitals": '2 ਸੰਕੇਤ',
+        "stepper_symptoms": '3 ਲੱਛਣ',
+        "stepper_report": '4 ਰਿਪੋਰਟ',
+        "please_enter_name": 'ਕਿਰਪਾ ਕਰਕੇ ਆਪਣਾ ਨਾਮ ਦਰਜ ਕਰੋ।',
+        "bp_risk_title": 'ਬਲੱਡ ਪ੍ਰੈਸ਼ਰ ਜੋਖਮ ਅਨੁਮਾਨ',
+        "articles_label": 'ਲੇਖ',
+        "read_more": 'ਹੋਰ ਪੜ੍ਹੋ',
         "triage_explainer": "👇 ਕਦਮ 3 — ਇੱਥੇ ਦੱਸੋ ਕੀ ਪਰੇਸ਼ਾਨ ਕਰ ਰਿਹਾ ਹੈ (ਜਿਵੇਂ 'ਅੱਖ ਵਿੱਚ ਦਰਦ 2 ਦਿਨ')। Asklepios ਸਵਾਲ ਪੁੱਛੇਗਾ ਅਤੇ ਰਿਪੋਰਟ ਬਣਾਏਗਾ।",
         "triage_quick_select": 'ਤੇਜ਼ ਚੋਣ',
         "triage_send_selected": 'ਚੁਣੇ ਭੇਜੋ',
@@ -3710,8 +3828,8 @@ div[data-testid="stHorizontalBlock"]:has(.bn-marker) button[kind="primary"] p {
 
 
 def render_stepper(current):
-    steps_el = ["1 Στοιχεία","2 Ζωτικές","3 Συμπτώματα","4 Αναφορά"]
-    steps_en = ["1 Profile","2 Vitals","3 Symptoms","4 Report"]
+    steps_el = [t("stepper_profile"), t("stepper_vitals"), t("stepper_symptoms"), t("stepper_report")]
+    steps_en = [t("stepper_profile"), t("stepper_vitals"), t("stepper_symptoms"), t("stepper_report")]
     steps = steps_el if st.session_state.lang=="el" else steps_en
     order = ["intake","vitals","triage","report"]
     cur_i = order.index(current) if current in order else 0
@@ -4759,7 +4877,7 @@ def render_history():
                  if a.get("active", True) and a.get("lang", "el") == lang]
     if _articles:
         st.divider()
-        st.markdown("##### 📰 " + ("Άρθρα" if lang == "el" else "Articles"))
+        st.markdown("##### 📰 " + t("articles_label"))
         for art in _articles[:10]:
             with st.container(border=True):
                 st.markdown(f"**{art.get('title','—')}**")
@@ -4769,7 +4887,7 @@ def render_history():
                     st.caption(_meta)
                 st.write(art.get("summary",""))
                 if art.get("body"):
-                    with st.expander("Διάβασε περισσότερα" if lang=="el" else "Read more"):
+                    with st.expander(t("read_more")):
                         st.write(art["body"])
                 if art.get("url"):
                     st.markdown(f"[{'Πλήρες άρθρο →' if lang=='el' else 'Full article →'}]({art['url']})")
@@ -4859,7 +4977,7 @@ def render_intake():
                     st.session_state.screen="vitals"
                 st.rerun()
             else:
-                st.warning("Παρακαλώ εισάγετε το όνομά σας." if st.session_state.lang=="el" else "Please enter your name.")
+                st.warning(t("please_enter_name"))
 
 def render_vitals():
     render_stepper("vitals")
@@ -5081,7 +5199,7 @@ Use a certified upper-arm cuff device, note systolic/diastolic values
             sbp_disp= risk["sbp"]
             dbp_disp= risk["dbp"]
             unit    = "mmHg"
-            title   = "Εκτίμηση Κινδύνου Αρτηριακής Πίεσης" if lang=="el" else "Blood Pressure Risk Estimate"
+            title   = t("bp_risk_title")
             subtitle= "Βάσει: ηλικία, ΔΜΣ, HR — Chowdhury et al. (2020)" if lang=="el" else "Based on: age, BMI, HR — Chowdhury et al. (2020)"
             badge   = f"<div style='background:{color};color:white;padding:6px 14px;border-radius:20px;font-size:13px;font-weight:700'>{label}</div>"
 
@@ -6249,8 +6367,7 @@ def render_emergency_resources(lang):
             "gov_links": [
                 ("📂", "Ηλεκτρονικός Φάκελος Υγείας",
                  "https://www.gov.gr/ipiresies/ugeia-kai-pronoia/phakelos-ugeias"),
-                ("💊", "e-Συνταγογράφηση",
-                 "https://www.e-prescription.gr"),
+
                 ("🩺", "Γιατροί ΕΟΠΥΥ",
                  "https://www.eopyy.gov.gr"),
                 ("📋", "ΑΜΚΑ",
@@ -6288,8 +6405,7 @@ def render_emergency_resources(lang):
             "gov_links": [
                 ("📂", "Electronic Health Record",
                  "https://www.gov.gr/ipiresies/ugeia-kai-pronoia/phakelos-ugeias"),
-                ("💊", "e-Prescription",
-                 "https://www.e-prescription.gr"),
+
                 ("🩺", "EOPYY Doctors",
                  "https://www.eopyy.gov.gr"),
                 ("📋", "AMKA",
@@ -7158,18 +7274,17 @@ if st.query_params.get("admin") == "1":
     st.stop()
 
 # ── HERO LANDING — shown once per session to every visitor ───────────────────
-# Mirrors the pet app pattern (_hero_seen). The hero is shown:
-#   • to non-logged-in visitors  → replaces the bare login screen
-#   • to logged-in users on first open of the session → before home
-# Once the CTA button is clicked inside render_login_screen(), it sets
-# _hero_seen = True and calls st.rerun() — this block is then skipped.
-# Admin and face-scan round-trips skip it via st.stop() above.
+# The hero is shown to EVERY visitor on their first page load of the session.
+# It serves as both the marketing landing AND the login form entry point.
+# Once the user clicks the CTA (logged in or not), _hero_seen = True and
+# they proceed. The LOGIN GATE below then enforces auth if Supabase is active.
 if not st.session_state.get("_hero_seen"):
     render_login_screen()
     st.stop()
 
 # ── LOGIN GATE ────────────────────────────────────────────────────────────────
-# Login-first: every visitor is identified in Supabase → Authentication → Users.
+# If Supabase auth is configured, require a verified email session.
+# If auth is not configured (local dev / missing secrets), let through.
 if auth_enabled() and not is_logged_in():
     render_login_screen()
     st.stop()
