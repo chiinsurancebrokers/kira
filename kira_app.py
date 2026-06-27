@@ -1598,12 +1598,12 @@ def render_login_screen():
 
     # ── HOW IT WORKS ─────────────────────────────────────────────────────────
     _steps_data = [
-        ("1","👤", t("name"),           t("history")[:30]+"…" if len(t("history"))>30 else t("history")),
-        ("2","💬", t("triage_title"),   t("triage_sub")[:40]+"…" if len(t("triage_sub"))>40 else t("triage_sub")),
-        ("3","❤️", t("vitals_title"),   "HR, BP, SpO₂"),
-        ("4","🧬", t("hero_f3t"),       t("hero_f3s")),
-        ("5","🧠", "Triage AI",         "Claude + GPT-4o"),
-        ("6","📄", t("report_title")[:12]+"…" if len(t("report_title"))>12 else t("report_title"), "PubMed"),
+        ("1","👤", t("stepper_profile").split(" ",1)[1] if " " in t("stepper_profile") else t("name"), t("history")[:28]+"…" if len(t("history"))>28 else t("history")),
+        ("2","💬", t("triage_title")[:14]+"…" if len(t("triage_title"))>14 else t("triage_title"), t("triage_sub")[:35]+"…" if len(t("triage_sub"))>35 else t("triage_sub")),
+        ("3","❤️", t("vitals_title")[:12]+"…" if len(t("vitals_title"))>12 else t("vitals_title"), "HR, BP, SpO₂"),
+        ("4","🧬", t("hero_f3t")[:14]+"…" if len(t("hero_f3t"))>14 else t("hero_f3t"), t("hero_f3s")[:30]+"…" if len(t("hero_f3s"))>30 else t("hero_f3s")),
+        ("5","🧠", "Triage AI", "Claude + GPT-4o"),
+        ("6","📄", t("stepper_report").split(" ",1)[1] if " " in t("stepper_report") else "Report", "PubMed"),
     ]
     _arrow = f'<div style="flex:0 0 auto;align-self:flex-start;padding-top:14px;font-size:11px;color:#C7D2FE;">{"‹" if rtl else "›"}</div>'
     _steps_html = _arrow.join(f"""<div style="flex:1 1 0;min-width:0;text-align:{_ta};padding:0 2px;">
@@ -5863,6 +5863,33 @@ function copyText(){{
             st.caption("↑ " + ("Αντίγραψε το κείμενο και επικόλλησέ το στο chat παρακάτω."
                                 if st.session_state.lang=="el" else
                                 "Copy the text and paste it into the chat below."))
+
+    # ── "Write here" indicator — shown when no conversation yet ──────────────
+    if not st.session_state.triage_chat:
+        _write_lbl = {
+            "el": "✍️ Γράψε εδώ τα συμπτώματά σου ↓",
+            "en": "✍️ Write your symptoms here ↓",
+            "hi": "✍️ यहाँ अपने लक्षण लिखें ↓",
+            "ur": "✍️ یہاں اپنی علامات لکھیں ↓",
+            "ar": "✍️ اكتب أعراضك هنا ↓",
+            "he": "✍️ כתוב כאן את הסימפטומים שלך ↓",
+            "zh": "✍️ 在此写下您的症状 ↓",
+            "lb": "✍️ اكتب أعراضك هنا ↓",
+            "bg": "✍️ Напишете тук симптомите си ↓",
+            "ro": "✍️ Scrieți simptomele dvs. aici ↓",
+            "al": "✍️ Shkruani këtu simptomat tuaja ↓",
+            "ru": "✍️ Напишите здесь свои симптомы ↓",
+            "bn": "✍️ এখানে আপনার লক্ষণ লিখুন ↓",
+            "pa": "✍️ ਇੱਥੇ ਆਪਣੇ ਲੱਛਣ ਲਿਖੋ ↓",
+        }.get(st.session_state.lang, "✍️ Write your symptoms here ↓")
+        st.markdown(f"""
+<div style="text-align:center;font-size:13px;font-weight:700;color:#2D3FE7;
+  background:#EEF2FF;border:1px solid #C7D2FE;border-radius:10px;
+  padding:8px 16px;margin:8px 0 4px;font-family:'Inter',system-ui,sans-serif;
+  {"direction:rtl;" if is_rtl() else ""}">
+  {_write_lbl}
+</div>
+""", unsafe_allow_html=True)
 
     user_input=st.chat_input(t("triage_placeholder"),key="triage_input")
     _auto_reply = st.session_state.pop("_scan_reply_pending", False)
