@@ -1411,164 +1411,160 @@ def render_explainer_video(lang):
     )
 
 
+
 def render_login_screen():
-    """Hero landing + login. Shows value-prop, gov.gr links, how-it-works,
-    and audience cards before (and around) the OTP login form."""
+    """Hero landing + login — fully multilingual via t() keys.
+    Language picker at top sets st.session_state.lang which drives all t() calls.
+    RTL handled via is_rtl() global CSS injection in the main router.
+    """
     lang = st.session_state.lang
-    el = (lang == "el")
+    rtl  = is_rtl()
+    _dir = 'rtl' if rtl else 'ltr'
+    _ta  = 'right' if rtl else 'center'
 
-    # ── Language picker — top of page, first thing the user sees ─────────────
-    _lp_css = """
-<style>
-.lang-bar{display:flex;align-items:center;justify-content:space-between;
-  padding:10px 4px 14px;font-family:'Inter',system-ui,sans-serif;}
-.lang-bar-logo{font-size:17px;font-weight:800;color:#1A1A2E;}
-.lang-bar-logo span{color:#2D3FE7;}
-.lang-btns{display:flex;gap:6px;}
-.lang-btn{background:#F4F6FF;border:1px solid #E0E5FF;border-radius:999px;
-  padding:6px 14px;font-size:12px;font-weight:700;color:#2D3FE7;cursor:pointer;
-  font-family:'Inter',system-ui,sans-serif;}
-.lang-btn.active{background:#2D3FE7;color:white;border-color:#2D3FE7;}
-</style>
-"""
-    st.markdown(_lp_css, unsafe_allow_html=True)
-    lc1, lc2 = st.columns([6, 1])
-    with lc1:
-        st.markdown(
-            '<div class="lang-bar"><div class="lang-bar-logo">⚕ <span>Asklepios</span></div></div>',
-            unsafe_allow_html=True)
-    with lc2:
-        if st.button("🇬🇧 EN" if el else "🇬🇷 ΕΛ", key="login_lang"):
-            st.session_state.lang = "en" if el else "el"; st.rerun()
-
-    # ── HERO CARD ─────────────────────────────────────────────────────────────
-    _h1     = ("Περίγραψε τι νιώθεις.<br><span style='color:#2D3FE7'>Λάβε κλινική εκτίμηση.</span>"
-               if el else
-               "Describe what you feel.<br><span style='color:#2D3FE7'>Get a clinical assessment.</span>")
-    _sub    = ("Τεκμηριωμένη αξιολόγηση με αναφορές PubMed + δεύτερη γνώμη GPT-4o. Για τον <strong>ιατρό</strong> σου. Στα Ελληνικά."
-               if el else
-               "Evidence-based assessment with PubMed references + GPT-4o second opinion. For your <strong>doctor</strong>.")
-    _f1t = "Περιγραφή συμπτωμάτων" if el else "Symptom description"
-    _f1s = "Μιλάς φυσικά — το AI ρωτά & οργανώνει" if el else "Speak naturally — AI asks & organises"
-    _f2t = "Καταγραφή ζωτικών" if el else "Vital signs"
-    _f2s = "HR, BP, SpO₂, θερμοκρασία" if el else "HR, BP, SpO₂, temperature"
-    _f3t = "Εξετάσεις & φωτογραφία" if el else "Lab results & photos"
-    _f3s = "Ανέβασε αιματολογικά, PDF εξετάσεων ή φωτογραφία" if el else "Upload blood tests, PDF results or a photo"
-    _f4t = "Κλινική αναφορά για τον ιατρό" if el else "Clinical report for your doctor"
-    _f4s = "PubMed + δεύτερη γνώμη GPT-4o" if el else "PubMed + GPT-4o second opinion"
-    _p1t  = "Δεύτερη ιατρική γνώμη" if el else "Second medical opinion"
-    _p1s  = "Claude + GPT-4o ανεξάρτητα — σύγκριση αξιολογήσεων" if el else "Claude + GPT-4o independently — compare assessments"
-    _p1b  = "Μοναδικό" if el else "Unique"
-    _p2t  = "Σύνδεση gov.gr" if el else "gov.gr integration"
-    _p2s  = "Ηλεκτρ. Φάκελος, ΑΜΚΑ, e-Συνταγογράφηση" if el else "Health record, AMKA, e-Prescription"
-    _p2b  = "Ελληνικό ΣΥ" if el else "Greek NHS"
-    _disc = ("Δεν αντικαθιστά τον <strong>ιατρό</strong>. Σε επείγον: <strong>166</strong> (ΕΚΑΒ) ή <strong>112</strong>. Δεν αποθηκεύουμε ιατρικά δεδομένα. 🔒 GDPR"
-             if el else
-             "Does not replace your <strong>doctor</strong>. In emergency: <strong>112</strong>. We store no medical data. 🔒 GDPR")
-
-    st.markdown(f"""
+    # ── Language selector — full dropdown, first thing the user sees ──────────
+    st.markdown("""
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+.ask-hero-nav{display:flex;align-items:center;justify-content:space-between;
+  padding:10px 2px 14px;font-family:'Inter',system-ui,sans-serif;}
+.ask-hero-logo{font-size:17px;font-weight:800;color:#1A1A2E;}
+.ask-hero-logo span{color:#2D3FE7;}
+</style>
+""", unsafe_allow_html=True)
+    lc1, lc2 = st.columns([5, 2])
+    with lc1:
+        st.markdown('<div class="ask-hero-nav"><div class="ask-hero-logo">⚕ <span>Asklepios</span></div></div>', unsafe_allow_html=True)
+    with lc2:
+        _all_codes = list(OUTPUT_LANGUAGES.keys())
+        try:    _idx = _all_codes.index(lang)
+        except: _idx = 0
+        _chosen = st.selectbox("", _all_codes, index=_idx,
+                               format_func=lambda c: OUTPUT_LANGUAGES[c][0],
+                               key="hero_lang_select", label_visibility="collapsed")
+        if _chosen != lang:
+            st.session_state.lang = _chosen
+            st.session_state["output_lang"] = _chosen
+            st.rerun()
+
+    # RTL wrapper for the whole hero when needed
+    _rtl_open  = f'<div dir="{_dir}" style="text-align:{_ta};">' if rtl else ""
+    _rtl_close = "</div>" if rtl else ""
+
+    # ── HERO CARD ─────────────────────────────────────────────────────────────
+    st.markdown(f"""
+<style>
 .ask-hr-hero{{background:#F4F6FF;border:1px solid #E0E5FF;border-radius:24px;
-  padding:30px 22px 22px;margin:0 0 16px;text-align:center;
-  font-family:'Inter',system-ui,sans-serif;}}
-.ask-hr-kicker{{font-size:10px;font-weight:700;letter-spacing:0.18em;color:#2D3FE7;
+  padding:30px 22px 22px;margin:0 0 16px;text-align:{_ta};
+  font-family:'Inter',system-ui,sans-serif;direction:{_dir};}}
+.ask-hr-kicker{{font-size:10px;font-weight:700;letter-spacing:0.14em;color:#2D3FE7;
   margin-bottom:12px;text-transform:uppercase;}}
 .ask-hr-h1{{font-size:28px;font-weight:800;line-height:1.18;color:#1A1A2E;
   letter-spacing:-0.5px;margin-bottom:12px;}}
 .ask-hr-sub{{font-size:14px;color:#4B5563;line-height:1.6;max-width:400px;
   margin:0 auto 20px;}}
-.ask-hr-fcards{{display:flex;flex-direction:column;gap:8px;text-align:left;margin-bottom:14px;}}
+.ask-hr-fcards{{display:flex;flex-direction:column;gap:8px;text-align:{"right" if rtl else "left"};margin-bottom:14px;}}
 .ask-hr-fc{{background:white;border:1px solid #E0E5FF;border-radius:12px;
-  padding:10px 13px;display:flex;align-items:center;gap:10px;}}
+  padding:10px 13px;display:flex;align-items:center;gap:10px;flex-direction:{"row-reverse" if rtl else "row"};}}
 .ask-hr-fc-ic{{width:30px;height:30px;border-radius:50%;display:flex;
   align-items:center;justify-content:center;font-size:14px;flex-shrink:0;}}
 .ask-hr-fc-ic.blue{{background:#E8ECFE;}}
 .ask-hr-fc-ic.red{{background:#FEE2E2;}}
 .ask-hr-fc-ic.grn{{background:#ECFDF5;}}
-.ask-hr-fc-txt{{font-size:12.5px;font-weight:600;color:#1A1A2E;flex:1;line-height:1.3;}}
+.ask-hr-fc-ic.pur{{background:#EDE9FE;}}
+.ask-hr-fc-txt{{font-size:12.5px;font-weight:600;color:#1A1A2E;flex:1;line-height:1.3;text-align:{"right" if rtl else "left"};}}
 .ask-hr-fc-txt small{{font-weight:400;color:#6B7280;display:block;font-size:11px;}}
 .ask-hr-fc-badge{{background:#E8ECFE;color:#2D3FE7;font-size:10.5px;font-weight:700;
   padding:2px 8px;border-radius:999px;flex-shrink:0;white-space:nowrap;}}
 .ask-hr-fc-badge.ok{{background:#ECFDF5;color:#059669;}}
-.ask-hr-power{{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-bottom:13px;}}
+.ask-hr-power{{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:13px;}}
 .ask-hr-pow{{background:white;border:1.5px solid #2D3FE7;border-radius:12px;
-  padding:11px 12px;display:flex;align-items:flex-start;gap:9px;text-align:left;}}
+  padding:10px 11px;display:flex;align-items:flex-start;gap:8px;text-align:{"right" if rtl else "left"};
+  flex-direction:{"row-reverse" if rtl else "row"};}}
 .ask-hr-pow.gov{{border-color:#059669;}}
-.ask-hr-pow-ic{{font-size:18px;flex-shrink:0;margin-top:1px;}}
-.ask-hr-pow-t{{font-size:11.5px;font-weight:700;color:#1A1A2E;margin-bottom:2px;}}
-.ask-hr-pow-s{{font-size:10.5px;color:#6B7280;line-height:1.4;}}
+.ask-hr-pow.lang{{border-color:#7C3AED;}}
+.ask-hr-pow-ic{{font-size:16px;flex-shrink:0;margin-top:1px;}}
+.ask-hr-pow-t{{font-size:11px;font-weight:700;color:#1A1A2E;margin-bottom:2px;}}
+.ask-hr-pow-s{{font-size:10px;color:#6B7280;line-height:1.4;}}
 .ask-hr-pow-tag{{display:inline-block;background:#E8ECFE;color:#2D3FE7;
-  font-size:10px;font-weight:700;padding:2px 7px;border-radius:999px;margin-top:4px;}}
+  font-size:10px;font-weight:700;padding:2px 6px;border-radius:999px;margin-top:3px;}}
 .ask-hr-pow.gov .ask-hr-pow-tag{{background:#ECFDF5;color:#059669;}}
+.ask-hr-pow.lang .ask-hr-pow-tag{{background:#EDE9FE;color:#7C3AED;}}
 .ask-hr-disc{{background:white;border:1px solid #E5E7EB;border-radius:10px;
   padding:9px 12px;font-size:11px;color:#6B7280;line-height:1.5;
-  display:flex;gap:8px;align-items:flex-start;text-align:left;}}
+  display:flex;gap:8px;align-items:flex-start;text-align:{"right" if rtl else "left"};
+  flex-direction:{"row-reverse" if rtl else "row"};}}
 </style>
 <div class="ask-hr-hero">
-  <div class="ask-hr-kicker">ASKLEPIOS · {"AI ΝΟΣΗΛΕΥΤΗΣ" if el else "AI NURSE"}</div>
-  <div class="ask-hr-h1">{_h1}</div>
-  <div class="ask-hr-sub">{_sub}</div>
+  <div class="ask-hr-kicker">ASKLEPIOS · {"AI ΝΟΣΗΛΕΥΤΗΣ" if lang=="el" else "AI NURSE"}</div>
+  <div class="ask-hr-h1">{t("hero_h1")}</div>
+  <div class="ask-hr-sub">{t("hero_sub")}</div>
   <div class="ask-hr-fcards">
     <div class="ask-hr-fc">
       <div class="ask-hr-fc-ic blue">💬</div>
-      <div class="ask-hr-fc-txt">{_f1t}<small>{_f1s}</small></div>
-      <div class="ask-hr-fc-badge">{"Βήμα 1" if el else "Step 1"}</div>
+      <div class="ask-hr-fc-txt">{t("hero_f1t")}<small>{t("hero_f1s")}</small></div>
+      <div class="ask-hr-fc-badge">{"Βήμα" if lang=="el" else "Step"} 1</div>
     </div>
     <div class="ask-hr-fc">
       <div class="ask-hr-fc-ic red">❤️</div>
-      <div class="ask-hr-fc-txt">{_f2t}<small>{_f2s}</small></div>
-      <div class="ask-hr-fc-badge">{"Βήμα 2" if el else "Step 2"}</div>
+      <div class="ask-hr-fc-txt">{t("hero_f2t")}<small>{t("hero_f2s")}</small></div>
+      <div class="ask-hr-fc-badge">{"Βήμα" if lang=="el" else "Step"} 2</div>
     </div>
     <div class="ask-hr-fc">
-      <div class="ask-hr-fc-ic blue">🧬</div>
-      <div class="ask-hr-fc-txt">{_f3t}<small>{_f3s}</small></div>
-      <div class="ask-hr-fc-badge">{"Βήμα 3" if el else "Step 3"}</div>
+      <div class="ask-hr-fc-ic pur">🧬</div>
+      <div class="ask-hr-fc-txt">{t("hero_f3t")}<small>{t("hero_f3s")}</small></div>
+      <div class="ask-hr-fc-badge">{"Βήμα" if lang=="el" else "Step"} 3</div>
     </div>
     <div class="ask-hr-fc">
       <div class="ask-hr-fc-ic grn">📋</div>
-      <div class="ask-hr-fc-txt">{_f4t}<small>{_f4s}</small></div>
-      <div class="ask-hr-fc-badge ok">✓ {"Αναφορά" if el else "Report"}</div>
+      <div class="ask-hr-fc-txt">{t("hero_f4t")}<small>{t("hero_f4s")}</small></div>
+      <div class="ask-hr-fc-badge ok">✓ {"Αναφορά" if lang=="el" else "Report"}</div>
     </div>
   </div>
   <div class="ask-hr-power">
     <div class="ask-hr-pow">
       <div class="ask-hr-pow-ic">🤖</div>
       <div>
-        <div class="ask-hr-pow-t">{_p1t}</div>
-        <div class="ask-hr-pow-s">{_p1s}</div>
-        <div class="ask-hr-pow-tag">{_p1b}</div>
+        <div class="ask-hr-pow-t">{t("hero_p1t")}</div>
+        <div class="ask-hr-pow-s">{t("hero_p1s")}</div>
+        <div class="ask-hr-pow-tag">{t("hero_p1b")}</div>
       </div>
     </div>
     <div class="ask-hr-pow gov">
       <div class="ask-hr-pow-ic">🇬🇷</div>
       <div>
-        <div class="ask-hr-pow-t">{_p2t}</div>
-        <div class="ask-hr-pow-s">{_p2s}</div>
-        <div class="ask-hr-pow-tag">{_p2b}</div>
+        <div class="ask-hr-pow-t">{t("hero_p2t")}</div>
+        <div class="ask-hr-pow-s">{t("hero_p2s")}</div>
+        <div class="ask-hr-pow-tag">{t("hero_p2b")}</div>
+      </div>
+    </div>
+    <div class="ask-hr-pow lang">
+      <div class="ask-hr-pow-ic">🌍</div>
+      <div>
+        <div class="ask-hr-pow-t">{t("hero_p3t")}</div>
+        <div class="ask-hr-pow-s">{t("hero_p3s")}</div>
+        <div class="ask-hr-pow-tag">{t("hero_p3b")}</div>
       </div>
     </div>
   </div>
   <div class="ask-hr-disc">
     <span style="font-size:14px;flex-shrink:0">ℹ️</span>
-    <span>{_disc}</span>
+    <span>{t("hero_disc")}</span>
   </div>
 </div>
 """, unsafe_allow_html=True)
 
     # ── gov.gr QUICK ACCESS ───────────────────────────────────────────────────
-    _gov_title = "🔒 Ηλεκτρονικές Υπηρεσίες Υγείας (gov.gr)" if el else "🔒 Digital Health Services (gov.gr)"
-    _gov_note  = "Ανοίγουν σε νέα καρτέλα στο gov.gr — δεν αποθηκεύουμε δεδομένα." if el else "Open in a new tab on gov.gr — we store no data."
     _gov_links = [
-        ("📂", "Ηλεκτρονικός Φάκελος Υγείας" if el else "Health Record",
+        ("📂", "Ηλεκτρονικός Φάκελος Υγείας" if lang=="el" else "Health Record",
          "https://www.gov.gr/ipiresies/ugeia-kai-pronoia/phakelos-ugeias"),
-        ("💊", "e-Συνταγογράφηση" if el else "e-Prescription",
+        ("💊", "e-Συνταγογράφηση" if lang=="el" else "e-Prescription",
          "https://esyntagografisi.amka.gr"),
-        ("👨‍⚕️", "Ιατροί ΕΟΠΥΥ" if el else "EOPYY Doctors",
+        ("👨\u200d⚕️", "Ιατροί ΕΟΠΥΥ" if lang=="el" else "EOPYY Doctors",
          "https://www.eopyy.gov.gr"),
-        ("📋", "ΑΜΚΑ" if el else "AMKA",
+        ("📋", "ΑΜΚΑ" if lang=="el" else "AMKA",
          "https://www.gov.gr/ipiresies/apasxolisi-kai-syntaxiodotisi/amka"),
-        ("🔔", "ΕΟΔΥ" if el else "EODY",
+        ("🔔", "ΕΟΔΥ" if lang=="el" else "EODY",
          "https://eody.gov.gr"),
     ]
     _gov_btn_html = " ".join(
@@ -1581,135 +1577,93 @@ def render_login_screen():
     )
     st.markdown(f"""
 <div style="background:#F0FDF4;border:1.5px solid #A7F3D0;border-radius:16px;
-  padding:15px 17px;margin:0 0 18px;font-family:'Inter',system-ui,sans-serif;">
+  padding:15px 17px;margin:0 0 18px;font-family:'Inter',system-ui,sans-serif;direction:{_dir};">
   <div style="font-size:11px;font-weight:700;letter-spacing:0.1em;color:#065F46;
-    text-transform:uppercase;margin-bottom:11px;">{_gov_title}</div>
+    text-transform:uppercase;margin-bottom:11px;">{t("hero_gov_title")}</div>
   <div style="line-height:2;">{_gov_btn_html}</div>
-  <div style="font-size:10.5px;color:#6B7280;margin-top:9px;">{_gov_note}</div>
+  <div style="font-size:10.5px;color:#6B7280;margin-top:9px;">{t("hero_gov_note")}</div>
 </div>
 """, unsafe_allow_html=True)
 
     # ── HOW IT WORKS ─────────────────────────────────────────────────────────
-    _steps_el = [
-        ("1","👤","Προφίλ","Ηλικία, φύλο, ιστορικό"),
-        ("2","💬","Συμπτώματα","Το AI ρωτά δομημένα"),
-        ("3","❤️","Ζωτικά","HR, BP, SpO₂"),
-        ("4","🧬","Εξετάσεις","Ανέβασε αιματολογικά, PDF εξετάσεων, φωτογραφία πληγής/δέρματος"),
-        ("5","🧠","Triage AI","Claude + GPT-4o"),
-        ("6","📄","Αναφορά","PubMed + ιατρός"),
+    _steps_data = [
+        ("1","👤", t("name"),           t("history")[:30]+"…" if len(t("history"))>30 else t("history")),
+        ("2","💬", t("triage_title"),   t("triage_sub")[:40]+"…" if len(t("triage_sub"))>40 else t("triage_sub")),
+        ("3","❤️", t("vitals_title"),   "HR, BP, SpO₂"),
+        ("4","🧬", t("hero_f3t"),       t("hero_f3s")),
+        ("5","🧠", "Triage AI",         "Claude + GPT-4o"),
+        ("6","📄", t("report_title")[:12]+"…" if len(t("report_title"))>12 else t("report_title"), "PubMed"),
     ]
-    _steps_en = [
-        ("1","👤","Profile","Age, sex, history"),
-        ("2","💬","Symptoms","AI asks step by step"),
-        ("3","❤️","Vitals","HR, BP, SpO₂"),
-        ("4","🧬","Lab & Photos","Upload blood tests, PDF results, wound/skin photo"),
-        ("5","🧠","Triage AI","Claude + GPT-4o"),
-        ("6","📄","Report","PubMed + doctor"),
-    ]
-    _steps = _steps_el if el else _steps_en
-    _arrow = '<div style="flex:0 0 auto;align-self:flex-start;padding-top:14px;font-size:11px;color:#C7D2FE;">›</div>'
-    _steps_with_arrows = _arrow.join(f"""<div style="flex:1 1 0;min-width:0;text-align:center;padding:0 2px;">
+    _arrow = f'<div style="flex:0 0 auto;align-self:flex-start;padding-top:14px;font-size:11px;color:#C7D2FE;">{"‹" if rtl else "›"}</div>'
+    _steps_html = _arrow.join(f"""<div style="flex:1 1 0;min-width:0;text-align:{_ta};padding:0 2px;">
   <div style="width:28px;height:28px;border-radius:50%;background:#2D3FE7;color:white;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:12px;margin:0 auto 8px;">{n}</div>
   <div style="font-size:20px;margin-bottom:5px;">{ic}</div>
-  <div style="font-size:12px;font-weight:700;color:#1A1A2E;margin-bottom:2px;line-height:1.25;">{t}</div>
-  <div style="font-size:10px;color:#6B7280;line-height:1.35;">{s}</div>
-</div>""" for n, ic, t, s in _steps)
-    _how_title = "Πώς λειτουργεί" if el else "How it works"
+  <div style="font-size:12px;font-weight:700;color:#1A1A2E;margin-bottom:2px;line-height:1.25;">{tt}</div>
+  <div style="font-size:10px;color:#6B7280;line-height:1.35;">{ss}</div>
+</div>""" for n, ic, tt, ss in _steps_data)
     st.markdown(f"""
-<div style="font-family:'Inter',system-ui,sans-serif;margin:0 0 20px;">
-  <div style="font-size:18px;font-weight:800;color:#1A1A2E;text-align:center;margin-bottom:16px;">{_how_title}</div>
-  <div style="display:flex;align-items:flex-start;gap:0;width:100%;">{_steps_with_arrows}</div>
+<div style="font-family:'Inter',system-ui,sans-serif;margin:0 0 20px;direction:{_dir};">
+  <div style="font-size:18px;font-weight:800;color:#1A1A2E;text-align:{_ta};margin-bottom:16px;">{t("hero_how")}</div>
+  <div style="display:flex;align-items:flex-start;gap:0;width:100%;flex-direction:{"row-reverse" if rtl else "row"};">{_steps_html}</div>
 </div>
 """, unsafe_allow_html=True)
 
     # ── STATS BAND ────────────────────────────────────────────────────────────
-    _s1l = "Ακρίβεια triage (Semigran-45)" if el else "Triage accuracy (Semigran-45)"
-    _s2l = "Unsafe undertriage" if el else "Unsafe undertriage"
-    _s3l = "Claude + GPT-4o δεύτερη γνώμη" if el else "Claude + GPT-4o second opinion"
     st.markdown(f"""
 <div style="display:flex;border:1px solid #E0E5FF;border-radius:14px;overflow:hidden;
-  background:white;margin:0 0 20px;font-family:'Inter',system-ui,sans-serif;">
-  <div style="flex:1;text-align:center;padding:13px 6px;border-right:1px solid #E0E5FF;">
+  background:white;margin:0 0 20px;font-family:'Inter',system-ui,sans-serif;direction:{_dir};">
+  <div style="flex:1;text-align:{_ta};padding:13px 6px;border-{"left" if rtl else "right"}:1px solid #E0E5FF;">
     <div style="font-size:19px;font-weight:800;color:#2D3FE7;">88.9%</div>
-    <div style="font-size:10.5px;color:#6B7280;margin-top:3px;line-height:1.3;">{_s1l}</div>
+    <div style="font-size:10.5px;color:#6B7280;margin-top:3px;line-height:1.3;">{t("hero_s1l")}</div>
   </div>
-  <div style="flex:1;text-align:center;padding:13px 6px;border-right:1px solid #E0E5FF;">
+  <div style="flex:1;text-align:{_ta};padding:13px 6px;border-{"left" if rtl else "right"}:1px solid #E0E5FF;">
     <div style="font-size:19px;font-weight:800;color:#2D3FE7;">0%</div>
-    <div style="font-size:10.5px;color:#6B7280;margin-top:3px;line-height:1.3;">{_s2l}</div>
+    <div style="font-size:10.5px;color:#6B7280;margin-top:3px;line-height:1.3;">{t("hero_s2l")}</div>
   </div>
-  <div style="flex:1;text-align:center;padding:13px 6px;">
+  <div style="flex:1;text-align:{_ta};padding:13px 6px;">
     <div style="font-size:19px;font-weight:800;color:#2D3FE7;">2 AI</div>
-    <div style="font-size:10.5px;color:#6B7280;margin-top:3px;line-height:1.3;">{_s3l}</div>
+    <div style="font-size:10.5px;color:#6B7280;margin-top:3px;line-height:1.3;">{t("hero_s3l")}</div>
   </div>
 </div>
 """, unsafe_allow_html=True)
 
     # ── FOR WHOM ─────────────────────────────────────────────────────────────
-    _aud_title = "Για ποιον είναι" if el else "Who is it for"
-    if el:
-        _aud = [
-            ("👨‍👩‍👧","ic-blue","Για όλη την οικογένεια",
-             "Για σένα, τα παιδιά σου, τους γονείς σου. Πήγαινε στον ιατρό έτοιμος, με ιστορικό στα χέρια σου.",
-             "Ενήλικες · Παιδιά · Ηλικιωμένοι","#E8ECFE","#2D3FE7"),
-            ("🤝","ic-amber","Για φροντιστές υγείας",
-             "Φροντίζεις κάποιον άλλο; Το Asklepios δουλεύει σε caregiver mode — περιγράφεις αυτό που παρατηρείς και λαμβάνεις δομημένη εκτίμηση.",
-             "Caregiver mode ενσωματωμένο","#FFFBEB","#92400E"),
-            ("👨‍⚕️","ic-green","Για ιατρούς & ιατρεία",
-             "Ο ασθενής φτάνει με οργανωμένο ιστορικό και PubMed εκτίμηση. Λιγότερα τηλεφωνήματα ρουτίνας, ποιοτικότερος χρόνος.",
-             "Εξοικονόμηση χρόνου · Ποιοτικότερες επισκέψεις","#ECFDF5","#065F46"),
-        ]
-    else:
-        _aud = [
-            ("👨‍👩‍👧","ic-blue","For the whole family",
-             "For you, your children, your parents. Go to your doctor prepared, with an organised history.",
-             "Adults · Children · Elderly","#E8ECFE","#2D3FE7"),
-            ("🤝","ic-amber","For caregivers",
-             "Caring for someone else? Asklepios works in caregiver mode — describe what you observe and get a structured assessment.",
-             "Caregiver mode built-in","#FFFBEB","#92400E"),
-            ("👨‍⚕️","ic-green","For doctors & clinics",
-             "Patients arrive with organised history and PubMed assessment. Fewer routine calls, higher-quality consultations.",
-             "Save time · Better appointments","#ECFDF5","#065F46"),
-        ]
-    _aud_cards = "".join(f"""
-<div style="flex:1 1 180px;background:white;border:1px solid #E0E5FF;border-radius:14px;padding:14px 14px 12px;">
-  <div style="width:34px;height:34px;border-radius:50%;background:{bg};display:flex;
-    align-items:center;justify-content:center;font-size:17px;margin-bottom:9px;">{ic}</div>
-  <div style="font-size:13px;font-weight:800;color:#1A1A2E;margin-bottom:4px;">{t}</div>
-  <div style="font-size:11.5px;color:#4B5563;line-height:1.5;margin-bottom:7px;">{d}</div>
-  <div style="display:inline-block;background:{bg};color:{tc};font-size:10px;font-weight:700;
-    padding:2px 9px;border-radius:999px;">{badge}</div>
-</div>""" for ic, _, t, d, badge, bg, tc in _aud)
+    _aud = [
+        ("👨\u200d👩\u200d👧","#E8ECFE","#2D3FE7", t("hero_aud1t"), t("hero_aud1d"), t("hero_aud1b")),
+        ("🤝","#FFFBEB","#92400E", t("hero_aud2t"), t("hero_aud2d"), t("hero_aud2b")),
+        ("👨\u200d⚕️","#ECFDF5","#065F46", t("hero_aud3t"), t("hero_aud3d"), t("hero_aud3b")),
+    ]
+    _aud_cards = "".join(f"""<div style="flex:1 1 160px;background:white;border:1px solid #E0E5FF;border-radius:14px;padding:14px 14px 12px;direction:{_dir};text-align:{"right" if rtl else "left"};">
+  <div style="width:32px;height:32px;border-radius:50%;background:{bg};display:flex;align-items:center;justify-content:center;font-size:16px;margin-bottom:9px;{"margin-right:0;margin-left:auto;" if rtl else ""}">{ic}</div>
+  <div style="font-size:13px;font-weight:800;color:#1A1A2E;margin-bottom:4px;">{tt}</div>
+  <div style="font-size:11.5px;color:#4B5563;line-height:1.5;margin-bottom:7px;">{dd}</div>
+  <div style="display:inline-block;background:{bg};color:{tc};font-size:10px;font-weight:700;padding:2px 9px;border-radius:999px;">{badge}</div>
+</div>""" for ic, bg, tc, tt, dd, badge in _aud)
     st.markdown(f"""
 <div style="font-family:'Inter',system-ui,sans-serif;margin:0 0 22px;">
-  <div style="font-size:18px;font-weight:800;color:#1A1A2E;text-align:center;margin-bottom:16px;">{_aud_title}</div>
-  <div style="display:flex;gap:10px;flex-wrap:wrap;">{_aud_cards}</div>
+  <div style="font-size:18px;font-weight:800;color:#1A1A2E;text-align:{_ta};margin-bottom:16px;">{t("hero_for_whom")}</div>
+  <div style="display:flex;gap:10px;flex-wrap:wrap;flex-direction:{"row-reverse" if rtl else "row"};">{_aud_cards}</div>
 </div>
 """, unsafe_allow_html=True)
 
-    # ── LOGIN FORM / CONTINUE BUTTON ─────────────────────────────────────────
-    _login_title = "Ξεκίνα — δωρεάν, χωρίς password" if el else "Get started — free, no password"
+    # ── LOGIN FORM / CONTINUE ─────────────────────────────────────────────────
     st.markdown(f"""
-<div style="font-size:16px;font-weight:800;color:#1A1A2E;text-align:center;
-  margin:4px 0 12px;font-family:'Inter',system-ui,sans-serif;">{_login_title}</div>
+<div style="font-size:16px;font-weight:800;color:#1A1A2E;text-align:{_ta};
+  margin:4px 0 12px;font-family:'Inter',system-ui,sans-serif;direction:{_dir};">{t("hero_login_title")}</div>
 """, unsafe_allow_html=True)
 
-    # If already logged in, show a single "Συνέχεια" CTA that sets _hero_seen
-    # and sends the user to home. Otherwise show the OTP login form.
     if is_logged_in():
-        _cta_lbl = "✦ Ξεκίνα αξιολόγηση & αναφορά" if el else "✦ Start assessment & report"
         col1, col2, col3 = st.columns([1, 2, 1])
         with col2:
-            if st.button(_cta_lbl, type="primary", use_container_width=True, key="hero_cta_loggedin"):
+            if st.button(t("hero_cta"), type="primary", use_container_width=True, key="hero_cta_loggedin"):
                 st.session_state["_hero_seen"] = True
                 st.rerun()
     else:
         col1, col2, col3 = st.columns([1, 2, 1])
         with col2:
             render_login_gate()
-        # render_login_gate sets is_logged_in() on success and st.rerun()s.
-        # After rerun the block above (is_logged_in()) fires and shows the CTA.
 
-    st.markdown(f'<div class="disclaimer">{t("disclaimer_main")}</div>', unsafe_allow_html=True)
+    st.markdown(f'<div class="disclaimer" dir="{_dir}">{t("disclaimer_main")}</div>', unsafe_allow_html=True)
 
 
 # ── ADMIN PANEL ─────────────────────────────────────────────────────────────────
@@ -2348,6 +2302,44 @@ T = {
         "second_opinion": "Δεύτερη Γνώμη GPT-4o",
         "pubmed": "Επιστημονικές Αναφορές PubMed",
         "skip_vitals": "Παράλειψη (χωρίς μετρήσεις)",
+        "hero_h1": "Περίγραψε τι νιώθεις.<br><span style='color:#2D3FE7'>Λάβε κλινική εκτίμηση.</span>",
+        "hero_sub": 'Τεκμηριωμένη αξιολόγηση με αναφορές PubMed + δεύτερη γνώμη GPT-4o. Για τον <strong>ιατρό</strong> σου.',
+        "hero_f1t": 'Περιγραφή συμπτωμάτων',
+        "hero_f1s": 'Μιλάς φυσικά — το AI ρωτά & οργανώνει',
+        "hero_f2t": 'Καταγραφή ζωτικών',
+        "hero_f2s": 'HR, BP, SpO₂, θερμοκρασία',
+        "hero_f3t": 'Εξετάσεις & φωτογραφία',
+        "hero_f3s": 'Ανέβασε αιματολογικά, PDF ή φωτογραφία',
+        "hero_f4t": 'Κλινική αναφορά για τον ιατρό',
+        "hero_f4s": 'PubMed + δεύτερη γνώμη GPT-4o',
+        "hero_p1t": 'Δεύτερη ιατρική γνώμη',
+        "hero_p1s": 'Claude + GPT-4o ανεξάρτητα',
+        "hero_p1b": 'Μοναδικό',
+        "hero_p2t": 'Σύνδεση gov.gr',
+        "hero_p2s": 'Ηλεκτρ. Φάκελος, ΑΜΚΑ, e-Συνταγ.',
+        "hero_p2b": 'Ελληνικό ΣΥ',
+        "hero_p3t": '16 γλώσσες',
+        "hero_p3s": 'Ελληνικά, Αγγλικά, Χίντι, Αραβικά κ.ά.',
+        "hero_p3b": 'Για όλους',
+        "hero_disc": 'Δεν αντικαθιστά τον <strong>ιατρό</strong>. Επείγον: <strong>166</strong> ή <strong>112</strong>. Δεν αποθηκεύουμε ιατρικά δεδομένα. 🔒 GDPR',
+        "hero_how": 'Πώς λειτουργεί',
+        "hero_cta": '✦ Ξεκίνα αξιολόγηση & αναφορά',
+        "hero_login_title": 'Ξεκίνα — δωρεάν, χωρίς password',
+        "hero_for_whom": 'Για ποιον είναι',
+        "hero_aud1t": 'Για όλη την οικογένεια',
+        "hero_aud1d": 'Για σένα, τα παιδιά σου, τους γονείς σου. Πήγαινε στον ιατρό έτοιμος.',
+        "hero_aud1b": 'Ενήλικες · Παιδιά · Ηλικιωμένοι',
+        "hero_aud2t": 'Για φροντιστές υγείας',
+        "hero_aud2d": 'Φροντίζεις κάποιον άλλο; Το Asklepios δουλεύει σε caregiver mode.',
+        "hero_aud2b": 'Caregiver mode',
+        "hero_aud3t": 'Για ιατρούς & ιατρεία',
+        "hero_aud3d": 'Ο ασθενής φτάνει με οργανωμένο ιστορικό. Λιγότερα τηλεφωνήματα, ποιοτικότερος χρόνος.',
+        "hero_aud3b": 'Εξοικονόμηση χρόνου',
+        "hero_s1l": 'Ακρίβεια triage (Semigran-45)',
+        "hero_s2l": 'Unsafe undertriage',
+        "hero_s3l": 'Claude + GPT-4o δεύτερη γνώμη',
+        "hero_gov_title": '🔒 Ηλεκτρονικές Υπηρεσίες Υγείας (gov.gr)',
+        "hero_gov_note": 'Ανοίγουν σε νέα καρτέλα στο gov.gr — δεν αποθηκεύουμε δεδομένα.',
     },
     "en": {
         "title": "Asklepios",
@@ -2382,6 +2374,44 @@ T = {
         "second_opinion": "GPT-4o Second Opinion",
         "pubmed": "PubMed Evidence",
         "skip_vitals": "Skip (no measurements)",
+        "hero_h1": "Describe what you feel.<br><span style='color:#2D3FE7'>Get a clinical assessment.</span>",
+        "hero_sub": 'Evidence-based assessment with PubMed references + GPT-4o second opinion. For your <strong>doctor</strong>.',
+        "hero_f1t": 'Symptom description',
+        "hero_f1s": 'Speak naturally — AI asks & organises',
+        "hero_f2t": 'Vital signs',
+        "hero_f2s": 'HR, BP, SpO₂, temperature',
+        "hero_f3t": 'Lab results & photos',
+        "hero_f3s": 'Upload blood tests, PDF results or a photo',
+        "hero_f4t": 'Clinical report for your doctor',
+        "hero_f4s": 'PubMed + GPT-4o second opinion',
+        "hero_p1t": 'Second medical opinion',
+        "hero_p1s": 'Claude + GPT-4o independently',
+        "hero_p1b": 'Unique',
+        "hero_p2t": 'gov.gr integration',
+        "hero_p2s": 'Health record, AMKA, e-Prescription',
+        "hero_p2b": 'Greek NHS',
+        "hero_p3t": '16 languages',
+        "hero_p3s": 'Greek, English, Hindi, Arabic, Hebrew & more',
+        "hero_p3b": 'For everyone',
+        "hero_disc": 'Does not replace your <strong>doctor</strong>. Emergency: <strong>112</strong>. We store no medical data. 🔒 GDPR',
+        "hero_how": 'How it works',
+        "hero_cta": '✦ Start assessment & report',
+        "hero_login_title": 'Get started — free, no password',
+        "hero_for_whom": 'Who is it for',
+        "hero_aud1t": 'For the whole family',
+        "hero_aud1d": 'For you, your children, your parents. Go to your doctor prepared.',
+        "hero_aud1b": 'Adults · Children · Elderly',
+        "hero_aud2t": 'For caregivers',
+        "hero_aud2d": 'Caring for someone else? Asklepios works in caregiver mode.',
+        "hero_aud2b": 'Caregiver mode',
+        "hero_aud3t": 'For doctors & clinics',
+        "hero_aud3d": 'Patients arrive with organised history. Fewer routine calls, better quality time.',
+        "hero_aud3b": 'Save time',
+        "hero_s1l": 'Triage accuracy (Semigran-45)',
+        "hero_s2l": 'Unsafe undertriage',
+        "hero_s3l": 'Claude + GPT-4o second opinion',
+        "hero_gov_title": '🔒 Digital Health Services (gov.gr)',
+        "hero_gov_note": 'Open in a new tab on gov.gr — we store no data.',
     },
     "hi": {
         "title": "Asklepios",
@@ -2416,6 +2446,44 @@ T = {
         "second_opinion": "GPT-4o दूसरी राय",
         "pubmed": "PubMed शोध संदर्भ",
         "skip_vitals": "छोड़ें (माप के बिना)",
+        "hero_h1": "बताएं आप क्या महसूस कर रहे हैं।<br><span style='color:#2D3FE7'>पाएं नैदानिक मूल्यांकन।</span>",
+        "hero_sub": 'PubMed संदर्भों के साथ + GPT-4o दूसरी राय। आपके <strong>डॉक्टर</strong> के लिए।',
+        "hero_f1t": 'लक्षणों का विवरण',
+        "hero_f1s": 'स्वाभाविक रूप से बोलें — AI पूछता और व्यवस्थित करता है',
+        "hero_f2t": 'महत्वपूर्ण संकेत',
+        "hero_f2s": 'HR, BP, SpO₂, तापमान',
+        "hero_f3t": 'परीक्षण और फोटो',
+        "hero_f3s": 'रक्त परीक्षण, PDF या फोटो अपलोड करें',
+        "hero_f4t": 'डॉक्टर के लिए रिपोर्ट',
+        "hero_f4s": 'PubMed + GPT-4o दूसरी राय',
+        "hero_p1t": 'दूसरी चिकित्सा राय',
+        "hero_p1s": 'Claude + GPT-4o स्वतंत्र रूप से',
+        "hero_p1b": 'अनोखा',
+        "hero_p2t": 'gov.gr से जुड़ाव',
+        "hero_p2s": 'स्वास्थ्य रिकॉर्ड, AMKA, e-Prescription',
+        "hero_p2b": 'Greek NHS',
+        "hero_p3t": '16 भाषाएं',
+        "hero_p3s": 'हिंदी, उर्दू, अरबी, बंगाली सहित',
+        "hero_p3b": 'सबके लिए',
+        "hero_disc": 'डॉक्टर का विकल्प नहीं। आपातकाल: <strong>166</strong> या <strong>112</strong>। 🔒 GDPR',
+        "hero_how": 'यह कैसे काम करता है',
+        "hero_cta": '✦ मूल्यांकन शुरू करें',
+        "hero_login_title": 'शुरू करें — मुफ्त, बिना पासवर्ड',
+        "hero_for_whom": 'किसके लिए है',
+        "hero_aud1t": 'पूरे परिवार के लिए',
+        "hero_aud1d": 'आपके, बच्चों और माता-पिता के लिए। डॉक्टर के पास तैयार जाएं।',
+        "hero_aud1b": 'वयस्क · बच्चे · बुजुर्ग',
+        "hero_aud2t": 'देखभाल करने वालों के लिए',
+        "hero_aud2d": 'किसी और की देखभाल? Caregiver mode में काम करता है।',
+        "hero_aud2b": 'Caregiver mode',
+        "hero_aud3t": 'डॉक्टरों के लिए',
+        "hero_aud3d": 'मरीज संगठित इतिहास के साथ आते हैं। कम routine calls।',
+        "hero_aud3b": 'समय की बचत',
+        "hero_s1l": 'Triage सटीकता (Semigran-45)',
+        "hero_s2l": 'Unsafe undertriage',
+        "hero_s3l": 'Claude + GPT-4o दूसरी राय',
+        "hero_gov_title": '🔒 Digital Health Services (gov.gr)',
+        "hero_gov_note": 'gov.gr पर नई टैब में खुलता है।',
     },
     "ur": {
         "title": "Asklepios",
@@ -2450,6 +2518,44 @@ T = {
         "second_opinion": "GPT-4o دوسری رائے",
         "pubmed": "PubMed تحقیقی حوالہ جات",
         "skip_vitals": "چھوڑیں (پیمائش کے بغیر)",
+        "hero_h1": "بتائیں آپ کیا محسوس کر رہے ہیں۔<br><span style='color:#2D3FE7'>طبی تشخیص حاصل کریں۔</span>",
+        "hero_sub": 'PubMed + GPT-4o دوسری رائے۔ آپ کے <strong>ڈاکٹر</strong> کے لیے۔',
+        "hero_f1t": 'علامات کی وضاحت',
+        "hero_f1s": 'قدرتی طریقے سے بولیں — AI پوچھتا اور منظم کرتا ہے',
+        "hero_f2t": 'اہم علامات',
+        "hero_f2s": 'HR, BP, SpO₂, درجہ حرارت',
+        "hero_f3t": 'ٹیسٹ اور تصاویر',
+        "hero_f3s": 'خون کے ٹیسٹ، PDF یا تصویر اپلوڈ کریں',
+        "hero_f4t": 'ڈاکٹر کے لیے رپورٹ',
+        "hero_f4s": 'PubMed + GPT-4o دوسری رائے',
+        "hero_p1t": 'دوسری طبی رائے',
+        "hero_p1s": 'Claude + GPT-4o آزادانہ',
+        "hero_p1b": 'منفرد',
+        "hero_p2t": 'gov.gr سے تعلق',
+        "hero_p2s": 'صحت کا ریکارڈ، AMKA، e-نسخہ',
+        "hero_p2b": 'Greek NHS',
+        "hero_p3t": '16 زبانیں',
+        "hero_p3s": 'اردو، عربی، ہندی، بنگالی سمیت',
+        "hero_p3b": 'سب کے لیے',
+        "hero_disc": 'ڈاکٹر کا متبادل نہیں۔ ہنگامی: <strong>166</strong> یا <strong>112</strong>۔ 🔒 GDPR',
+        "hero_how": 'یہ کیسے کام کرتا ہے',
+        "hero_cta": '✦ تشخیص شروع کریں',
+        "hero_login_title": 'شروع کریں — مفت، بغیر پاس ورڈ',
+        "hero_for_whom": 'کس کے لیے ہے',
+        "hero_aud1t": 'پورے خاندان کے لیے',
+        "hero_aud1d": 'آپ، بچوں اور والدین کے لیے۔ ڈاکٹر کے پاس تیار جائیں۔',
+        "hero_aud1b": 'بالغ · بچے · بزرگ',
+        "hero_aud2t": 'دیکھ بھال کرنے والوں کے لیے',
+        "hero_aud2d": 'کسی اور کی دیکھ بھال؟ Caregiver mode میں کام کرتا ہے۔',
+        "hero_aud2b": 'Caregiver mode',
+        "hero_aud3t": 'ڈاکٹروں کے لیے',
+        "hero_aud3d": 'مریض منظم تاریخ کے ساتھ آتے ہیں۔ کم routine calls۔',
+        "hero_aud3b": 'وقت کی بچت',
+        "hero_s1l": 'Triage درستگی (Semigran-45)',
+        "hero_s2l": 'Unsafe undertriage',
+        "hero_s3l": 'Claude + GPT-4o دوسری رائے',
+        "hero_gov_title": '🔒 Digital Health Services (gov.gr)',
+        "hero_gov_note": 'gov.gr پر نئی ٹیب میں کھلتا ہے۔',
     },
     "ar": {
         "title": "Asklepios",
@@ -2484,6 +2590,44 @@ T = {
         "second_opinion": "رأي ثانٍ من GPT-4o",
         "pubmed": "مراجع PubMed العلمية",
         "skip_vitals": "تخطَّ (بدون قياسات)",
+        "hero_h1": "صف ما تشعر به.<br><span style='color:#2D3FE7'>احصل على تقييم طبي.</span>",
+        "hero_sub": 'تقييم مبني على الأدلة + رأي ثانٍ من GPT-4o. لـ<strong>طبيبك</strong>.',
+        "hero_f1t": 'وصف الأعراض',
+        "hero_f1s": 'تكلم بشكل طبيعي — AI يسأل وينظّم',
+        "hero_f2t": 'العلامات الحيوية',
+        "hero_f2s": 'HR, BP, SpO₂, درجة الحرارة',
+        "hero_f3t": 'فحوصات وصور',
+        "hero_f3s": 'ارفع تحاليل الدم، PDF أو صورة',
+        "hero_f4t": 'تقرير للطبيب',
+        "hero_f4s": 'PubMed + رأي ثانٍ GPT-4o',
+        "hero_p1t": 'رأي طبي ثانٍ',
+        "hero_p1s": 'Claude + GPT-4o بشكل مستقل',
+        "hero_p1b": 'فريد',
+        "hero_p2t": 'تكامل مع gov.gr',
+        "hero_p2s": 'السجل الصحي، AMKA، وصفات إلكترونية',
+        "hero_p2b": 'NHS اليوناني',
+        "hero_p3t": '16 لغة',
+        "hero_p3s": 'العربية، الهندية، الأردية، العبرية وغيرها',
+        "hero_p3b": 'للجميع',
+        "hero_disc": 'لا يُعوِّض الطبيب. طوارئ: <strong>166</strong> أو <strong>112</strong>. 🔒 GDPR',
+        "hero_how": 'كيف يعمل',
+        "hero_cta": '✦ ابدأ التقييم',
+        "hero_login_title": 'ابدأ — مجاناً، بدون كلمة مرور',
+        "hero_for_whom": 'لمن هو',
+        "hero_aud1t": 'للعائلة كاملة',
+        "hero_aud1d": 'لك ولأطفالك ووالديك. اذهب إلى الطبيب مستعداً.',
+        "hero_aud1b": 'بالغون · أطفال · مسنون',
+        "hero_aud2t": 'لمقدمي الرعاية',
+        "hero_aud2d": 'ترعى شخصاً آخر؟ يعمل في Caregiver mode.',
+        "hero_aud2b": 'Caregiver mode',
+        "hero_aud3t": 'للأطباء والعيادات',
+        "hero_aud3d": 'المريض يصل بتاريخ منظم. مكالمات روتينية أقل.',
+        "hero_aud3b": 'توفير الوقت',
+        "hero_s1l": 'دقة الفرز (Semigran-45)',
+        "hero_s2l": 'Unsafe undertriage',
+        "hero_s3l": 'Claude + GPT-4o رأي ثانٍ',
+        "hero_gov_title": '🔒 الخدمات الصحية الرقمية (gov.gr)',
+        "hero_gov_note": 'تفتح في تبويب جديد على gov.gr.',
     },
     "bn": {
         "title": "Asklepios",
@@ -2603,13 +2747,194 @@ T = {
         "second_opinion": "Второе мнение GPT-4o", "pubmed": "Научные ссылки PubMed",
         "skip_vitals": "Пропустить (без измерений)",
     },
+    "zh": {
+        "title": "Asklepios", "subtitle": "您的AI护士",
+        "tagline": "可靠的健康信息 · 始终陪伴您",
+        "start": "开始评估",
+        "disclaimer_main": "⚠️ Asklepios仅出于信息目的提供健康信息。不能替代医疗诊断或治疗。紧急情况请拨打**166**（EKAB）或**112**。",
+        "emergency": "🚨 紧急情况：请拨打 166 或 112",
+        "name": "姓名", "age": "年龄", "sex": "性别",
+        "male": "男", "female": "女", "other": "其他",
+        "history": "病史（疾病、手术）", "allergies": "过敏史",
+        "meds": "当前药物 / 补充剂", "next": "下一步 →", "back": "← 返回",
+        "vitals_title": "生命体征", "vitals_sub": "请输入您的测量值。",
+        "hr": "心率 (bpm)", "bp_sys": "血压 — 收缩压 (mmHg)",
+        "bp_dia": "血压 — 舒张压 (mmHg)", "br": "呼吸频率 (/min)",
+        "spo2": "SpO2 (%)", "temp": "体温 (°C)", "weight": "体重 (kg)", "height": "身高 (cm)",
+        "analyse_vitals": "分析生命体征", "triage_title": "症状评估",
+        "triage_sub": "描述您的症状。Asklepios将提出有针对性的问题。",
+        "triage_placeholder": "例如：我头痛三天并伴有恶心...",
+        "generate_report": "生成完整临床报告", "report_title": "详细健康评估",
+        "second_opinion": "GPT-4o第二意见", "pubmed": "PubMed参考文献",
+        "skip_vitals": "跳过（无测量值）",
+        "hero_h1": "描述您的感受。<br><span style='color:#2D3FE7'>获取临床评估。</span>",
+        "hero_sub": '基于证据的评估，含PubMed参考文献 + GPT-4o第二意见。为您的<strong>医生</strong>。',
+        "hero_f1t": '症状描述',
+        "hero_f1s": '自然说话 — AI询问并整理',
+        "hero_f2t": '生命体征',
+        "hero_f2s": 'HR, BP, SpO₂, 体温',
+        "hero_f3t": '检查和照片',
+        "hero_f3s": '上传血液检查、PDF或照片',
+        "hero_f4t": '给医生的报告',
+        "hero_f4s": 'PubMed + GPT-4o第二意见',
+        "hero_p1t": '第二医疗意见',
+        "hero_p1s": 'Claude + GPT-4o独立评估',
+        "hero_p1b": '独特',
+        "hero_p2t": 'gov.gr整合',
+        "hero_p2s": '健康档案、AMKA、电子处方',
+        "hero_p2b": '希腊NHS',
+        "hero_p3t": '16种语言',
+        "hero_p3s": '中文、阿拉伯语、印地语等',
+        "hero_p3b": '面向所有人',
+        "hero_disc": '不替代医生。紧急情况：<strong>166</strong>或<strong>112</strong>。🔒 GDPR',
+        "hero_how": '工作原理',
+        "hero_cta": '✦ 开始评估',
+        "hero_login_title": '开始使用 — 免费，无需密码',
+        "hero_for_whom": '适合谁',
+        "hero_aud1t": '全家适用',
+        "hero_aud1d": '为您、您的孩子和父母。带着整理好的病史去看医生。',
+        "hero_aud1b": '成人 · 儿童 · 老人',
+        "hero_aud2t": '为照护者',
+        "hero_aud2d": '照顾他人？在Caregiver模式下工作。',
+        "hero_aud2b": 'Caregiver模式',
+        "hero_aud3t": '为医生和诊所',
+        "hero_aud3d": '患者带着有序的病史来诊。减少常规电话。',
+        "hero_aud3b": '节省时间',
+        "hero_s1l": '分诊准确率 (Semigran-45)',
+        "hero_s2l": 'Unsafe undertriage',
+        "hero_s3l": 'Claude + GPT-4o第二意见',
+        "hero_gov_title": '🔒 数字健康服务 (gov.gr)',
+        "hero_gov_note": '在gov.gr上新标签页打开。',
+    },
+    "lb": {
+        "title": "Asklepios", "subtitle": "ممرضتك بالذكاء الاصطناعي",
+        "tagline": "معلومات صحية موثوقة · دايمًا معك",
+        "start": "ابدأ التقييم",
+        "disclaimer_main": "⚠️ Asklepios بيقدم معلومات صحية لأغراض إعلامية بس. ما بيحل محل التشخيص أو العلاج الطبي. بحالات الطوارئ اتصل بـ **166** (EKAB) أو **112**.",
+        "emergency": "🚨 طوارئ: اتصل بـ 166 أو 112",
+        "name": "الاسم", "age": "العمر", "sex": "الجنس",
+        "male": "ذكر", "female": "أنثى", "other": "غير ذلك",
+        "history": "التاريخ الطبي (أمراض، عمليات)", "allergies": "الحساسية",
+        "meds": "الدوا الحالي / مكملات", "next": "التالي →", "back": "← رجوع",
+        "vitals_title": "العلامات الحيوية", "vitals_sub": "دخّل قياساتك.",
+        "hr": "نبضات القلب (bpm)", "bp_sys": "ضغط الدم — الانقباضي (mmHg)",
+        "bp_dia": "ضغط الدم — الانبساطي (mmHg)", "br": "معدل التنفس (/min)",
+        "spo2": "SpO2 (%)", "temp": "الحرارة (°C)", "weight": "الوزن (kg)", "height": "الطول (cm)",
+        "analyse_vitals": "حلّل العلامات الحيوية", "triage_title": "تقييم الأعراض",
+        "triage_sub": "وصف أعراضك. رح يسألك Asklepios أسئلة.",
+        "triage_placeholder": "مثلاً: عندي صداع من تلات أيام مع غثيان...",
+        "generate_report": "اعمل تقرير طبي كامل", "report_title": "تقييم صحي مفصّل",
+        "second_opinion": "رأي ثاني من GPT-4o", "pubmed": "مراجع PubMed العلمية",
+        "skip_vitals": "تخطَّ (بدون قياسات)",
+        "hero_h1": "قول شو حاسس فيه.<br><span style='color:#2D3FE7'>احصل على تقييم طبي.</span>",
+        "hero_sub": 'تقييم مبني على الأدلة + رأي ثانٍ من GPT-4o. لـ<strong>دكتورك</strong>.',
+        "hero_f1t": 'وصف الأعراض',
+        "hero_f1s": 'حكي طبيعي — AI بيسأل وبينظّم',
+        "hero_f2t": 'العلامات الحيوية',
+        "hero_f2s": 'HR, BP, SpO₂, حرارة',
+        "hero_f3t": 'فحوصات وصور',
+        "hero_f3s": 'ارفع تحاليل أو صورة',
+        "hero_f4t": 'تقرير للدكتور',
+        "hero_f4s": 'PubMed + رأي ثانٍ GPT-4o',
+        "hero_p1t": 'رأي طبي ثانٍ',
+        "hero_p1s": 'Claude + GPT-4o مستقلَّين',
+        "hero_p1b": 'فريد',
+        "hero_p2t": 'gov.gr',
+        "hero_p2s": 'ملف الصحة، AMKA، وصفات',
+        "hero_p2b": 'NHS اليوناني',
+        "hero_p3t": '16 لغة',
+        "hero_p3s": 'عربي، إنجليزي، هندي وغيرو',
+        "hero_p3b": 'للكل',
+        "hero_disc": 'ما بيحل محل الدكتور. طوارئ: <strong>166</strong> أو <strong>112</strong>. 🔒 GDPR',
+        "hero_how": 'كيف بيشتغل',
+        "hero_cta": '✦ ابدأ التقييم',
+        "hero_login_title": 'ابدأ — مجاناً، بدون باسوورد',
+        "hero_for_whom": 'لمين هو',
+        "hero_aud1t": 'للعيلة كلها',
+        "hero_aud1d": 'إلك ولأولادك ولأهلك. روح عند الدكتور مجهّز.',
+        "hero_aud1b": 'كبار · صغار · مسنين',
+        "hero_aud2t": 'لمن بيهتم بغيره',
+        "hero_aud2d": 'عم تهتم بحدا تاني؟ بيشتغل بـ Caregiver mode.',
+        "hero_aud2b": 'Caregiver mode',
+        "hero_aud3t": 'للأطباء والعيادات',
+        "hero_aud3d": 'المريض بييجي مع تاريخ منظّم. مكالمات أقل.',
+        "hero_aud3b": 'توفير الوقت',
+        "hero_s1l": 'دقة الفرز (Semigran-45)',
+        "hero_s2l": 'Unsafe undertriage',
+        "hero_s3l": 'Claude + GPT-4o رأي ثانٍ',
+        "hero_gov_title": '🔒 خدمات صحية رقمية (gov.gr)',
+        "hero_gov_note": 'بتفتح بتاب جديد على gov.gr.',
+    },
+    "he": {
+        "title": "Asklepios", "subtitle": "האחות ה-AI שלך",
+        "tagline": "מידע רפואי אמין · תמיד לצדך",
+        "start": "התחל הערכה",
+        "disclaimer_main": "⚠️ Asklepios מספק מידע בריאותי למטרות מידע בלבד. אינו מחליף אבחנה רפואית או טיפול. במקרה חירום התקשר **166** (EKAB) או **112**.",
+        "emergency": "🚨 חירום: התקשר ל-166 או 112",
+        "name": "שם", "age": "גיל", "sex": "מין",
+        "male": "זכר", "female": "נקבה", "other": "אחר",
+        "history": "היסטוריה רפואית (מחלות, ניתוחים)", "allergies": "אלרגיות",
+        "meds": "תרופות נוכחיות / תוספים", "next": "הבא →", "back": "← חזור",
+        "vitals_title": "סימנים חיוניים", "vitals_sub": "הזן את המדידות שלך.",
+        "hr": "קצב לב (bpm)", "bp_sys": "לחץ דם — סיסטולי (mmHg)",
+        "bp_dia": "לחץ דם — דיאסטולי (mmHg)", "br": "קצב נשימה (/min)",
+        "spo2": "SpO2 (%)", "temp": "טמפרטורה (°C)", "weight": "משקל (kg)", "height": "גובה (cm)",
+        "analyse_vitals": "נתח סימנים חיוניים", "triage_title": "הערכת תסמינים",
+        "triage_sub": "תאר את הסימפטומים שלך. Asklepios ישאל שאלות.",
+        "triage_placeholder": "למשל: כאב ראש שלושה ימים עם בחילה...",
+        "generate_report": "צור דוח קליני מלא", "report_title": "הערכת בריאות מפורטת",
+        "second_opinion": "חוות דעת שנייה GPT-4o", "pubmed": "מקורות PubMed",
+        "skip_vitals": "דלג (ללא מדידות)",
+        "hero_h1": "תאר מה אתה מרגיש.<br><span style='color:#2D3FE7'>קבל הערכה קלינית.</span>",
+        "hero_sub": 'הערכה מבוססת ראיות + חוות דעת שנייה מ-GPT-4o. ל<strong>רופא</strong> שלך.',
+        "hero_f1t": 'תיאור תסמינים',
+        "hero_f1s": 'דבר בטבעיות — AI שואל ומארגן',
+        "hero_f2t": 'סימנים חיוניים',
+        "hero_f2s": 'HR, BP, SpO₂, טמפרטורה',
+        "hero_f3t": 'בדיקות ותמונות',
+        "hero_f3s": 'העלה בדיקות דם, PDF או תמונה',
+        "hero_f4t": 'דוח לרופא',
+        "hero_f4s": 'PubMed + חוות דעת שנייה GPT-4o',
+        "hero_p1t": 'חוות דעת רפואית שנייה',
+        "hero_p1s": 'Claude + GPT-4o באופן עצמאי',
+        "hero_p1b": 'ייחודי',
+        "hero_p2t": 'שילוב עם gov.gr',
+        "hero_p2s": 'תיק בריאות, AMKA, מרשם אלקטרוני',
+        "hero_p2b": 'NHS יווני',
+        "hero_p3t": '16 שפות',
+        "hero_p3s": 'עברית, ערבית, הינדי ועוד',
+        "hero_p3b": 'לכולם',
+        "hero_disc": 'אינו מחליף רופא. חירום: <strong>166</strong> או <strong>112</strong>. 🔒 GDPR',
+        "hero_how": 'איך זה עובד',
+        "hero_cta": '✦ התחל הערכה',
+        "hero_login_title": 'התחל — חינם, ללא סיסמה',
+        "hero_for_whom": 'למי זה מיועד',
+        "hero_aud1t": 'לכל המשפחה',
+        "hero_aud1d": 'לך, לילדיך ולהוריך. לך לרופא מוכן.',
+        "hero_aud1b": 'מבוגרים · ילדים · קשישים',
+        "hero_aud2t": 'למטפלים',
+        "hero_aud2d": 'מטפל במישהו אחר? עובד ב-Caregiver mode.',
+        "hero_aud2b": 'Caregiver mode',
+        "hero_aud3t": 'לרופאים ומרפאות',
+        "hero_aud3d": 'המטופל מגיע עם היסטוריה מסודרת. פחות שיחות שגרתיות.',
+        "hero_aud3b": 'חיסכון בזמן',
+        "hero_s1l": 'דיוק Triage (Semigran-45)',
+        "hero_s2l": 'Unsafe undertriage',
+        "hero_s3l": 'Claude + GPT-4o חוות דעת שנייה',
+        "hero_gov_title": '🔒 שירותי בריאות דיגיטליים (gov.gr)',
+        "hero_gov_note": 'נפתח בכרטיסייה חדשה ב-gov.gr.',
+    },
 }
+# RTL languages — these need dir="rtl" in HTML blocks
+RTL_LANGS = {"ar", "ur", "lb", "he"}
+
 # For languages without a full UI translation, fall back to English
 def t(key):
     lang = st.session_state.get("lang", "el")
     return T.get(lang, T["en"]).get(key, T["en"].get(key, key))
 
-
+def is_rtl():
+    return st.session_state.get("lang", "el") in RTL_LANGS
 # UI_LANGUAGES: the languages available for the app interface itself.
 # These drive the st.session_state.lang toggle in the topbar.
 # Keep to languages where the full UI strings are translated (el/en).
@@ -3030,6 +3355,9 @@ OUTPUT_LANGUAGES = {
     "de": ("🇩🇪 Deutsch",   "German (Deutsch)"),
     "fr": ("🇫🇷 Français",  "French (Français)"),
     "pa": ("🇵🇰 ਪੰਜਾਬੀ",   "Punjabi (ਪੰਜਾਬੀ)"),
+    "zh": ("🇨🇳 中文",      "Chinese (中文)"),
+    "lb": ("🇱🇧 عربي لبناني", "Lebanese Arabic (عربي لبناني)"),
+    "he": ("🇮🇱 עברית",    "Hebrew (עברית)"),
 }
 
 def output_lang_code():
@@ -6326,6 +6654,17 @@ if CM is not None and is_logged_in() and not st.session_state.get("_cookie_synce
 
 screen=st.session_state.screen
 render_topbar()
+# RTL global override — applied once per render for Arabic/Hebrew/Urdu/Lebanese
+if is_rtl():
+    st.markdown("""
+<style>
+.stApp, .stMarkdown, .stTextInput, .stSelectbox, .stTextArea,
+div[data-testid="stForm"], div[data-testid="column"] {
+  direction: rtl !important; text-align: right !important;
+}
+input, textarea, select { direction: rtl !important; text-align: right !important; }
+</style>
+""", unsafe_allow_html=True)
 if st.session_state.pop("_fs_banner", False):
     v_loaded = st.session_state.vitals
     metrics  = [f"HR:{v_loaded['hr']}bpm" if "hr" in v_loaded else "",
