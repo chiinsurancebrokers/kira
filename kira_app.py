@@ -551,6 +551,7 @@ def get_openai_key():  return _key("OPENAI_API_KEY")
 def get_groq_key():    return _key("GROQ_API_KEY")
 def get_ncbi_key():    return _key("NCBI_API_KEY")
 def get_a2e_key():     return _key("A2E_API_KEY")
+def get_admin_password(): return _key("ADMIN_PASSWORD")
 
 def render_physio_card(condition_hint, lang="el", refs_override=None):
     """Render a Physiotherapy & Rehabilitation evidence card.
@@ -592,7 +593,7 @@ def render_physio_card(condition_hint, lang="el", refs_override=None):
     st.markdown(f"""
 <style>
 .physio-card {{
-  background: white; border: 1px solid #A7F3D0; border-radius: 16px;
+  background: white; border: 1px solid #A7F3D0; border-radius: 22px;
   padding: 20px 22px; margin: 16px 0;
   font-family: 'Inter', system-ui, sans-serif;
   box-shadow: 0 2px 8px rgba(5,150,105,0.07);
@@ -737,7 +738,7 @@ def render_psychology_card(lang="el", refs_override=None):
     st.markdown(f"""
 <style>
 .psych-card {{
-  background: white; border: 1px solid #C7D2FE; border-radius: 16px;
+  background: white; border: 1px solid #C7D2FE; border-radius: 22px;
   padding: 20px 22px; margin: 16px 0;
   font-family: 'Inter', system-ui, sans-serif;
   box-shadow: 0 2px 8px rgba(99,102,241,0.07);
@@ -1065,9 +1066,10 @@ def render_login_gate():
     return is_logged_in()
 
 def render_ad_banner(lang):
-    """Editorial-style value-prop banner shown on the login screen. Uses pure
-    st.markdown (no iframe → no deprecation, no JS). Editorial typography
-    inspired by Cira but with HONEST claims only:
+    """Formeto-inspired value-prop banner shown on the login screen: soft-circle
+    icons, large rounded cards, single blue accent — same visual language as
+    the bottom-nav/history redesign, replacing the earlier Playfair-serif
+    editorial treatment. Same honest claims as before:
       • Heart rate yes (rPPG is reliable for HR)
       • NO blood pressure or "30+ vitals" promise — rPPG can't reliably do those
       • GDPR not HIPAA — we are EU-based
@@ -1107,83 +1109,76 @@ def render_ad_banner(lang):
         }
     css = """
 <style>
-@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,700;1,700;1,800;1,900&family=Inter:wght@400;500;600;700&display=swap');
 .ad-hero {
-  background: linear-gradient(180deg, #FAF7F2 0%, #F2EDE3 100%);
-  border-radius: 28px; padding: 60px 40px 36px;
+  background: #F4F6FF;
+  border-radius: 28px; padding: 44px 32px 32px;
   margin: 12px 0 28px; text-align: center;
   font-family: 'Inter', system-ui, sans-serif;
-  border: 1px solid rgba(122, 47, 224, 0.08);
+  border: 1px solid #E0E5FF;
 }
 .ad-pill {
   display: inline-flex; align-items: center; gap: 12px;
-  background: white; border: 1px solid #E5E7EB;
+  background: white; border: 1px solid #E0E5FF;
   border-radius: 999px; padding: 8px 18px;
-  font-size: 11.5px; font-weight: 700; letter-spacing: 0.1em;
-  color: #7B2FE0; margin-bottom: 24px;
-  box-shadow: 0 1px 2px rgba(0,0,0,0.03);
+  font-size: 11.5px; font-weight: 700; letter-spacing: 0.08em;
+  color: #2D3FE7; margin-bottom: 20px;
+  box-shadow: 0 1px 3px rgba(45,63,231,0.06);
 }
 .ad-pill .sep { color: #D1D5DB; font-weight: 400; }
 .ad-pill .gdpr { color: #10B981; letter-spacing: 0.04em; }
 .ad-title {
-  font-family: 'Playfair Display', Georgia, serif;
-  font-size: 60px; font-weight: 700; line-height: 1.02;
-  letter-spacing: -2px; color: #1A1A2E; margin: 0 0 4px;
+  font-size: 42px; font-weight: 800; line-height: 1.12;
+  letter-spacing: -1px; color: #1A1A2E; margin: 0 0 4px;
 }
 .ad-title .word { display: inline-block; }
-.ad-title .accent {
-  color: #D946EF; font-style: italic; font-weight: 900;
-  letter-spacing: -2.5px;
-}
+.ad-title .accent { color: #2D3FE7; }
 .ad-sub {
-  font-size: 16.5px; color: #4B5563;
-  max-width: 580px; margin: 22px auto 38px;
+  font-size: 16px; color: #4B5563;
+  max-width: 540px; margin: 16px auto 32px;
   line-height: 1.6; font-weight: 400;
 }
 
-/* 3-card flow with mockup-style content */
+/* Formeto-style square cards: soft-circle icon on top, content below */
 .ad-flow {
   display: flex; align-items: stretch; justify-content: center;
-  gap: 14px; margin: 36px 0 38px; flex-wrap: wrap;
+  gap: 16px; margin: 32px 0 32px; flex-wrap: wrap;
 }
 .ad-card {
-  background: white; border: 1px solid #ECEEF3;
-  border-radius: 18px; padding: 18px 16px 18px;
-  width: 210px; max-width: 230px; min-height: 130px;
-  box-shadow: 0 3px 10px rgba(26, 26, 46, 0.05);
-  display: flex; flex-direction: column;
+  background: white; border: 1px solid #E0E5FF;
+  border-radius: 22px; padding: 22px 18px;
+  width: 200px; max-width: 230px; min-height: 150px;
+  box-shadow: 0 2px 10px rgba(45,63,231,0.05);
+  display: flex; flex-direction: column; align-items: flex-start;
   text-align: left;
 }
+.ad-card-icon {
+  width: 42px; height: 42px; border-radius: 50%;
+  background: #E8ECFE; display: flex; align-items: center;
+  justify-content: center; font-size: 19px; margin-bottom: 12px;
+}
 .ad-card-label {
-  font-size: 10px; font-weight: 700; letter-spacing: 0.14em;
+  font-size: 10px; font-weight: 700; letter-spacing: 0.12em;
   color: #9CA3AF; text-transform: uppercase; margin-bottom: 10px;
-  display: flex; align-items: center; gap: 6px;
 }
-.ad-card-label .dot {
-  width: 6px; height: 6px; border-radius: 50%;
-}
-.ad-card-1 .ad-card-label .dot { background: #2D3FE7; }
-.ad-card-2 .ad-card-label .dot { background: #DC2626; }
-.ad-card-3 .ad-card-label .dot { background: #059669; }
 
 /* Card 1: Chat bubble */
 .ad-bubble {
-  background: #F4F1FB; border-radius: 14px 14px 14px 4px;
+  background: #F4F6FF; border-radius: 12px 12px 12px 4px;
   padding: 11px 13px; font-size: 13px;
   color: #1A1A2E; line-height: 1.45; font-style: italic;
-  font-weight: 500;
+  font-weight: 500; width: 100%;
 }
 /* Card 2: Vitals readout */
-.ad-vitals { display: flex; flex-direction: column; gap: 8px; }
+.ad-vitals { display: flex; flex-direction: column; gap: 8px; width: 100%; }
 .ad-vital-row {
   display: flex; align-items: center; justify-content: space-between;
-  background: #FAFBFC; border-radius: 9px;
+  background: #F7F8FC; border-radius: 9px;
   padding: 8px 11px; font-size: 12.5px;
 }
-.ad-vital-row .lbl { color: #6B7280; font-weight: 600; letter-spacing: 0.04em; }
+.ad-vital-row .lbl { color: #6B7280; font-weight: 600; letter-spacing: 0.02em; }
 .ad-vital-row .val { color: #1A1A2E; font-weight: 700; font-variant-numeric: tabular-nums; }
 /* Card 3: Report checklist */
-.ad-report { display: flex; flex-direction: column; gap: 7px; }
+.ad-report { display: flex; flex-direction: column; gap: 7px; width: 100%; }
 .ad-report-line {
   display: flex; align-items: center; gap: 9px;
   font-size: 13px; color: #1A1A2E; font-weight: 500;
@@ -1196,16 +1191,16 @@ def render_ad_banner(lang):
 }
 .ad-arrow {
   display: flex; align-items: center;
-  font-size: 22px; color: #D946EF; font-weight: 700; opacity: 0.5;
+  font-size: 20px; color: #2D3FE7; font-weight: 700; opacity: 0.4;
 }
 
-/* Trust badges — inline with dot separators (Cira-style) */
+/* Trust badges — inline with dot separators */
 .ad-trust {
   display: flex; justify-content: center; align-items: center;
   gap: 10px; flex-wrap: wrap; font-size: 12.5px;
   color: #6B7280; font-weight: 500;
-  padding-top: 14px; border-top: 1px solid rgba(0,0,0,0.05);
-  margin-top: 20px;
+  padding-top: 14px; border-top: 1px solid #E0E5FF;
+  margin-top: 16px;
 }
 .ad-trust .item { white-space: nowrap; }
 .ad-trust .sep-dot {
@@ -1214,13 +1209,12 @@ def render_ad_banner(lang):
 }
 
 @media (max-width: 640px) {
-  .ad-hero { padding: 36px 22px 28px; border-radius: 22px; }
-  .ad-title { font-size: 36px; letter-spacing: -1.2px; }
-  .ad-title .accent { letter-spacing: -1.5px; }
-  .ad-sub { font-size: 14.5px; margin: 18px auto 28px; }
+  .ad-hero { padding: 32px 20px 24px; border-radius: 22px; }
+  .ad-title { font-size: 30px; letter-spacing: -0.6px; }
+  .ad-sub { font-size: 14.5px; margin: 14px auto 24px; }
   .ad-arrow { display: none; }
-  .ad-card { width: 100%; max-width: 340px; padding: 14px; min-height: auto; }
-  .ad-flow { gap: 10px; margin: 24px 0 28px; }
+  .ad-card { width: 100%; max-width: 340px; padding: 18px; min-height: auto; }
+  .ad-flow { gap: 10px; margin: 24px 0 24px; }
   .ad-trust { gap: 6px; font-size: 11.5px; }
   .ad-pill { font-size: 10.5px; padding: 7px 14px; }
 }
@@ -1237,12 +1231,14 @@ def render_ad_banner(lang):
   <p class="ad-sub">{d["sub"]}</p>
   <div class="ad-flow">
     <div class="ad-card ad-card-1">
-      <div class="ad-card-label"><span class="dot"></span>{d["s1_lbl"]}</div>
+      <div class="ad-card-icon">💬</div>
+      <div class="ad-card-label">{d["s1_lbl"]}</div>
       <div class="ad-bubble">{d["s1_text"]}</div>
     </div>
     <div class="ad-arrow">→</div>
     <div class="ad-card ad-card-2">
-      <div class="ad-card-label"><span class="dot"></span>{d["s2_lbl"]}</div>
+      <div class="ad-card-icon">❤️</div>
+      <div class="ad-card-label">{d["s2_lbl"]}</div>
       <div class="ad-vitals">
         <div class="ad-vital-row"><span class="lbl">❤️ {d["s2_v1"]}</span><span class="val">{d["s2_v1v"]}</span></div>
         <div class="ad-vital-row"><span class="lbl">💉 {d["s2_v2"]}</span><span class="val">{d["s2_v2v"]}</span></div>
@@ -1250,7 +1246,8 @@ def render_ad_banner(lang):
     </div>
     <div class="ad-arrow">→</div>
     <div class="ad-card ad-card-3">
-      <div class="ad-card-label"><span class="dot"></span>{d["s3_lbl"]}</div>
+      <div class="ad-card-icon">📋</div>
+      <div class="ad-card-label">{d["s3_lbl"]}</div>
       <div class="ad-report">
         <div class="ad-report-line"><span class="check">✓</span>{d["s3_l1"]}</div>
         <div class="ad-report-line"><span class="check">✓</span>{d["s3_l2"]}</div>
@@ -1431,6 +1428,261 @@ def render_login_screen():
     render_explainer_video(lang)
     st.markdown(f'<div class="disclaimer">{t("disclaimer_main")}</div>', unsafe_allow_html=True)
 
+
+# ── ADMIN PANEL ─────────────────────────────────────────────────────────────────
+# Reached via ?admin=1 in the URL (e.g. asklepiosainurse.up.railway.app/?admin=1).
+# Completely separate from the patient OTP login — gated by a single shared
+# password (ADMIN_PASSWORD secret), since this is for internal/business use,
+# not patient accounts. Session-only: closing the tab requires re-entering
+# the password (no persistent admin cookie, by design — this controls content
+# other people see, so we don't want it staying logged in indefinitely on a
+# shared/public computer).
+
+def _admin_is_unlocked():
+    return bool(st.session_state.get("_admin_unlocked"))
+
+def render_admin_gate():
+    """Password prompt for the admin panel. Returns True once unlocked."""
+    if _admin_is_unlocked():
+        return True
+    st.markdown("""
+<div style="max-width:380px;margin:60px auto 0;text-align:center">
+  <div style="font-size:34px;margin-bottom:8px">🔐</div>
+  <div style="font-size:18px;font-weight:800;color:#1A1A2E">Admin Panel</div>
+  <div style="font-size:13px;color:#6B7280;margin-top:4px">Asklepios · Internal</div>
+</div>
+""", unsafe_allow_html=True)
+    col1, col2, col3 = st.columns([1,2,1])
+    with col2:
+        with st.container(border=True):
+            pw = st.text_input("Password", type="password", key="admin_pw_input")
+            if st.button("Unlock", type="primary", use_container_width=True, key="admin_unlock_btn"):
+                expected = get_admin_password()
+                if not expected:
+                    st.error("ADMIN_PASSWORD δεν έχει ρυθμιστεί στα Railway Variables.")
+                elif pw == expected:
+                    st.session_state["_admin_unlocked"] = True
+                    st.rerun()
+                else:
+                    st.error("Λάθος password.")
+    return False
+
+
+def _admin_video_tab():
+    st.markdown("#### 🎬 Intro Video")
+    st.caption(
+        "Το βίντεο που βλέπουν οι χρήστες στην αρχική σελίδα. Παράγεται εκτός "
+        "εφαρμογής (π.χ. με A2E Talking Photo) — εδώ μπαίνει μόνο το τελικό URL."
+    )
+    for lang_code, lang_lbl in (("el", "🇬🇷 Ελληνικά"), ("en", "🇬🇧 English")):
+        cur = get_setting(f"intro_video_url_{lang_code}", "") or ""
+        with st.container(border=True):
+            st.markdown(f"**{lang_lbl}**")
+            new_url = st.text_input(
+                "Video URL", value=cur, key=f"admin_video_{lang_code}",
+                label_visibility="collapsed", placeholder="https://.../video.mp4",
+            )
+            if new_url:
+                st.video(new_url)
+            if st.button("Αποθήκευση", key=f"admin_video_save_{lang_code}"):
+                if set_setting(f"intro_video_url_{lang_code}", new_url):
+                    st.success("Αποθηκεύτηκε.")
+                else:
+                    st.error("Αποτυχία αποθήκευσης — έλεγξε ότι υπάρχει ο πίνακας app_settings στη Supabase.")
+    st.caption(
+        "ℹ️ Αυτό αντικαθιστά τα παλιά secrets A2E_INTRO_VIDEO_URL_EL/_EN — αν "
+        "υπάρχει τιμή εδώ, έχει προτεραιότητα έναντι του secret."
+    )
+
+
+def _admin_partners_tab():
+    st.markdown("#### 🏥 Συμβεβλημένα Νοσοκομεία / Ιατρεία")
+    st.caption("Λίστα partners για τη B2B έκδοση — εμφανίζονται στο app στους χρήστες όταν χρειάζονται παραπομπή.")
+    with st.expander("➕ Νέος Partner", expanded=False):
+        c1, c2 = st.columns(2)
+        with c1:
+            p_name = st.text_input("Όνομα", key="np_name")
+            p_spec = st.text_input("Ειδικότητα / Τύπος", key="np_spec", placeholder="π.χ. Καρδιολογικό, Γενικό Νοσοκομείο")
+            p_city = st.text_input("Πόλη", key="np_city")
+        with c2:
+            p_phone = st.text_input("Τηλέφωνο", key="np_phone")
+            p_email = st.text_input("Email", key="np_email")
+            p_site  = st.text_input("Website", key="np_site")
+        p_notes = st.text_area("Σημειώσεις", key="np_notes", height=70)
+        if st.button("Προσθήκη", type="primary", key="np_add"):
+            if p_name:
+                ok = _admin_insert("partners", {
+                    "name": p_name, "specialty": p_spec, "city": p_city,
+                    "phone": p_phone, "email": p_email, "website": p_site,
+                    "notes": p_notes, "active": True,
+                })
+                if ok:
+                    st.success(f"Προστέθηκε: {p_name}"); st.rerun()
+                else:
+                    st.error("Αποτυχία — έλεγξε ότι υπάρχει ο πίνακας 'partners' στη Supabase.")
+            else:
+                st.warning("Το όνομα είναι απαραίτητο.")
+
+    partners = _admin_list("partners")
+    if not partners:
+        st.info("Δεν υπάρχουν partners ακόμα.")
+    for row in partners:
+        with st.container(border=True):
+            c1, c2 = st.columns([5,1])
+            with c1:
+                st.markdown(f"**{row.get('name','—')}** · {row.get('specialty','—')} · {row.get('city','—')}")
+                _contact = " · ".join(x for x in [row.get("phone",""), row.get("email",""), row.get("website","")] if x)
+                if _contact:
+                    st.caption(_contact)
+                if row.get("notes"):
+                    st.caption(f"📝 {row['notes']}")
+            with c2:
+                _active = row.get("active", True)
+                _rid = row.get("id", "")
+                if st.button("✓ Ενεργό" if _active else "✕ Ανενεργό", key=f"pt_toggle_{_rid}"):
+                    _admin_update("partners", _rid, {"active": not _active}); st.rerun()
+                if st.button("🗑️", key=f"pt_del_{_rid}"):
+                    _admin_delete("partners", _rid); st.rerun()
+
+
+def _admin_articles_tab():
+    st.markdown("#### 📰 Άρθρα / Blog")
+    st.caption("Άρθρα από ιατρούς ή επιστημονικά περιοδικά — εμφανίζονται στην ενότητα 'Άρθρα' του app.")
+    with st.expander("➕ Νέο Άρθρο", expanded=False):
+        a_title = st.text_input("Τίτλος", key="na_title")
+        c1, c2 = st.columns(2)
+        with c1:
+            a_author = st.text_input("Συγγραφέας", key="na_author", placeholder="π.χ. Δρ. Ιωάννου")
+            a_source = st.text_input("Πηγή", key="na_source", placeholder="π.χ. Ελληνική Καρδιολογική Εταιρεία")
+        with c2:
+            a_lang = st.selectbox("Γλώσσα", ["el", "en"], key="na_lang")
+            a_pub  = st.date_input("Ημερομηνία δημοσίευσης", key="na_pub", value=datetime.now())
+        a_summary = st.text_area("Σύνοψη", key="na_summary", height=70)
+        a_body = st.text_area("Πλήρες κείμενο (προαιρετικό — αν λείπει, δείχνει μόνο σύνοψη + link)", key="na_body", height=140)
+        c3, c4 = st.columns(2)
+        with c3:
+            a_url = st.text_input("Εξωτερικό link (προαιρετικό)", key="na_url", placeholder="https://...")
+        with c4:
+            a_img = st.text_input("Εικόνα URL (προαιρετικό)", key="na_img", placeholder="https://...")
+        if st.button("Δημοσίευση", type="primary", key="na_add"):
+            if a_title and a_summary:
+                ok = _admin_insert("articles", {
+                    "title": a_title, "author": a_author, "source": a_source,
+                    "summary": a_summary, "body": a_body, "url": a_url,
+                    "image_url": a_img, "lang": a_lang,
+                    "published_at": a_pub.isoformat(), "active": True,
+                })
+                if ok:
+                    st.success(f"Δημοσιεύτηκε: {a_title}"); st.rerun()
+                else:
+                    st.error("Αποτυχία — έλεγξε ότι υπάρχει ο πίνακας 'articles' στη Supabase.")
+            else:
+                st.warning("Τίτλος και σύνοψη είναι απαραίτητα.")
+
+    articles = _admin_list("articles", order_col="published_at")
+    if not articles:
+        st.info("Δεν υπάρχουν άρθρα ακόμα.")
+    for row in articles:
+        with st.container(border=True):
+            c1, c2 = st.columns([5,1])
+            with c1:
+                _flag = "🇬🇷" if row.get("lang") == "el" else "🇬🇧"
+                st.markdown(f"**{_flag} {row.get('title','—')}**")
+                _meta = " · ".join(x for x in [row.get("author",""), row.get("source",""), str(row.get("published_at",""))] if x)
+                if _meta:
+                    st.caption(_meta)
+                st.caption((row.get("summary") or "")[:160])
+            with c2:
+                _active = row.get("active", True)
+                _rid = row.get("id", "")
+                if st.button("✓ Live" if _active else "✕ Κρυφό", key=f"ar_toggle_{_rid}"):
+                    _admin_update("articles", _rid, {"active": not _active}); st.rerun()
+                if st.button("🗑️", key=f"ar_del_{_rid}"):
+                    _admin_delete("articles", _rid); st.rerun()
+
+
+def _admin_campaigns_tab():
+    st.markdown("#### 📢 Banners / Campaigns")
+    st.caption(
+        "Banner ή pop-up διαφημίσεις από νοσοκομεία — π.χ. για παγκόσμιες ημέρες, "
+        "καλοκαιρινό check-up, παιδιατρικό έλεγχο πριν τα σχολεία. Εμφανίζονται "
+        "αυτόματα μόνο μέσα στο εύρος ημερομηνιών που ορίζεις."
+    )
+    with st.expander("➕ Νέο Campaign", expanded=False):
+        c_title = st.text_input("Τίτλος", key="nc_title", placeholder="π.χ. Καλοκαιρινός Έλεγχος Σπίλων")
+        c1, c2 = st.columns(2)
+        with c1:
+            c_img = st.text_input("Εικόνα URL", key="nc_img", placeholder="https://...")
+            c_placement = st.selectbox("Τοποθέτηση", ["banner", "popup"], key="nc_placement")
+        with c2:
+            c_link = st.text_input("Link (όταν πατηθεί)", key="nc_link", placeholder="https://...")
+        c3, c4 = st.columns(2)
+        with c3:
+            c_start = st.date_input("Από", key="nc_start", value=datetime.now())
+        with c4:
+            c_end = st.date_input("Έως", key="nc_end", value=datetime.now())
+        if st.button("Δημιουργία", type="primary", key="nc_add"):
+            if c_title:
+                ok = _admin_insert("campaigns", {
+                    "title": c_title, "image_url": c_img, "link_url": c_link,
+                    "placement": c_placement,
+                    "starts_on": c_start.isoformat(), "ends_on": c_end.isoformat(),
+                    "active": True,
+                })
+                if ok:
+                    st.success(f"Δημιουργήθηκε: {c_title}"); st.rerun()
+                else:
+                    st.error("Αποτυχία — έλεγξε ότι υπάρχει ο πίνακας 'campaigns' στη Supabase.")
+            else:
+                st.warning("Ο τίτλος είναι απαραίτητος.")
+
+    campaigns = _admin_list("campaigns", order_col="starts_on")
+    if not campaigns:
+        st.info("Δεν υπάρχουν campaigns ακόμα.")
+    _today = datetime.now().date().isoformat()
+    for row in campaigns:
+        with st.container(border=True):
+            c1, c2 = st.columns([5,1])
+            with c1:
+                _live = row.get("active", True) and row.get("starts_on","") <= _today <= row.get("ends_on","9999-12-31")
+                _badge = "🟢 LIVE" if _live else "⚪ Ανενεργό/Εκτός εύρους"
+                st.markdown(f"**{row.get('title','—')}** — {_badge}")
+                st.caption(f"📅 {row.get('starts_on','—')} → {row.get('ends_on','—')} · {row.get('placement','banner')}")
+                if row.get("image_url"):
+                    st.caption(f"🖼️ {row['image_url']}")
+            with c2:
+                _active = row.get("active", True)
+                _rid = row.get("id", "")
+                if st.button("✓ Ενεργό" if _active else "✕ Ανενεργό", key=f"cp_toggle_{_rid}"):
+                    _admin_update("campaigns", _rid, {"active": not _active}); st.rerun()
+                if st.button("🗑️", key=f"cp_del_{_rid}"):
+                    _admin_delete("campaigns", _rid); st.rerun()
+
+
+def render_admin_panel():
+    """Full admin dashboard — video config, B2B partners, blog articles, ad
+    campaigns. Reached via ?admin=1, gated by render_admin_gate()."""
+    st.markdown("""
+<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px">
+  <div style="font-size:22px;font-weight:800;color:#1A1A2E">🔐 Asklepios Admin</div>
+</div>
+""", unsafe_allow_html=True)
+    if not _supabase_client():
+        st.warning(
+            "⚠️ Η Supabase δεν είναι ρυθμισμένη (SUPABASE_URL / SUPABASE_ANON_KEY) — "
+            "οι αλλαγές εδώ δεν θα αποθηκευτούν."
+        )
+    tabs = st.tabs(["🎬 Video", "🏥 Partners", "📰 Άρθρα", "📢 Campaigns"])
+    with tabs[0]: _admin_video_tab()
+    with tabs[1]: _admin_partners_tab()
+    with tabs[2]: _admin_articles_tab()
+    with tabs[3]: _admin_campaigns_tab()
+    st.divider()
+    if st.button("🔒 Κλείδωμα / Έξοδος"):
+        st.session_state["_admin_unlocked"] = False
+        st.rerun()
+
+
 def save_feedback(rating, comment=""):
     """Store a minimal, non-medical feedback row in Supabase. No report/identifiers."""
     sb = _supabase_client()
@@ -1443,6 +1695,97 @@ def save_feedback(rating, comment=""):
             "comment": (comment or "")[:1000],
             "lang": st.session_state.lang,
         }).execute()
+        return True
+    except Exception:
+        return False
+
+# ── ADMIN CONTENT STORAGE ──────────────────────────────────────────────────────
+# Everything the admin panel manages (intro video URL, partner hospitals,
+# blog articles, ad campaigns) lives in a small set of Supabase tables. If
+# Supabase isn't configured, these all fail soft (empty list / False) —
+# same "demo mode" pattern as save_feedback above. Expected schema (create
+# these tables once in the Supabase SQL editor):
+#
+#   app_settings(key text primary key, value jsonb, updated_at timestamptz)
+#   partners(id uuid default gen_random_uuid() primary key, name text,
+#            specialty text, city text, phone text, email text, website text,
+#            logo_url text, notes text, active boolean default true,
+#            created_at timestamptz default now())
+#   articles(id uuid default gen_random_uuid() primary key, title text,
+#            author text, source text, summary text, body text, url text,
+#            image_url text, published_at date, lang text default 'el',
+#            active boolean default true, created_at timestamptz default now())
+#   campaigns(id uuid default gen_random_uuid() primary key, title text,
+#             image_url text, link_url text, placement text default 'banner',
+#             starts_on date, ends_on date, active boolean default true,
+#             created_at timestamptz default now())
+
+def get_setting(key, default=None):
+    """Read one key from app_settings. Returns `default` on any failure
+    (table missing, Supabase not configured, key not found)."""
+    sb = _supabase_client()
+    if not sb:
+        return default
+    try:
+        res = sb.table("app_settings").select("value").eq("key", key).limit(1).execute()
+        rows = res.data or []
+        if rows:
+            return rows[0].get("value", default)
+    except Exception:
+        pass
+    return default
+
+def set_setting(key, value):
+    """Upsert one key into app_settings. Returns True/False."""
+    sb = _supabase_client()
+    if not sb:
+        return False
+    try:
+        sb.table("app_settings").upsert({"key": key, "value": value}).execute()
+        return True
+    except Exception:
+        return False
+
+def _admin_list(table, order_col="created_at", ascending=False):
+    """Generic 'fetch all rows' for the admin-managed tables. Returns []
+    on any failure instead of raising — admin pages should degrade to an
+    empty list (with an inline error already shown by the caller) rather
+    than crash the whole panel."""
+    sb = _supabase_client()
+    if not sb:
+        return []
+    try:
+        q = sb.table(table).select("*").order(order_col, desc=not ascending)
+        return (q.execute().data) or []
+    except Exception:
+        return []
+
+def _admin_insert(table, row):
+    sb = _supabase_client()
+    if not sb:
+        return False
+    try:
+        sb.table(table).insert(row).execute()
+        return True
+    except Exception:
+        return False
+
+def _admin_update(table, row_id, patch):
+    sb = _supabase_client()
+    if not sb:
+        return False
+    try:
+        sb.table(table).update(patch).eq("id", row_id).execute()
+        return True
+    except Exception:
+        return False
+
+def _admin_delete(table, row_id):
+    sb = _supabase_client()
+    if not sb:
+        return False
+    try:
+        sb.table(table).delete().eq("id", row_id).execute()
         return True
     except Exception:
         return False
@@ -2748,19 +3091,184 @@ renderList();
 
 
 def render_home():
+    """Formeto-style home screen, matching the approved mockup:
+      1) Topbar — wordmark + greeting + circular avatar with initial
+      2) Action-grid — 2 big square cards (Συμπτώματα / Ζωτικά) as the
+         primary entry points, replacing the old single 'Start' button
+      3) Group-card — 'Η Υγεία σου Σήμερα', stacked icon+label+value+bar
+         rows showing the most recent HR/BP and last report date
+    Intro video section (A2E) is left exactly as-is per explicit instruction
+    not to touch it right now."""
     lang = st.session_state.lang
     p = st.session_state.profile
     name = p.get("name", "")
-    today_str = datetime.now().strftime("%d.%m.%Y")
-    # Editorial banner — now visible on home too (no CTA, Start button is right below).
-    render_ad_banner(lang)
+    has_profile = bool(name)
+    el = (lang == "el")
+
+    # ── Shared styles for the Formeto-style home layout ──────────────────
+    st.markdown("""
+<style>
+.home-topbar { display:flex; align-items:center; justify-content:space-between; margin:4px 0 20px; }
+.home-brand { font-size:24px; font-weight:800; color:#1A1A2E; }
+.home-greeting { font-size:12.5px; color:#6B89B0; font-weight:600; margin-top:2px; }
+.home-avatar {
+  width:46px; height:46px; border-radius:50%; background:#2D3FE7;
+  display:flex; align-items:center; justify-content:center;
+  color:white; font-size:18px; font-weight:700;
+  box-shadow:0 4px 10px rgba(45,63,231,0.28); flex-shrink:0;
+}
+.home-action-grid { display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:18px; }
+.home-action-icon {
+  width:52px; height:52px; border-radius:50%; background:#E8ECFE; margin:0 auto 12px;
+  display:flex; align-items:center; justify-content:center; font-size:23px;
+}
+.home-action-icon.warm { background:#FFEFE8; }
+.home-action-label { font-size:14.5px; font-weight:700; color:#1A1A2E; line-height:1.3; }
+.home-group-title { font-size:15px; font-weight:800; color:#1A1A2E; margin-bottom:16px; }
+.home-vrow { display:flex; align-items:center; gap:13px; margin-bottom:16px; }
+.home-vrow:last-child { margin-bottom:0; }
+.home-vrow-icon {
+  width:38px; height:38px; border-radius:50%; background:#E8ECFE; flex-shrink:0;
+  display:flex; align-items:center; justify-content:center; font-size:17px;
+}
+.home-vrow-body { flex:1; min-width:0; }
+.home-vrow-top { display:flex; justify-content:space-between; align-items:baseline; margin-bottom:6px; }
+.home-vrow-label { font-size:13.5px; font-weight:700; color:#1A1A2E; }
+.home-vrow-val { font-size:13px; font-weight:700; color:#2D3FE7; }
+.home-vrow-bar { height:6px; background:#EAF0FB; border-radius:6px; overflow:hidden; }
+.home-vrow-bar-fill { height:100%; border-radius:6px; background:#2D3FE7; }
+.home-vrow-bar-fill.ok { background:#10B981; }
+.home-vrow-bar-fill.warn { background:#F59E0B; }
+.home-vrow-bar-fill.danger { background:#EF4444; }
+.home-emergency {
+  background:#FEF2F2; border:1px solid #FECACA; border-radius:12px;
+  padding:13px 16px; font-size:12.5px; color:#7F1D1D; line-height:1.55; margin-top:18px;
+}
+.home-emergency strong { color:#991B1B; }
+.home-campaign-banner {
+  background: white; border: 1px solid #E0E5FF; border-radius: 18px;
+  padding: 14px 16px; margin-bottom: 16px;
+  display: flex; align-items: center; gap: 12px;
+  box-shadow: 0 2px 8px rgba(45,63,231,0.06);
+  text-decoration: none;
+}
+.home-campaign-banner img {
+  width: 44px; height: 44px; border-radius: 12px; object-fit: cover; flex-shrink: 0;
+}
+.home-campaign-banner .cb-title { font-size:13.5px; font-weight:700; color:#1A1A2E; }
+.home-campaign-banner .cb-sub { font-size:11.5px; color:#6B89B0; margin-top:1px; }
+</style>
+""", unsafe_allow_html=True)
+
+    # ── Active campaign banner + popup (admin-managed, see render_admin_panel) ──
+    # Banner: a small inline card at the top of Home, always visible while active.
+    # Popup: a dismissible modal (st.dialog), shown ONCE per browser session —
+    # tracked via st.session_state so it doesn't reappear on every rerun/click
+    # within the same visit. Both use the same date-range filtering logic.
+    _today_iso = datetime.now().date().isoformat()
+    _all_active_campaigns = [c for c in _admin_list("campaigns", order_col="starts_on")
+                              if c.get("active", True)
+                              and c.get("starts_on", "") <= _today_iso <= c.get("ends_on", "9999-12-31")]
+    _campaigns = [c for c in _all_active_campaigns if c.get("placement", "banner") == "banner"]
+    if _campaigns:
+        _camp = _campaigns[0]
+        _img_html = f'<img src="{_camp["image_url"]}">' if _camp.get("image_url") else ""
+        _link = _camp.get("link_url") or "#"
+        st.markdown(
+            f'<a href="{_link}" target="_blank" class="home-campaign-banner">'
+            f'{_img_html}'
+            f'<div><div class="cb-title">{_camp.get("title","")}</div>'
+            f'<div class="cb-sub">{"Ενημέρωση από συνεργαζόμενο φορέα" if el else "Update from a partner organisation"}</div></div>'
+            f'</a>',
+            unsafe_allow_html=True,
+        )
+
+    _popups = [c for c in _all_active_campaigns if c.get("placement", "banner") == "popup"]
+    if _popups:
+        _pop = _popups[0]
+        _seen_key = f"_popup_seen_{_pop.get('id') or _pop.get('title','')}"
+        if not st.session_state.get(_seen_key):
+            @st.dialog(_pop.get("title", ""))
+            def _show_campaign_popup():
+                if _pop.get("image_url"):
+                    st.image(_pop["image_url"], use_container_width=True)
+                st.write(_pop.get("title", ""))
+                c1, c2 = st.columns(2)
+                with c1:
+                    if _pop.get("link_url"):
+                        st.link_button(
+                            "Περισσότερα →" if el else "Learn more →",
+                            _pop["link_url"], use_container_width=True,
+                        )
+                with c2:
+                    if st.button("Κλείσιμο" if el else "Close", use_container_width=True):
+                        st.session_state[_seen_key] = True
+                        st.rerun()
+            _show_campaign_popup()
+            st.session_state[_seen_key] = True
+
+    # ── 1) Topbar ─────────────────────────────────────────────────────────
+    initial = (name[:1] or "?").upper() if name else "?"
+    greeting = (f"Καλημέρα, {name}" if name else "Καλημέρα!") if el else (f"Hi, {name}" if name else "Hi there!")
+    st.markdown(f"""
+<div class="home-topbar">
+  <div>
+    <div class="home-brand">Asklepios</div>
+    <div class="home-greeting">{greeting}</div>
+  </div>
+  <div class="home-avatar">{initial}</div>
+</div>
+""", unsafe_allow_html=True)
+
+    # ── 2) Action grid — 2 big cards, the primary navigation entry points ──
+    def _go(target):
+        st.session_state.screen = target if has_profile else "intake"
+        st.rerun()
+
+    # Same reliable marker+:has() pattern already used for the bottom nav:
+    # a hidden marker inside each card's container lets us target that
+    # specific container's button via CSS, since Streamlit buttons carry no
+    # per-instance attribute we could otherwise select on.
+    st.markdown("""
+<style>
+div[data-testid="stVerticalBlock"]:has(> div[data-testid="stElementContainer"] .home-action-marker) button {
+  background: transparent !important; border: none !important; box-shadow: none !important;
+  color: #1A1A2E !important; font-weight: 700 !important; font-size: 14.5px !important;
+  padding: 4px 0 0 !important; line-height: 1.3 !important;
+}
+</style>
+""", unsafe_allow_html=True)
+
+    ac1, ac2 = st.columns(2, gap="small")
+    with ac1:
+        with st.container(border=True):
+            st.markdown(
+                '<div class="home-action-marker"></div>'
+                '<div style="text-align:center"><div class="home-action-icon">💬</div></div>',
+                unsafe_allow_html=True,
+            )
+            _lbl1 = ("Έλεγχος Συμπτωμάτων" if el else "Symptom Check")
+            if st.button(_lbl1, key="home_go_triage", use_container_width=True):
+                _go("triage")
+    with ac2:
+        with st.container(border=True):
+            st.markdown(
+                '<div class="home-action-marker"></div>'
+                '<div style="text-align:center"><div class="home-action-icon warm">❤️</div></div>',
+                unsafe_allow_html=True,
+            )
+            _lbl2 = ("Ζωτικά Σημεία" if el else "Vital Signs")
+            if st.button(_lbl2, key="home_go_vitals", use_container_width=True):
+                _go("vitals")
+
     # ── Intro video (A2E avatar) ─────────────────────────────────────────
     # Pre-generated ONCE offline via a2e_intro_video.py (not at runtime — we
     # don't want to spend A2E credits on every page load). The resulting mp4
     # URL is stored as a secret, same pattern as the other API keys. If it's
     # not configured yet, this section simply doesn't render — no broken UI,
     # no placeholder box.
-    _intro_url = _key(f"A2E_INTRO_VIDEO_URL_{lang.upper()}") or _key("A2E_INTRO_VIDEO_URL_EL")
+    _intro_url = (get_setting(f"intro_video_url_{lang}") or get_setting("intro_video_url_el")
+                  or _key(f"A2E_INTRO_VIDEO_URL_{lang.upper()}") or _key("A2E_INTRO_VIDEO_URL_EL"))
     if _intro_url:
         with st.container(border=True):
             st.markdown(
@@ -2768,164 +3276,72 @@ def render_home():
                  else "##### 🎬 How Asklepios works"),
             )
             st.video(_intro_url)
-    # Doc-template "assessment sheet" card — Notion-clean white surface with
-    # doctor's-report aesthetic: title block, patient fields, checklist, blue emergency box.
-    if lang == "el":
-        txt = {
-            "org": "ASKLEPIOS · AI ΝΟΣΗΛΕΥΤΗΣ",
-            "title": "Φύλλο Εκτίμησης Υγείας",
-            "patient_lbl": "Όνομα:",
-            "date_lbl": "Ημερομηνία:",
-            "includes": "Τι περιλαμβάνει η εκτίμηση:",
-            "check1": "Κλινική εκτίμηση συμπτωμάτων",
-            "check2": "Αναφορές από PubMed (επιστημονική βιβλιογραφία)",
-            "check3": "Δεύτερη γνώμη GPT-4o",
-            "check4": "Έλεγχος αλληλεπιδράσεων φαρμάκων",
-            "check5": "PDF αναφορά για τον γιατρό σου",
-            "start": "📋 Ξεκίνα την εκτίμηση →",
-            "emergency_lbl": "Επείγον:",
-            "emergency_text": "Για πόνο στο στήθος, δυσκολία αναπνοής, σοβαρή αιμορραγία, απώλεια συνείδησης ή συμπτώματα εγκεφαλικού, καλέστε αμέσως 166 (ΕΚΑΒ) ή 112.",
-            "blank": "_____________________",
-        }
+
+    # ── 3) Group-card — 'Η Υγεία σου Σήμερα' ───────────────────────────────
+    v = st.session_state.vitals or {}
+    status = classify_vitals(v, age=p.get("age")) if v else {}
+    _color_class = {"green": "ok", "yellow": "warn", "red": "danger"}
+
+    rows_html = ""
+    if "hr" in v:
+        c = _color_class.get(status.get("hr", "green"), "ok")
+        rows_html += f"""
+  <div class="home-vrow">
+    <div class="home-vrow-icon">❤️</div>
+    <div class="home-vrow-body">
+      <div class="home-vrow-top"><span class="home-vrow-label">{"Καρδιακός Ρυθμός" if el else "Heart Rate"}</span><span class="home-vrow-val">{v['hr']} bpm</span></div>
+      <div class="home-vrow-bar"><div class="home-vrow-bar-fill {c}" style="width:62%"></div></div>
+    </div>
+  </div>"""
+    if "bp_sys" in v and "bp_dia" in v:
+        c = _color_class.get(status.get("bp", "green"), "ok")
+        rows_html += f"""
+  <div class="home-vrow">
+    <div class="home-vrow-icon">🩸</div>
+    <div class="home-vrow-body">
+      <div class="home-vrow-top"><span class="home-vrow-label">{"Πίεση" if el else "Blood Pressure"}</span><span class="home-vrow-val">{v['bp_sys']}/{v['bp_dia']}</span></div>
+      <div class="home-vrow-bar"><div class="home-vrow-bar-fill {c}" style="width:70%"></div></div>
+    </div>
+  </div>"""
+    # Last report date — always shown, even with no vitals yet, as a clear
+    # "you haven't done this yet" cue when report is empty.
+    if st.session_state.report:
+        _last_label = "Τελευταία Αναφορά" if el else "Latest Report"
+        _last_val = datetime.now().strftime("%d %b")
+        _bar_w = "100%"
     else:
-        txt = {
-            "org": "ASKLEPIOS · AI NURSE",
-            "title": "Health Assessment Sheet",
-            "patient_lbl": "Name:",
-            "date_lbl": "Date:",
-            "includes": "What this assessment includes:",
-            "check1": "Clinical symptom evaluation",
-            "check2": "PubMed references (scientific literature)",
-            "check3": "GPT-4o second opinion",
-            "check4": "Drug interaction check",
-            "check5": "PDF report for your doctor",
-            "start": "📋 Start assessment →",
-            "emergency_lbl": "Emergency:",
-            "emergency_text": "For chest pain, difficulty breathing, severe bleeding, loss of consciousness, or stroke symptoms, call 166 (EKAB) or 112 immediately.",
-            "blank": "_____________________",
-        }
-    name_display = name if name else txt["blank"]
-    st.markdown(f"""
-<style>
-.doc-card {{
-  background: white;
-  border: 1px solid #E5E7EB;
-  border-radius: 16px;
-  padding: 36px 36px 32px;
-  margin: 8px 0 24px;
-  font-family: 'Inter', system-ui, sans-serif;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.04);
-}}
-.doc-head {{
-  display: flex; align-items: center; gap: 18px;
-  border-bottom: 1px solid #F3F4F6;
-  padding-bottom: 22px; margin-bottom: 26px;
-}}
-.doc-logo {{
-  width: 60px; height: 60px; border-radius: 50%;
-  background: #DBEAFE;
-  display: flex; align-items: center; justify-content: center;
-  font-size: 26px; flex-shrink: 0;
-}}
-.doc-head-text .org {{
-  font-size: 10.5px; font-weight: 700; letter-spacing: 0.14em;
-  color: #6B7280; text-transform: uppercase; margin-bottom: 4px;
-}}
-.doc-head-text .title {{
-  font-size: 26px; font-weight: 700; color: #111827;
-  letter-spacing: -0.02em; line-height: 1.15;
-}}
-.doc-fields {{
-  display: flex; gap: 36px; margin-bottom: 26px; flex-wrap: wrap;
-}}
-.doc-field {{ flex: 1; min-width: 200px; }}
-.doc-field label {{
-  display: block;
-  font-size: 12.5px; font-weight: 600; color: #374151;
-  margin-bottom: 6px;
-}}
-.doc-field .underline {{
-  font-size: 15px; color: #111827; font-weight: 500;
-  border-bottom: 1.5px solid #1F2937;
-  padding-bottom: 5px;
-}}
-.doc-section {{
-  font-size: 14px; font-weight: 700; color: #111827;
-  margin: 4px 0 14px;
-}}
-.doc-checklist {{
-  display: grid; grid-template-columns: 1fr 1fr;
-  gap: 11px 28px; margin-bottom: 26px;
-}}
-.doc-check-item {{
-  display: flex; align-items: flex-start; gap: 11px;
-  font-size: 13.5px; color: #374151; line-height: 1.5;
-}}
-.doc-check-box {{
-  width: 18px; height: 18px; border: 1.5px solid #2563EB;
-  border-radius: 4px; flex-shrink: 0;
-  display: flex; align-items: center; justify-content: center;
-  color: #2563EB; font-size: 11px; font-weight: 800;
-  background: #EFF6FF; margin-top: 1px;
-}}
-.doc-emergency {{
-  background: #DBEAFE;
-  border: 1px solid #93C5FD;
-  border-radius: 12px;
-  padding: 16px 18px;
-  font-size: 13px; color: #1E3A8A;
-  line-height: 1.55;
-}}
-.doc-emergency strong {{
-  color: #1E40AF; font-weight: 700;
-}}
-@media (max-width: 640px) {{
-  .doc-card {{ padding: 24px 20px 22px; }}
-  .doc-head {{ flex-direction: column; align-items: flex-start; gap: 12px; padding-bottom: 18px; margin-bottom: 20px; }}
-  .doc-logo {{ width: 50px; height: 50px; font-size: 22px; }}
-  .doc-head-text .title {{ font-size: 21px; }}
-  .doc-checklist {{ grid-template-columns: 1fr; gap: 10px; margin-bottom: 22px; }}
-  .doc-fields {{ gap: 18px; margin-bottom: 22px; }}
-}}
-</style>
-<div class="doc-card">
-  <div class="doc-head">
-    <div class="doc-logo">📋</div>
-    <div class="doc-head-text">
-      <div class="org">{txt['org']}</div>
-      <div class="title">{txt['title']}</div>
+        _last_label = "Τελευταία Αναφορά" if el else "Latest Report"
+        _last_val = "—" if el else "—"
+        _bar_w = "0%"
+    rows_html += f"""
+  <div class="home-vrow">
+    <div class="home-vrow-icon">🧪</div>
+    <div class="home-vrow-body">
+      <div class="home-vrow-top"><span class="home-vrow-label">{_last_label}</span><span class="home-vrow-val">{_last_val}</span></div>
+      <div class="home-vrow-bar"><div class="home-vrow-bar-fill" style="width:{_bar_w}"></div></div>
     </div>
-  </div>
-  <div class="doc-fields">
-    <div class="doc-field">
-      <label>{txt['patient_lbl']}</label>
-      <div class="underline">{name_display}</div>
-    </div>
-    <div class="doc-field">
-      <label>{txt['date_lbl']}</label>
-      <div class="underline">{today_str}</div>
-    </div>
-  </div>
-  <div class="doc-section">{txt['includes']}</div>
-  <div class="doc-checklist">
-    <div class="doc-check-item"><span class="doc-check-box">✓</span><span>{txt['check1']}</span></div>
-    <div class="doc-check-item"><span class="doc-check-box">✓</span><span>{txt['check2']}</span></div>
-    <div class="doc-check-item"><span class="doc-check-box">✓</span><span>{txt['check3']}</span></div>
-    <div class="doc-check-item"><span class="doc-check-box">✓</span><span>{txt['check4']}</span></div>
-    <div class="doc-check-item"><span class="doc-check-box">✓</span><span>{txt['check5']}</span></div>
-  </div>
-  <div class="doc-emergency">
-    <strong>🚨 {txt['emergency_lbl']}</strong> {txt['emergency_text']}
-  </div>
-</div>
-""", unsafe_allow_html=True)
-    # Start button — primary CTA, sits right below the doc card
-    col1, col2, col3 = st.columns([1, 2, 1])
-    with col2:
-        if st.button(txt["start"], type="primary", use_container_width=True, key="home_start"):
-            st.session_state.screen = "intake"; st.rerun()
-    # Symptom Tracker + past reports now live in their own "Ιστορικό" tab
-    # (render_history) instead of being buried at the bottom of Home.
+  </div>"""
+
+    with st.container(border=True):
+        st.markdown(
+            f'<div class="home-group-title">{"Η Υγεία σου Σήμερα" if el else "Your Health Today"}</div>'
+            + rows_html,
+            unsafe_allow_html=True,
+        )
+
+    # Emergency disclaimer — condensed, always visible, no CTA button needed
+    # anymore since the 2 action cards above already start the right flow.
+    _em_text = (
+        "Για πόνο στο στήθος, δυσκολία αναπνοής, σοβαρή αιμορραγία, απώλεια "
+        "συνείδησης ή συμπτώματα εγκεφαλικού, καλέστε αμέσως 166 (ΕΚΑΒ) ή 112."
+        if el else
+        "For chest pain, difficulty breathing, severe bleeding, loss of "
+        "consciousness, or stroke symptoms, call 166 (EKAB) or 112 immediately."
+    )
+    st.markdown(
+        f'<div class="home-emergency"><strong>🚨 {"Επείγον" if el else "Emergency"}:</strong> {_em_text}</div>',
+        unsafe_allow_html=True,
+    )
 
 
 def render_history():
@@ -2958,6 +3374,29 @@ def render_history():
                  "No completed report yet. Start an assessment from the «Symptoms» tab."))
     st.divider()
     _render_symptom_tracker(lang)
+    # ── Articles / Blog ──────────────────────────────────────────────────────
+    # Admin-managed content (see render_admin_panel → _admin_articles_tab).
+    # Only shows active articles in the current language; silently shows
+    # nothing if Supabase isn't configured or there's no content yet — same
+    # graceful-degradation pattern as the rest of the app.
+    _articles = [a for a in _admin_list("articles", order_col="published_at")
+                 if a.get("active", True) and a.get("lang", "el") == lang]
+    if _articles:
+        st.divider()
+        st.markdown("##### 📰 " + ("Άρθρα" if lang == "el" else "Articles"))
+        for art in _articles[:10]:
+            with st.container(border=True):
+                st.markdown(f"**{art.get('title','—')}**")
+                _meta = " · ".join(x for x in [art.get("author",""), art.get("source",""),
+                                                str(art.get("published_at",""))] if x)
+                if _meta:
+                    st.caption(_meta)
+                st.write(art.get("summary",""))
+                if art.get("body"):
+                    with st.expander("Διάβασε περισσότερα" if lang=="el" else "Read more"):
+                        st.write(art["body"])
+                if art.get("url"):
+                    st.markdown(f"[{'Πλήρες άρθρο →' if lang=='el' else 'Full article →'}]({art['url']})")
 
 
 def render_intake():
@@ -2977,51 +3416,54 @@ def render_intake():
     _opt_self = "Για μένα" if lang=="el" else "For me"
     _opt_other = "Για άλλο άτομο που φροντίζω" if lang=="el" else "For someone I care for"
     _current = st.session_state.profile.get("for_whom", "self")
-    _choice = st.radio(
-        _caregiver_q,
-        [_opt_self, _opt_other],
-        index=(0 if _current == "self" else 1),
-        horizontal=True,
-        key="intake_for_whom",
-    )
-    is_caregiver = (_choice == _opt_other)
-    if is_caregiver:
-        st.info("💡 " + ("Συμπλήρωσε τα στοιχεία του ατόμου που φροντίζεις (όχι τα δικά σου)."
-                         if lang=="el" else
-                         "Fill in details of the person you care for (not your own)."))
-        _name_lbl = "Όνομα του ασθενούς" if lang=="el" else "Patient's name"
-        _name_ph  = "π.χ. Γιαγιά Ελένη" if lang=="el" else "e.g. Grandma Helen"
-    else:
-        _name_lbl = t("name")
-        _name_ph  = "Χριστόφορος"
-    c1,c2,c3=st.columns([2,1,1])
-    with c1: name=st.text_input(_name_lbl,value=st.session_state.profile.get("name",""),placeholder=_name_ph)
-    with c2: age=st.number_input(t("age"),min_value=0,max_value=120,value=st.session_state.profile.get("age",40))
-    with c3: sex=st.selectbox(t("sex"),[t("male"),t("female"),t("other")])
-    # ── Pregnancy checkbox ──────────────────────────────────────────────────
-    # Only shown for female + age 12-55 (reproductive age). Affects drug
-    # contraindications + Claude system prompt + recs.
-    pregnancy = False
-    _is_female = sex in ("Γυναίκα", "Female")
-    if _is_female and 12 <= age <= 55:
-        _preg_lbl = "🤰 Είναι έγκυος;" if lang=="el" else "🤰 Is she pregnant?"
-        pregnancy = st.checkbox(_preg_lbl, value=st.session_state.profile.get("pregnancy", False))
-        if pregnancy:
-            st.info("💡 " + ("Σημειώνεται για έλεγχο αντενδείξεων φαρμάκων και συστάσεων."
+    with st.container(border=True):
+        _choice = st.radio(
+            _caregiver_q,
+            [_opt_self, _opt_other],
+            index=(0 if _current == "self" else 1),
+            horizontal=True,
+            key="intake_for_whom",
+        )
+        is_caregiver = (_choice == _opt_other)
+        if is_caregiver:
+            st.info("💡 " + ("Συμπλήρωσε τα στοιχεία του ατόμου που φροντίζεις (όχι τα δικά σου)."
                              if lang=="el" else
-                             "Noted — used to flag drug contraindications and adjusted recommendations."))
-    history=st.text_area(t("history"),value=st.session_state.profile.get("history",""),height=90,placeholder="Π.χ. Υπέρταση, Τ2 Διαβήτης")
-    allergies=st.text_input(t("allergies"),value=st.session_state.profile.get("allergies",""),placeholder="Π.χ. Πενικιλλίνη")
-    st.markdown("**"+t("meds")+"**")
-    if not st.session_state.med_inputs:
-        prev=st.session_state.profile.get("meds_raw","")
-        st.session_state.med_inputs=[m.strip() for m in prev.split(",") if m.strip()] or [""]
-    for mi,med_val in enumerate(st.session_state.med_inputs):
-        mc1,mc2=st.columns([5,1])
-        with mc1: st.session_state.med_inputs[mi]=st.text_input(f"Φάρμακο {mi+1}",value=med_val,key=f"med_field_{mi}",label_visibility="collapsed",placeholder="Π.χ. Metformin 500mg" if mi==0 else "")
-        with mc2:
-            if st.button("✕",key=f"del_med_{mi}"): st.session_state.med_inputs.pop(mi); st.rerun()
-    if st.button("＋ "+("Προσθήκη" if st.session_state.lang=="el" else "Add med")): st.session_state.med_inputs.append(""); st.rerun()
+                             "Fill in details of the person you care for (not your own)."))
+            _name_lbl = "Όνομα του ασθενούς" if lang=="el" else "Patient's name"
+            _name_ph  = "π.χ. Γιαγιά Ελένη" if lang=="el" else "e.g. Grandma Helen"
+        else:
+            _name_lbl = t("name")
+            _name_ph  = "Χριστόφορος"
+        c1,c2,c3=st.columns([2,1,1])
+        with c1: name=st.text_input(_name_lbl,value=st.session_state.profile.get("name",""),placeholder=_name_ph)
+        with c2: age=st.number_input(t("age"),min_value=0,max_value=120,value=st.session_state.profile.get("age",40))
+        with c3: sex=st.selectbox(t("sex"),[t("male"),t("female"),t("other")])
+        # ── Pregnancy checkbox ──────────────────────────────────────────────
+        # Only shown for female + age 12-55 (reproductive age). Affects drug
+        # contraindications + Claude system prompt + recs.
+        pregnancy = False
+        _is_female = sex in ("Γυναίκα", "Female")
+        if _is_female and 12 <= age <= 55:
+            _preg_lbl = "🤰 Είναι έγκυος;" if lang=="el" else "🤰 Is she pregnant?"
+            pregnancy = st.checkbox(_preg_lbl, value=st.session_state.profile.get("pregnancy", False))
+            if pregnancy:
+                st.info("💡 " + ("Σημειώνεται για έλεγχο αντενδείξεων φαρμάκων και συστάσεων."
+                                 if lang=="el" else
+                                 "Noted — used to flag drug contraindications and adjusted recommendations."))
+
+    with st.container(border=True):
+        history=st.text_area(t("history"),value=st.session_state.profile.get("history",""),height=90,placeholder="Π.χ. Υπέρταση, Τ2 Διαβήτης")
+        allergies=st.text_input(t("allergies"),value=st.session_state.profile.get("allergies",""),placeholder="Π.χ. Πενικιλλίνη")
+        st.markdown("**"+t("meds")+"**")
+        if not st.session_state.med_inputs:
+            prev=st.session_state.profile.get("meds_raw","")
+            st.session_state.med_inputs=[m.strip() for m in prev.split(",") if m.strip()] or [""]
+        for mi,med_val in enumerate(st.session_state.med_inputs):
+            mc1,mc2=st.columns([5,1])
+            with mc1: st.session_state.med_inputs[mi]=st.text_input(f"Φάρμακο {mi+1}",value=med_val,key=f"med_field_{mi}",label_visibility="collapsed",placeholder="Π.χ. Metformin 500mg" if mi==0 else "")
+            with mc2:
+                if st.button("✕",key=f"del_med_{mi}"): st.session_state.med_inputs.pop(mi); st.rerun()
+        if st.button("＋ "+("Προσθήκη" if st.session_state.lang=="el" else "Add med")): st.session_state.med_inputs.append(""); st.rerun()
     meds_raw=", ".join(m for m in st.session_state.med_inputs if m.strip())
     col_b,col_n=st.columns([1,3])
     with col_b:
@@ -3159,18 +3601,31 @@ Use a certified upper-arm cuff device, note systolic/diastolic values
             """)
     with tab_manual:
         v=st.session_state.vitals
-        c1,c2,c3=st.columns(3)
-        with c1:
-            hr=st.number_input(t("hr"),min_value=0,max_value=300,value=int(v.get("hr",0)) or None,placeholder="76")
-            spo2=st.number_input(t("spo2"),min_value=0,max_value=100,value=int(v.get("spo2",0)) or None,placeholder="98")
-            temp=st.number_input(t("temp"),min_value=0.0,max_value=45.0,value=float(v.get("temp",0.0)) or None,placeholder="36.6",format="%.1f")
-        with c2:
-            bp_s=st.number_input(t("bp_sys"),min_value=0,max_value=300,value=int(v.get("bp_sys",0)) or None,placeholder="120")
-            bp_d=st.number_input(t("bp_dia"),min_value=0,max_value=200,value=int(v.get("bp_dia",0)) or None,placeholder="80")
-            br=st.number_input(t("br"),min_value=0,max_value=60,value=int(v.get("br",0)) or None,placeholder="15")
-        with c3:
-            weight=st.number_input(t("weight"),min_value=0.0,max_value=300.0,value=float(v.get("weight",0.0)) or None,placeholder="75",format="%.1f")
-            height=st.number_input(t("height"),min_value=0,max_value=250,value=int(v.get("height",0)) or None,placeholder="175")
+        with st.container(border=True):
+            st.markdown(
+                f'<div class="home-group-title">{"Βασικές Μετρήσεις" if lang=="el" else "Core Vitals"}</div>',
+                unsafe_allow_html=True,
+            )
+            cc1,cc2=st.columns(2)
+            with cc1:
+                hr=st.number_input(t("hr"),min_value=0,max_value=300,value=int(v.get("hr",0)) or None,placeholder="76")
+                temp=st.number_input(t("temp"),min_value=0.0,max_value=45.0,value=float(v.get("temp",0.0)) or None,placeholder="36.6",format="%.1f")
+            with cc2:
+                spo2=st.number_input(t("spo2"),min_value=0,max_value=100,value=int(v.get("spo2",0)) or None,placeholder="98")
+                bp_col1, bp_col2 = st.columns(2)
+                with bp_col1:
+                    bp_s=st.number_input(t("bp_sys"),min_value=0,max_value=300,value=int(v.get("bp_sys",0)) or None,placeholder="120")
+                with bp_col2:
+                    bp_d=st.number_input(t("bp_dia"),min_value=0,max_value=200,value=int(v.get("bp_dia",0)) or None,placeholder="80")
+
+        with st.expander("＋ " + ("Αναπνοή, βάρος, ύψος (προαιρετικά)" if lang=="el" else "Breathing, weight, height (optional)")):
+            ec1, ec2, ec3 = st.columns(3)
+            with ec1:
+                br=st.number_input(t("br"),min_value=0,max_value=60,value=int(v.get("br",0)) or None,placeholder="15")
+            with ec2:
+                weight=st.number_input(t("weight"),min_value=0.0,max_value=300.0,value=float(v.get("weight",0.0)) or None,placeholder="75",format="%.1f")
+            with ec3:
+                height=st.number_input(t("height"),min_value=0,max_value=250,value=int(v.get("height",0)) or None,placeholder="175")
 
         if st.button(t("analyse_vitals"),type="primary",use_container_width=True,key="analyse_manual"):
             vd={}
@@ -3626,18 +4081,34 @@ def render_triage():
         if _chips_label:
             _cap += f" ({_chips_label})"
         st.caption(_cap + ":")
-        _PER_ROW = 3
-        for _rs in range(0, len(chips), _PER_ROW):
-            _row = chips[_rs:_rs+_PER_ROW]
-            _cc = st.columns(len(_row))
-            for _j, chip in enumerate(_row):
-                _i = _rs + _j
-                with _cc[_j]:
-                    sel = chip in st.session_state.symptom_chips
-                    if st.button(("✓ " if sel else "")+chip, key=f"chip_{_i}", use_container_width=True):
-                        if chip in st.session_state.symptom_chips: st.session_state.symptom_chips.remove(chip)
-                        else: st.session_state.symptom_chips.append(chip)
-                        st.rerun()
+        # Wrap-flow pill layout (matches the mockup) instead of st.columns rows,
+        # which stack vertically on narrow/mobile viewports. Same marker+:has()
+        # CSS targeting pattern already proven reliable for the bottom nav.
+        st.markdown("""
+<style>
+div[data-testid="stHorizontalBlock"]:has(.chip-flow-marker) {
+  flex-wrap: wrap !important; gap: 7px !important;
+}
+div[data-testid="stHorizontalBlock"]:has(.chip-flow-marker) > div[data-testid="stColumn"] {
+  width: auto !important; min-width: 0 !important; flex: 0 0 auto !important;
+}
+div[data-testid="stHorizontalBlock"]:has(.chip-flow-marker) button {
+  border-radius: 18px !important; padding: 8px 15px !important;
+  font-size: 12.5px !important; font-weight: 700 !important;
+  white-space: nowrap !important; min-height: 0 !important;
+}
+</style>
+""", unsafe_allow_html=True)
+        _chip_cols = st.columns(len(chips))
+        for _i, (chip, _col) in enumerate(zip(chips, _chip_cols)):
+            with _col:
+                if _i == 0:
+                    st.markdown('<div class="chip-flow-marker"></div>', unsafe_allow_html=True)
+                sel = chip in st.session_state.symptom_chips
+                if st.button(("✓ " if sel else "")+chip, key=f"chip_{_i}"):
+                    if chip in st.session_state.symptom_chips: st.session_state.symptom_chips.remove(chip)
+                    else: st.session_state.symptom_chips.append(chip)
+                    st.rerun()
         if st.session_state.symptom_chips:
             if st.button("➤ "+("Αποστολή επιλεγμένων" if st.session_state.lang=="el" else "Send selected"),type="primary"):
                 msg=("Κύρια συμπτώματα: " if st.session_state.lang=="el" else "Main symptoms: ")+", ".join(st.session_state.symptom_chips)
@@ -4089,18 +4560,18 @@ def _render_recs_card(recs, lang, refs=None):
 <style>
 .pnoe-recs {{
   background: white;
-  border: 1px solid #E5E7EB;
-  border-radius: 14px;
-  padding: 24px 26px;
+  border: 1px solid #E0E5FF;
+  border-radius: 22px;
+  padding: 24px 24px 22px;
   margin: 18px 0;
   font-family: 'Inter', system-ui, sans-serif;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+  box-shadow: 0 2px 10px rgba(45,63,231,0.05);
 }}
 .pnoe-recs-title {{
-  font-size: 11px; font-weight: 700; letter-spacing: 0.14em;
-  color: #6B7280; text-transform: uppercase;
-  border-bottom: 2px solid #E5E7EB;
-  padding-bottom: 10px; margin-bottom: 18px;
+  font-size: 13.5px; font-weight: 800; letter-spacing: 0.01em;
+  color: #1A1A2E;
+  border-bottom: 1px solid #EEF1FC;
+  padding-bottom: 14px; margin-bottom: 16px;
 }}
 .pnoe-recs-grid {{
   display: grid;
@@ -4108,29 +4579,28 @@ def _render_recs_card(recs, lang, refs=None):
   gap: 14px;
 }}
 .pnoe-recs-col {{
-  border-radius: 12px;
+  border-radius: 16px;
   padding: 16px 16px 18px;
   border: 1px solid;
-  position: relative;
-}}
-.pnoe-recs-col::before {{
-  content: ""; position: absolute; left: 16px; top: 16px;
-  width: 4px; height: 18px; border-radius: 2px;
 }}
 .pnoe-recs-col.exercise  {{ background: #EFF6FF; border-color: #BFDBFE; }}
-.pnoe-recs-col.exercise::before  {{ background: #3B82F6; }}
 .pnoe-recs-col.nutrition {{ background: #ECFDF5; border-color: #A7F3D0; }}
-.pnoe-recs-col.nutrition::before {{ background: #10B981; }}
 .pnoe-recs-col.lifestyle {{ background: #FEF3F2; border-color: #FECDD3; }}
-.pnoe-recs-col.lifestyle::before {{ background: #EF4444; }}
 .pnoe-recs-head {{
   display: flex; align-items: center; gap: 9px;
-  margin-bottom: 10px; padding-left: 14px;
+  margin-bottom: 10px;
 }}
-.pnoe-recs-icon {{ font-size: 17px; line-height: 1; }}
+.pnoe-recs-icon {{
+  width: 28px; height: 28px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 14px; flex-shrink: 0;
+}}
+.pnoe-recs-col.exercise  .pnoe-recs-icon {{ background: #DBEAFE; }}
+.pnoe-recs-col.nutrition .pnoe-recs-icon {{ background: #D1FAE5; }}
+.pnoe-recs-col.lifestyle .pnoe-recs-icon {{ background: #FEE2E2; }}
 .pnoe-recs-label {{
   font-size: 11px; font-weight: 800;
-  letter-spacing: 0.12em; text-transform: uppercase;
+  letter-spacing: 0.10em; text-transform: uppercase;
   color: #1F2937;
 }}
 .pnoe-recs-body {{
@@ -4367,20 +4837,20 @@ def _render_health_pillars(profile, vitals, status_map, report_text, lang):
     st.markdown(f"""
 <style>
 .hp-card {{
-  background: white; border: 1px solid #E5E7EB; border-radius: 14px;
-  padding: 22px 24px; margin: 18px 0;
+  background: white; border: 1px solid #E0E5FF; border-radius: 22px;
+  padding: 24px 24px 22px; margin: 18px 0;
   font-family: 'Inter', system-ui, sans-serif;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+  box-shadow: 0 2px 10px rgba(45,63,231,0.05);
 }}
 .hp-title {{
-  font-size: 11px; font-weight: 700; letter-spacing: 0.14em;
-  color: #6B7280; text-transform: uppercase;
-  border-bottom: 2px solid #E5E7EB; padding-bottom: 10px; margin-bottom: 14px;
+  font-size: 13.5px; font-weight: 800; letter-spacing: 0.01em;
+  color: #1A1A2E;
+  border-bottom: 1px solid #EEF1FC; padding-bottom: 14px; margin-bottom: 14px;
 }}
 .hp-overall {{
   display: flex; align-items: center; gap: 16px;
-  background: linear-gradient(135deg, #F9FAFB 0%, #F3F4F6 100%);
-  border-radius: 12px; padding: 14px 18px; margin-bottom: 4px;
+  background: #F7F8FC;
+  border-radius: 16px; padding: 14px 18px; margin-bottom: 4px;
 }}
 .hp-overall .ov-num {{
   font-size: 38px; font-weight: 800; line-height: 1;
@@ -4506,15 +4976,15 @@ def render_emergency_resources(lang):
     st.markdown(f"""
 <style>
 .er-card {{
-  background: white; border: 1px solid #E5E7EB; border-radius: 14px;
-  padding: 22px 24px; margin: 18px 0;
+  background: white; border: 1px solid #E0E5FF; border-radius: 22px;
+  padding: 24px 24px 22px; margin: 18px 0;
   font-family: 'Inter', system-ui, sans-serif;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+  box-shadow: 0 2px 10px rgba(45,63,231,0.05);
 }}
 .er-title {{
-  font-size: 11px; font-weight: 700; letter-spacing: 0.14em;
-  color: #6B7280; text-transform: uppercase;
-  border-bottom: 2px solid #E5E7EB; padding-bottom: 10px; margin-bottom: 4px;
+  font-size: 13.5px; font-weight: 800; letter-spacing: 0.01em;
+  color: #1A1A2E;
+  border-bottom: 1px solid #EEF1FC; padding-bottom: 14px; margin-bottom: 4px;
 }}
 .er-subtitle {{
   font-size: 12px; color: #9CA3AF; margin-bottom: 16px;
@@ -4867,23 +5337,29 @@ Language: {"Greek" if lang=="el" else "English"}. Be direct. End with a one-line
 <style>
 .report-card {{
   background: white;
-  border: 1px solid #E5E7EB;
-  border-radius: 14px;
-  padding: 26px 28px;
+  border: 1px solid #E0E5FF;
+  border-radius: 22px;
+  padding: 24px 24px 22px;
   margin: 6px 0 16px;
   font-family: 'Inter', system-ui, sans-serif;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+  box-shadow: 0 2px 10px rgba(45,63,231,0.05);
 }}
 .report-card-title {{
-  font-size: 11px; font-weight: 700; letter-spacing: 0.14em;
-  color: #6B7280; text-transform: uppercase;
-  border-bottom: 2px solid #E5E7EB;
-  padding-bottom: 10px; margin-bottom: 18px;
-  display: flex; align-items: center; gap: 8px;
+  font-size: 13.5px; font-weight: 800; letter-spacing: 0.01em;
+  color: #1A1A2E;
+  padding-bottom: 14px; margin-bottom: 16px;
+  border-bottom: 1px solid #EEF1FC;
+  display: flex; align-items: center; gap: 10px;
+}}
+.report-card-title .rct-icon {{
+  width: 32px; height: 32px; border-radius: 50%;
+  background: #E8ECFE; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 15px;
 }}
 .history-block {{
-  background: #F9FAFB; border: 1px solid #E5E7EB;
-  border-radius: 10px; padding: 14px 16px; margin-bottom: 14px;
+  background: #F7F8FC; border: 1px solid #EEF1FC;
+  border-radius: 14px; padding: 14px 16px; margin-bottom: 14px;
   font-size: 13.5px; color: #374151; line-height: 1.55;
 }}
 .history-block .hb-lbl {{
@@ -4894,37 +5370,39 @@ Language: {"Greek" if lang=="el" else "English"}. Be direct. End with a one-line
   display: grid; grid-template-columns: 1fr 1fr; gap: 14px;
 }}
 .aller-box, .meds-box {{
-  border-radius: 12px; padding: 16px 18px;
+  border-radius: 14px; padding: 16px 18px;
   font-size: 13.5px; line-height: 1.55;
 }}
 .aller-box {{ background: #FEF2F2; border: 1px solid #FECACA; }}
-.meds-box  {{ background: #DBEAFE; border: 1px solid #93C5FD; }}
+.meds-box  {{ background: #E8ECFE; border: 1px solid #C7D2FE; }}
 .aller-box .am-lbl, .meds-box .am-lbl {{
   font-size: 10.5px; font-weight: 700; letter-spacing: 0.12em;
   text-transform: uppercase; margin-bottom: 8px;
 }}
 .aller-box .am-lbl {{ color: #991B1B; }}
-.meds-box  .am-lbl {{ color: #1E40AF; }}
+.meds-box  .am-lbl {{ color: #2D3FE7; }}
 .aller-box .am-val {{ color: #7F1D1D; font-weight: 500; }}
-.meds-box  .am-val {{ color: #1E3A8A; font-weight: 500; }}
+.meds-box  .am-val {{ color: #1A1A2E; font-weight: 500; }}
 
 /* Clinical Assessment section header (separates patient info from Claude content) */
 .assessment-section-header {{
-  background: linear-gradient(135deg, #EFF6FF 0%, #E0E7FF 100%);
-  border: 1px solid #C7D2FE;
-  border-left: 4px solid #2D3FE7;
-  border-radius: 12px;
-  padding: 16px 22px;
+  background: #F4F6FF;
+  border: 1px solid #E0E5FF;
+  border-radius: 16px;
+  padding: 16px 20px;
   margin: 16px 0 14px;
   display: flex; align-items: center; gap: 12px;
   font-family: 'Inter', system-ui, sans-serif;
 }}
 .assessment-section-header .ash-icon {{
-  font-size: 24px;
+  width: 38px; height: 38px; border-radius: 50%;
+  background: #E8ECFE; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 18px;
 }}
 .assessment-section-header .ash-title {{
-  font-size: 13px; font-weight: 800; letter-spacing: 0.14em;
-  color: #1E3A8A; text-transform: uppercase;
+  font-size: 12.5px; font-weight: 800; letter-spacing: 0.08em;
+  color: #2D3FE7; text-transform: uppercase;
 }}
 
 /* Style markdown section headers inside the Claude report so each section
@@ -4936,12 +5414,12 @@ Language: {"Greek" if lang=="el" else "English"}. Be direct. End with a one-line
   font-weight: 700 !important;
   text-transform: uppercase !important;
   letter-spacing: 0.10em !important;
-  border-bottom: 1.5px solid #DBEAFE !important;
+  border-bottom: 1.5px solid #E0E5FF !important;
   padding-bottom: 6px !important;
   margin: 22px 0 12px !important;
 }}
 [data-testid="stMarkdownContainer"] h3 {{
-  color: #4338CA !important;
+  color: #2D3FE7 !important;
   font-size: 13.5px !important;
   font-weight: 700 !important;
   margin: 16px 0 8px !important;
@@ -4953,7 +5431,7 @@ Language: {"Greek" if lang=="el" else "English"}. Be direct. End with a one-line
 }}
 </style>
 <div class="report-card">
-  <div class="report-card-title">📑 {TX['patient_info']}</div>
+  <div class="report-card-title"><span class="rct-icon">📑</span>{TX['patient_info']}</div>
   <div class="history-block">
     <div class="hb-lbl">📋 {TX['history_lbl']}</div>
     <div>{history}</div>
@@ -5002,12 +5480,12 @@ Language: {"Greek" if lang=="el" else "English"}. Be direct. End with a one-line
             )
         st.markdown(
             f'<style>'
-            f'.pf-card{{background:white;border:1px solid #E5E7EB;border-radius:14px;padding:22px 24px;margin:18px 0;font-family:Inter,system-ui,sans-serif;box-shadow:0 1px 3px rgba(0,0,0,0.04)}}'
-            f'.pf-title{{font-size:11px;font-weight:700;letter-spacing:0.14em;color:#6B7280;text-transform:uppercase;border-bottom:2px solid #E5E7EB;padding-bottom:10px;margin-bottom:14px}}'
+            f'.pf-card{{background:white;border:1px solid #E0E5FF;border-radius:22px;padding:24px 24px 22px;margin:18px 0;font-family:Inter,system-ui,sans-serif;box-shadow:0 2px 10px rgba(45,63,231,0.05)}}'
+            f'.pf-title{{font-size:13.5px;font-weight:800;letter-spacing:0.01em;color:#1A1A2E;border-bottom:1px solid #EEF1FC;padding-bottom:14px;margin-bottom:16px}}'
             f'.pf-item{{padding:14px 0;border-bottom:1px solid #F3F4F6}}'
             f'.pf-item:last-child{{border-bottom:none;padding-bottom:0}}'
             f'.pf-head{{display:flex;align-items:center;gap:10px;margin-bottom:8px}}'
-            f'.pf-num{{background:#DBEAFE;color:#1E40AF;font-size:11px;font-weight:700;width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center}}'
+            f'.pf-num{{background:#E8ECFE;color:#2D3FE7;font-size:11px;font-weight:700;width:24px;height:24px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0}}'
             f'.pf-label{{font-size:13.5px;font-weight:700;color:#111827}}'
             f'.pf-body{{font-size:13px;color:#374151;line-height:1.6}}'
             f'.pf-body strong{{color:#1F2937}}'
@@ -5038,12 +5516,12 @@ Language: {"Greek" if lang=="el" else "English"}. Be direct. End with a one-line
             )
         st.markdown(
             f'<style>'
-            f'.lf-card{{background:white;border:1px solid #E5E7EB;border-radius:14px;padding:22px 24px;margin:18px 0;font-family:Inter,system-ui,sans-serif;box-shadow:0 1px 3px rgba(0,0,0,0.04)}}'
-            f'.lf-title{{font-size:11px;font-weight:700;letter-spacing:0.14em;color:#6B7280;text-transform:uppercase;border-bottom:2px solid #E5E7EB;padding-bottom:10px;margin-bottom:14px}}'
+            f'.lf-card{{background:white;border:1px solid #E0E5FF;border-radius:22px;padding:24px 24px 22px;margin:18px 0;font-family:Inter,system-ui,sans-serif;box-shadow:0 2px 10px rgba(45,63,231,0.05)}}'
+            f'.lf-title{{font-size:13.5px;font-weight:800;letter-spacing:0.01em;color:#1A1A2E;border-bottom:1px solid #EEF1FC;padding-bottom:14px;margin-bottom:16px}}'
             f'.lf-item{{padding:14px 0;border-bottom:1px solid #F3F4F6}}'
             f'.lf-item:last-child{{border-bottom:none;padding-bottom:0}}'
             f'.lf-head{{display:flex;align-items:center;gap:10px;margin-bottom:8px}}'
-            f'.lf-num{{background:#D1FAE5;color:#065F46;font-size:11px;font-weight:700;width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center}}'
+            f'.lf-num{{background:#D1FAE5;color:#065F46;font-size:11px;font-weight:700;width:24px;height:24px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0}}'
             f'.lf-label{{font-size:13.5px;font-weight:700;color:#111827}}'
             f'.lf-body{{font-size:13px;color:#374151;line-height:1.6}}'
             f'.lf-body strong{{color:#1F2937}}'
@@ -5344,6 +5822,15 @@ if (st.session_state.get("_from_facescan") and st.session_state.vitals
         and st.session_state.profile.get("name") and st.session_state.screen == "intake"):
     st.session_state.screen = "triage"
     st.session_state["_from_facescan"] = False
+
+# ── ADMIN ROUTING ────────────────────────────────────────────────────────────
+# Reached via asklepiosainurse.up.railway.app/?admin=1. Completely separate
+# from the patient OTP login below — gated by its own password
+# (render_admin_gate), never touches auth_enabled()/is_logged_in().
+if st.query_params.get("admin") == "1":
+    if render_admin_gate():
+        render_admin_panel()
+    st.stop()
 
 # ── LOGIN GATE ────────────────────────────────────────────────────────────────
 # Login-first: every visitor is identified in Supabase → Authentication → Users.
