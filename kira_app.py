@@ -958,31 +958,49 @@ def logout():
     except Exception:
         pass
 
-def render_login_gate():
-    """Inline email->OTP login. Returns True once the user is logged in.
 
-    UX-hardened (tester report, Cyprus): when Supabase rate-limits or returns a
-    transient error, the email STILL gets delivered — but the previous version
-    showed an error and never revealed the code-entry field. Result: the user has
-    a code in their inbox and nowhere to type it. This version always advances to
-    the code-entry stage after the send button is clicked, regardless of the API
-    return code. If no code arrives the user can press 'Resend' or 'Different email'."""
+def render_login_gate():
+    """Inline email→OTP login. Returns True once the user is logged in.
+
+    Security hardening vs original:
+    - Strict email regex (not just '@' check)
+    - otp_sent_to from URL only accepted if valid email format
+    - _log_user_login() upserts email into user_logins table after verify
+      (email, last_seen, lang) — no medical data, purely for user counting.
+    - st.error (blocking) instead of st.warning on bad input
+    """
+    import re as _re
     lang = st.session_state.lang
     if is_logged_in():
         return True
 
-    # Friendly header
     st.markdown(f'''<div style="background:rgba(45,63,231,0.06);border:1px solid rgba(45,63,231,0.15);border-radius:14px;padding:20px 22px;text-align:center;margin:10px 0">
         <div style="font-size:34px;margin-bottom:6px">🔒</div>
         <div style="font-size:16px;font-weight:700;color:#1A1A2E">{"Σύνδεση" if lang=="el" else "Sign in"}</div>
         <div style="font-size:13px;color:#6B7280;margin-top:4px">{"Email + κωδικός μίας χρήσης. Χωρίς password." if lang=="el" else "Email + one-time code. No password."}</div>
     </div>''', unsafe_allow_html=True)
 
-    # Recover pending email across mobile reloads / fresh tabs
+    def _valid_email(e):
+        return bool(_re.match(r'^[^@\s]+@[^@\s]+\.[^@\s]+$', (e or "").strip()))
+
+    def _log_user_login(email):
+        """Upsert into user_logins for analytics. No medical data stored."""
+        try:
+            sb = _supabase_client()
+            if not sb: return
+            from datetime import datetime as _dt
+            sb.table("user_logins").upsert({
+                "email":     email,
+                "last_seen": _dt.utcnow().isoformat(),
+                "lang":      st.session_state.get("lang", "el"),
+            }, on_conflict="email").execute()
+        except Exception:
+            pass  # analytics failure must never block login
+
     sent_to = st.session_state.get("otp_sent_to")
     if not sent_to:
         pe = st.query_params.get("pe")
-        if pe:
+        if pe and _valid_email(pe):          # only trust URL param if it looks like an email
             st.session_state["otp_sent_to"] = pe
             sent_to = pe
 
@@ -991,72 +1009,66 @@ def render_login_gate():
         email = st.text_input("Email", key="otp_email", placeholder="you@example.com")
         if st.button(("📩 " + ("Στείλε μου τον κωδικό" if lang=="el" else "Send me the code")),
                      type="primary", use_container_width=True, key="otp_send"):
-            if email and "@" in email:
-                # Best-effort send: ADVANCE to stage 2 regardless of API result.
-                # Email is usually delivered even when Supabase rate-limits the
-                # response — the user just needs the code field to appear.
-                ok, err = send_otp(email)
-                st.session_state["otp_sent_to"] = email
-                st.query_params["pe"] = email
+            email_clean = (email or "").strip().lower()
+            if not _valid_email(email_clean):
+                st.error("Παρακαλώ βάλε ένα έγκυρο email (π.χ. name@example.com)."
+                         if lang=="el" else
+                         "Please enter a valid email address (e.g. name@example.com).")
+            else:
+                ok, err = send_otp(email_clean)
+                st.session_state["otp_sent_to"] = email_clean
+                st.query_params["pe"] = email_clean
                 if not ok:
                     st.session_state["_otp_send_warning"] = (err or "")[:140]
                 st.rerun()
-            else:
-                st.warning("Έγκυρο email, παρακαλώ." if lang=="el" else "Please enter a valid email.")
     else:
-        # ── STAGE 2: enter code ─────────────────────────────────────────────
+        # ── STAGE 2: enter OTP code ─────────────────────────────────────────
         warn = st.session_state.pop("_otp_send_warning", None)
         if warn:
-            # Soft warning — DON'T block the code field. Email may still have arrived.
-            st.warning(("⚠️ Πιθανό πρόβλημα στην αποστολή — αλλά ο κωδικός μπορεί να έχει φτάσει στο email σου. "
-                        "Έλεγξε το inbox και το spam folder, και βάλε τον κωδικό παρακάτω. "
-                        "Αν δεν λάβεις τίποτα σε 1 λεπτό, πάτα «Νέος κωδικός»."
-                        if lang=="el" else
-                        "⚠️ The send response had an issue — but the code may still have reached your email. "
-                        "Check your inbox and spam folder, then enter the code below. "
-                        "If nothing arrives within 1 minute, press 'New code'."))
+            st.warning("⚠️ Πιθανό πρόβλημα αποστολής — έλεγξε inbox & spam, βάλε τον κωδικό παρακάτω."
+                       if lang=="el" else
+                       "⚠️ Send had an issue — check inbox & spam, then enter the code below.")
         else:
-            st.success(f"📧 " + (f"Σου στείλαμε κωδικό στο **{sent_to}**" if lang=="el"
-                                  else f"We sent a code to **{sent_to}**"))
-        st.caption(("Έλεγξε το inbox και το spam folder. Ο κωδικός φτάνει σε λίγα δευτερόλεπτα."
-                    if lang=="el" else
-                    "Check your inbox and spam folder. The code arrives within a few seconds."))
+            st.success("📧 " + (f"Σου στείλαμε κωδικό στο **{sent_to}**"
+                                 if lang=="el" else f"We sent a code to **{sent_to}**"))
+        st.caption("Έλεγξε inbox & spam. Ο κωδικός φτάνει σε λίγα δευτερόλεπτα."
+                   if lang=="el" else
+                   "Check inbox & spam. The code arrives within a few seconds.")
 
         code = st.text_input(
             ("Κωδικός από το email" if lang=="el" else "Code from your email"),
-            key="otp_code",
-            placeholder="12345678",
-            max_chars=8,
+            key="otp_code", placeholder="12345678", max_chars=8,
         )
         if st.button(("✓ " + ("Επιβεβαίωση & Σύνδεση" if lang=="el" else "Verify & Sign in")),
                      type="primary", use_container_width=True, key="otp_verify"):
             _code_clean = str(code or "").strip().replace(" ", "")
-            if not _code_clean.isdigit() or len(_code_clean) < 6:
-                st.warning(("Βάλε τον κωδικό από το email (6-8 ψηφία)." if lang=="el"
-                            else "Enter the code from your email (6-8 digits)."))
+            if not _code_clean or not _code_clean.isdigit() or len(_code_clean) < 6:
+                st.error("Βάλε τον 6-8ψήφιο κωδικό από το email."
+                         if lang=="el" else
+                         "Enter the 6-8 digit code from your email.")
             else:
                 ok, err = verify_otp(sent_to, _code_clean)
                 if ok:
+                    _log_user_login(sent_to)        # ← analytics upsert
                     st.session_state.pop("otp_sent_to", None)
                     if "pe" in st.query_params: del st.query_params["pe"]
                     st.rerun()
                 else:
-                    st.error(("Λάθος ή ληγμένος κωδικός — δοκίμασε ξανά ή πάτα «Νέος κωδικός»."
-                              if lang=="el" else
-                              "Wrong or expired code — try again or press 'New code'."))
+                    st.error("Λάθος ή ληγμένος κωδικός — δοκίμασε ξανά ή πάτα «Νέος κωδικός»."
+                             if lang=="el" else
+                             "Wrong or expired code — try again or press 'New code'.")
 
         c1, c2 = st.columns(2)
         with c1:
             if st.button(("📩 " + ("Νέος κωδικός" if lang=="el" else "New code")),
                          use_container_width=True, key="otp_resend"):
-                ok2, err2 = send_otp(sent_to)
-                # Always show user-friendly message — code may have arrived regardless
+                ok2, _ = send_otp(sent_to)
                 if ok2:
-                    st.success(("Νέος κωδικός στάλθηκε." if lang=="el" else "New code sent."))
+                    st.success("Νέος κωδικός στάλθηκε." if lang=="el" else "New code sent.")
                 else:
-                    st.info(("Αν δεν λάβεις νέο κωδικό σε 60'', χρησιμοποίησε τον προηγούμενο που έλαβες."
-                             if lang=="el" else
-                             "If no new code arrives in 60s, use the previous one you received."))
+                    st.info("Αν δεν λάβεις σε 60'', χρησιμοποίησε τον προηγούμενο."
+                            if lang=="el" else
+                            "If no new code in 60s, use the previous one.")
         with c2:
             if st.button(("Άλλο email" if lang=="el" else "Different email"),
                          use_container_width=True, key="otp_reset"):
