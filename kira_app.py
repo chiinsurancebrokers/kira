@@ -2317,60 +2317,60 @@ for k, v in defaults.items():
 T = {
     "el": {
         "title": "Asklepios",
-        "subtitle": "\u039f AI \u039d\u03bf\u03c3\u03b7\u03bb\u03b5\u03c5\u03c4\u03ae\u03c2 \u03c3\u03bf\u03c5",
-        "tagline": "\u0388\u03b3\u03ba\u03c5\u03c1\u03b7 \u03b9\u03b1\u03c4\u03c1\u03b9\u03ba\u03ae \u03c0\u03bb\u03b7\u03c1\u03bf\u03c6\u03cc\u03c1\u03b7\u03c3\u03b7 \u00b7 \u03a0\u03ac\u03bd\u03c4\u03b1 \u03b4\u03af\u03c0\u03bb\u03b1 \u03c3\u03bf\u03c5",
-        "start": "\u039e\u03b5\u03ba\u03af\u03bd\u03b1 \u0395\u03ba\u03c4\u03af\u03bc\u03b7\u03c3\u03b7",
-        "disclaimer_main": "\u26a0\ufe0f \u039f Asklepios \u03c0\u03b1\u03c1\u03ad\u03c7\u03b5\u03b9 \u03c0\u03bb\u03b7\u03c1\u03bf\u03c6\u03bf\u03c1\u03af\u03b5\u03c2 \u03c5\u03b3\u03b5\u03af\u03b1\u03c2 \u03b1\u03c0\u03bf\u03ba\u03bb\u03b5\u03b9\u03c3\u03c4\u03b9\u03ba\u03ac \u03b3\u03b9\u03b1 \u03b5\u03bd\u03b7\u03bc\u03b5\u03c1\u03c9\u03c4\u03b9\u03ba\u03bf\u03cd\u03c2 \u03c3\u03ba\u03bf\u03c0\u03bf\u03cd\u03c2. \u0394\u03b5\u03bd \u03b1\u03bd\u03c4\u03b9\u03ba\u03b1\u03b8\u03b9\u03c3\u03c4\u03ac \u03b9\u03b1\u03c4\u03c1\u03b9\u03ba\u03ae \u03b4\u03b9\u03ac\u03b3\u03bd\u03c9\u03c3\u03b7 \u03ae \u03b8\u03b5\u03c1\u03b1\u03c0\u03b5\u03af\u03b1. \u03a3\u03b5 \u03b5\u03c0\u03b5\u03af\u03b3\u03bf\u03c5\u03c3\u03b1 \u03b1\u03bd\u03ac\u03b3\u03ba\u03b7 \u03ba\u03b1\u03bb\u03ad\u03c3\u03c4\u03b5 **166** (\u0395\u039a\u0391\u0392) \u03ae **112**.",
-        "emergency": "\U0001f6a8 \u03a3\u0395 \u0395\u03a0\u0395\u0399\u0393\u039f\u03a5\u03a3\u0391 \u0391\u039d\u0391\u0393\u039a\u0397: \u039a\u0391\u039b\u0395\u03a3\u03a4\u0395 166 (\u0395\u039a\u0391\u0392) \u03ae 112",
-        "name": "\u038c\u03bd\u03bf\u03bc\u03b1", "age": "\u0397\u03bb\u03b9\u03ba\u03af\u03b1", "sex": "\u03a6\u03cd\u03bb\u03bf",
-        "male": "\u0386\u03bd\u03b4\u03c1\u03b1\u03c2", "female": "\u0393\u03c5\u03bd\u03b1\u03af\u03ba\u03b1", "other": "\u0386\u03bb\u03bb\u03bf",
-        "history": "\u0399\u03b1\u03c4\u03c1\u03b9\u03ba\u03cc \u03b9\u03c3\u03c4\u03bf\u03c1\u03b9\u03ba\u03cc (\u03c0\u03c1\u03bf\u03b7\u03b3\u03bf\u03cd\u03bc\u03b5\u03bd\u03b5\u03c2 \u03c0\u03b1\u03b8\u03ae\u03c3\u03b5\u03b9\u03c2, \u03c7\u03b5\u03b9\u03c1\u03bf\u03c5\u03c1\u03b3\u03b5\u03af\u03b1)",
-        "allergies": "\u0391\u03bb\u03bb\u03b5\u03c1\u03b3\u03af\u03b5\u03c2",
-        "meds": "\u03a4\u03c1\u03ad\u03c7\u03bf\u03bd\u03c4\u03b1 \u03c6\u03ac\u03c1\u03bc\u03b1\u03ba\u03b1 / \u03c3\u03c5\u03bc\u03c0\u03bb\u03b7\u03c1\u03ce\u03bc\u03b1\u03c4\u03b1",
-        "next": "\u0395\u03c0\u03cc\u03bc\u03b5\u03bd\u03bf \u2192",
-        "back": "\u2190 \u03a0\u03af\u03c3\u03c9",
-        "vitals_title": "\u0396\u03c9\u03c4\u03b9\u03ba\u03ad\u03c2 \u0395\u03bd\u03b4\u03b5\u03af\u03be\u03b5\u03b9\u03c2",
-        "vitals_sub": "\u0395\u03b9\u03c3\u03ac\u03b3\u03b5\u03c4\u03b5 \u03c4\u03b9\u03c2 \u03bc\u03b5\u03c4\u03c1\u03ae\u03c3\u03b5\u03b9\u03c2 \u03c3\u03b1\u03c2.",
-        "hr": "\u039a\u03b1\u03c1\u03b4\u03b9\u03b1\u03ba\u03cc\u03c2 \u03a1\u03c5\u03b8\u03bc\u03cc\u03c2 (bpm)",
-        "bp_sys": "\u0391\u03c1\u03c4\u03b7\u03c1\u03b9\u03b1\u03ba\u03ae \u03a0\u03af\u03b5\u03c3\u03b7 \u2014 \u03a3\u03c5\u03c3\u03c4\u03bf\u03bb\u03b9\u03ba\u03ae (mmHg)",
-        "bp_dia": "\u0391\u03c1\u03c4\u03b7\u03c1\u03b9\u03b1\u03ba\u03ae \u03a0\u03af\u03b5\u03c3\u03b7 \u2014 \u0394\u03b9\u03b1\u03c3\u03c4\u03bf\u03bb\u03b9\u03ba\u03ae (mmHg)",
-        "br": "\u0391\u03bd\u03b1\u03c0\u03bd\u03b5\u03c5\u03c3\u03c4\u03b9\u03ba\u03cc\u03c2 \u03a1\u03c5\u03b8\u03bc\u03cc\u03c2 (/min)",
+        "subtitle": "Ο AI Νοσηλευτής σου",
+        "tagline": "Έγκυρη ιατρική πληροφόρηση · Πάντα δίπλα σου",
+        "start": "Ξεκίνα Εκτίμηση",
+        "disclaimer_main": "⚠️ Ο Asklepios παρέχει πληροφορίες υγείας αποκλειστικά για ενημερωτικούς σκοπούς. Δεν αντικαθιστά ιατρική διάγνωση ή θεραπεία. Σε επείγουσα ανάγκη καλέστε **166** (ΕΚΑΒ) ή **112**.",
+        "emergency": "🚨 ΣΕ ΕΠΕΙΓΟΥΣΑ ΑΝΑΓΚΗ: ΚΑΛΕΣΤΕ 166 (ΕΚΑΒ) ή 112",
+        "name": "Όνομα", "age": "Ηλικία", "sex": "Φύλο",
+        "male": "Άνδρας", "female": "Γυναίκα", "other": "Άλλο",
+        "history": "Ιατρικό ιστορικό (προηγούμενες παθήσεις, χειρουργεία)",
+        "allergies": "Αλλεργίες",
+        "meds": "Τρέχοντα φάρμακα / συμπληρώματα",
+        "next": "Επόμενο →",
+        "back": "← Πίσω",
+        "vitals_title": "Ζωτικές Ενδείξεις",
+        "vitals_sub": "Εισάγετε τις μετρήσεις σας.",
+        "hr": "Καρδιακός Ρυθμός (bpm)",
+        "bp_sys": "Αρτηριακή Πίεση — Συστολική (mmHg)",
+        "bp_dia": "Αρτηριακή Πίεση — Διαστολική (mmHg)",
+        "br": "Αναπνευστικός Ρυθμός (/min)",
         "spo2": "SpO2 (%)",
-        "temp": "\u0398\u03b5\u03c1\u03bc\u03bf\u03ba\u03c1\u03b1\u03c3\u03af\u03b1 (\u00b0C)",
-        "weight": "\u0392\u03ac\u03c1\u03bf\u03c2 (kg)",
-        "height": "\u038e\u03c8\u03bf\u03c2 (cm)",
-        "analyse_vitals": "\u0391\u03bd\u03ac\u03bb\u03c5\u03c3\u03b7 \u0396\u03c9\u03c4\u03b9\u03ba\u03ce\u03bd",
-        "triage_title": "\u0395\u03ba\u03c4\u03af\u03bc\u03b7\u03c3\u03b7 \u03a3\u03c5\u03bc\u03c0\u03c4\u03c9\u03bc\u03ac\u03c4\u03c9\u03bd",
-        "triage_sub": "\u03a0\u03b5\u03c1\u03b9\u03b3\u03c1\u03ac\u03c8\u03c4\u03b5 \u03c4\u03b1 \u03c3\u03c5\u03bc\u03c0\u03c4\u03ce\u03bc\u03b1\u03c4\u03ac \u03c3\u03b1\u03c2. \u039f Asklepios \u03b8\u03b1 \u03c3\u03b1\u03c2 \u03ba\u03ac\u03bd\u03b5\u03b9 \u03ba\u03b1\u03c4\u03b5\u03c5\u03b8\u03c5\u03bd\u03cc\u03bc\u03b5\u03bd\u03b5\u03c2 \u03b5\u03c1\u03c9\u03c4\u03ae\u03c3\u03b5\u03b9\u03c2.",
-        "triage_placeholder": "\u03a0.\u03c7. \u0388\u03c7\u03c9 \u03c0\u03bf\u03bd\u03bf\u03ba\u03ad\u03c6\u03b1\u03bb\u03bf \u03c4\u03c1\u03b9\u03ce\u03bd \u03b7\u03bc\u03b5\u03c1\u03ce\u03bd \u03bc\u03b5 \u03bd\u03b1\u03c5\u03c4\u03af\u03b1...",
-        "generate_report": "\u0394\u03b7\u03bc\u03b9\u03bf\u03c5\u03c1\u03b3\u03af\u03b1 \u03a0\u03bb\u03ae\u03c1\u03bf\u03c5\u03c2 \u0391\u03bd\u03b1\u03c6\u03bf\u03c1\u03ac\u03c2",
-        "report_title": "\u039b\u03b5\u03c0\u03c4\u03bf\u03bc\u03b5\u03c1\u03ae\u03c2 \u0395\u03ba\u03c4\u03af\u03bc\u03b7\u03c3\u03b7 \u03a5\u03b3\u03b5\u03af\u03b1\u03c2",
-        "second_opinion": "\u0394\u03b5\u03cd\u03c4\u03b5\u03c1\u03b7 \u0393\u03bd\u03ce\u03bc\u03b7 GPT-4o",
-        "pubmed": "\u0395\u03c0\u03b9\u03c3\u03c4\u03b7\u03bc\u03bf\u03bd\u03b9\u03ba\u03ad\u03c2 \u0391\u03bd\u03b1\u03c6\u03bf\u03c1\u03ad\u03c2 PubMed",
-        "skip_vitals": "\u03a0\u03b1\u03c1\u03ac\u03bb\u03b5\u03b9\u03c8\u03b7 (\u03c7\u03c9\u03c1\u03af\u03c2 \u03bc\u03b5\u03c4\u03c1\u03ae\u03c3\u03b5\u03b9\u03c2)",
+        "temp": "Θερμοκρασία (°C)",
+        "weight": "Βάρος (kg)",
+        "height": "Ύψος (cm)",
+        "analyse_vitals": "Ανάλυση Ζωτικών",
+        "triage_title": "Εκτίμηση Συμπτωμάτων",
+        "triage_sub": "Περιγράψτε τα συμπτώματά σας. Ο Asklepios θα σας κάνει κατευθυνόμενες ερωτήσεις.",
+        "triage_placeholder": "Π.χ. Έχω πονοκέφαλο τριών ημερών με ναυτία...",
+        "generate_report": "Δημιουργία Πλήρους Αναφοράς",
+        "report_title": "Λεπτομερής Εκτίμηση Υγείας",
+        "second_opinion": "Δεύτερη Γνώμη GPT-4o",
+        "pubmed": "Επιστημονικές Αναφορές PubMed",
+        "skip_vitals": "Παράλειψη (χωρίς μετρήσεις)",
     },
     "en": {
         "title": "Asklepios",
         "subtitle": "Your AI Nurse",
         "tagline": "Evidence-based health guidance · Always by your side",
         "start": "Start Assessment",
-        "disclaimer_main": "\u26a0\ufe0f Asklepios provides health information for informational purposes only. It does not replace medical diagnosis or treatment. In an emergency call **166** (EKAB) or **112**.",
-        "emergency": "\U0001f6a8 EMERGENCY: CALL 166 (EKAB) or 112",
+        "disclaimer_main": "⚠️ Asklepios provides health information for informational purposes only. It does not replace medical diagnosis or treatment. In an emergency call **166** (EKAB) or **112**.",
+        "emergency": "🚨 EMERGENCY: CALL 166 (EKAB) or 112",
         "name": "Name", "age": "Age", "sex": "Biological Sex",
         "male": "Male", "female": "Female", "other": "Other",
         "history": "Medical history (conditions, surgeries)",
         "allergies": "Allergies",
         "meds": "Current medications / supplements",
-        "next": "Next \u2192",
-        "back": "\u2190 Back",
+        "next": "Next →",
+        "back": "← Back",
         "vitals_title": "Your Vitals",
         "vitals_sub": "Enter your measurements.",
         "hr": "Heart Rate (bpm)",
-        "bp_sys": "Blood Pressure \u2014 Systolic (mmHg)",
-        "bp_dia": "Blood Pressure \u2014 Diastolic (mmHg)",
+        "bp_sys": "Blood Pressure — Systolic (mmHg)",
+        "bp_dia": "Blood Pressure — Diastolic (mmHg)",
         "br": "Breathing Rate (/min)",
         "spo2": "SpO2 (%)",
-        "temp": "Temperature (\u00b0C)",
+        "temp": "Temperature (°C)",
         "weight": "Weight (kg)",
         "height": "Height (cm)",
         "analyse_vitals": "Analyse Vitals",
@@ -2382,26 +2382,277 @@ T = {
         "second_opinion": "GPT-4o Second Opinion",
         "pubmed": "PubMed Evidence",
         "skip_vitals": "Skip (no measurements)",
-    }
+    },
+    "hi": {
+        "title": "Asklepios",
+        "subtitle": "आपकी AI नर्स",
+        "tagline": "विश्वसनीय स्वास्थ्य जानकारी · हमेशा आपके साथ",
+        "start": "मूल्यांकन शुरू करें",
+        "disclaimer_main": "⚠️ Asklepios केवल जानकारी के लिए स्वास्थ्य सूचना प्रदान करता है। यह चिकित्सा निदान या उपचार का विकल्प नहीं है। आपात स्थिति में **166** (EKAB) या **112** पर कॉल करें।",
+        "emergency": "🚨 आपातकाल: 166 (EKAB) या 112 पर कॉल करें",
+        "name": "नाम", "age": "उम्र", "sex": "लिंग",
+        "male": "पुरुष", "female": "महिला", "other": "अन्य",
+        "history": "चिकित्सा इतिहास (बीमारियाँ, ऑपरेशन)",
+        "allergies": "एलर्जी",
+        "meds": "वर्तमान दवाएं / सप्लीमेंट",
+        "next": "अगला →",
+        "back": "← वापस",
+        "vitals_title": "महत्वपूर्ण संकेत",
+        "vitals_sub": "अपनी माप दर्ज करें।",
+        "hr": "हृदय गति (bpm)",
+        "bp_sys": "रक्तचाप — सिस्टोलिक (mmHg)",
+        "bp_dia": "रक्तचाप — डायस्टोलिक (mmHg)",
+        "br": "श्वसन दर (/min)",
+        "spo2": "SpO2 (%)",
+        "temp": "तापमान (°C)",
+        "weight": "वजन (kg)",
+        "height": "ऊंचाई (cm)",
+        "analyse_vitals": "संकेतों का विश्लेषण करें",
+        "triage_title": "लक्षण मूल्यांकन",
+        "triage_sub": "अपने लक्षण बताएं। Asklepios आपसे प्रश्न पूछेगा।",
+        "triage_placeholder": "जैसे: तीन दिनों से सिरदर्द और मतली है...",
+        "generate_report": "पूरी रिपोर्ट बनाएं",
+        "report_title": "विस्तृत स्वास्थ्य मूल्यांकन",
+        "second_opinion": "GPT-4o दूसरी राय",
+        "pubmed": "PubMed शोध संदर्भ",
+        "skip_vitals": "छोड़ें (माप के बिना)",
+    },
+    "ur": {
+        "title": "Asklepios",
+        "subtitle": "آپ کی AI نرس",
+        "tagline": "قابل اعتماد صحت کی معلومات · ہمیشہ آپ کے ساتھ",
+        "start": "تشخیص شروع کریں",
+        "disclaimer_main": "⚠️ Asklepios صرف معلوماتی مقاصد کے لیے صحت کی معلومات فراہم کرتا ہے۔ یہ طبی تشخیص یا علاج کا متبادل نہیں ہے۔ ہنگامی صورت میں **166** (EKAB) یا **112** پر کال کریں۔",
+        "emergency": "🚨 ہنگامی صورتحال: 166 یا 112 پر کال کریں",
+        "name": "نام", "age": "عمر", "sex": "جنس",
+        "male": "مرد", "female": "عورت", "other": "دیگر",
+        "history": "طبی تاریخ (بیماریاں، آپریشن)",
+        "allergies": "الرجی",
+        "meds": "موجودہ دوائیں / سپلیمنٹ",
+        "next": "اگلا →",
+        "back": "← واپس",
+        "vitals_title": "اہم علامات",
+        "vitals_sub": "اپنی پیمائش درج کریں۔",
+        "hr": "دل کی دھڑکن (bpm)",
+        "bp_sys": "بلڈ پریشر — سیسٹولک (mmHg)",
+        "bp_dia": "بلڈ پریشر — ڈائاسٹولک (mmHg)",
+        "br": "سانس کی شرح (/min)",
+        "spo2": "SpO2 (%)",
+        "temp": "درجہ حرارت (°C)",
+        "weight": "وزن (kg)",
+        "height": "قد (cm)",
+        "analyse_vitals": "علامات کا تجزیہ کریں",
+        "triage_title": "علامات کی تشخیص",
+        "triage_sub": "اپنی علامات بیان کریں۔ Asklepios سوالات پوچھے گا۔",
+        "triage_placeholder": "مثلاً: تین دن سے سردرد اور متلی ہے...",
+        "generate_report": "مکمل رپورٹ بنائیں",
+        "report_title": "تفصیلی صحت کی تشخیص",
+        "second_opinion": "GPT-4o دوسری رائے",
+        "pubmed": "PubMed تحقیقی حوالہ جات",
+        "skip_vitals": "چھوڑیں (پیمائش کے بغیر)",
+    },
+    "ar": {
+        "title": "Asklepios",
+        "subtitle": "ممرضتك الذكية",
+        "tagline": "معلومات صحية موثوقة · دائماً بجانبك",
+        "start": "ابدأ التقييم",
+        "disclaimer_main": "⚠️ يقدم Asklepios معلومات صحية لأغراض إعلامية فقط. لا يُعوِّض التشخيص الطبي أو العلاج. في حالات الطوارئ اتصل بـ **166** (EKAB) أو **112**.",
+        "emergency": "🚨 طوارئ: اتصل بـ 166 أو 112",
+        "name": "الاسم", "age": "العمر", "sex": "الجنس",
+        "male": "ذكر", "female": "أنثى", "other": "آخر",
+        "history": "التاريخ الطبي (الأمراض، العمليات)",
+        "allergies": "الحساسية",
+        "meds": "الأدوية الحالية / المكملات",
+        "next": "التالي →",
+        "back": "← رجوع",
+        "vitals_title": "العلامات الحيوية",
+        "vitals_sub": "أدخل قياساتك.",
+        "hr": "معدل ضربات القلب (bpm)",
+        "bp_sys": "ضغط الدم — الانقباضي (mmHg)",
+        "bp_dia": "ضغط الدم — الانبساطي (mmHg)",
+        "br": "معدل التنفس (/min)",
+        "spo2": "SpO2 (%)",
+        "temp": "درجة الحرارة (°C)",
+        "weight": "الوزن (kg)",
+        "height": "الطول (cm)",
+        "analyse_vitals": "تحليل العلامات الحيوية",
+        "triage_title": "تقييم الأعراض",
+        "triage_sub": "صف أعراضك. سيطرح عليك Asklepios أسئلة موجهة.",
+        "triage_placeholder": "مثلاً: أعاني من صداع منذ ثلاثة أيام مع غثيان...",
+        "generate_report": "إنشاء تقرير طبي كامل",
+        "report_title": "تقييم صحي مفصل",
+        "second_opinion": "رأي ثانٍ من GPT-4o",
+        "pubmed": "مراجع PubMed العلمية",
+        "skip_vitals": "تخطَّ (بدون قياسات)",
+    },
+    "bn": {
+        "title": "Asklepios",
+        "subtitle": "আপনার AI নার্স",
+        "tagline": "নির্ভরযোগ্য স্বাস্থ্য তথ্য · সবসময় আপনার পাশে",
+        "start": "মূল্যায়ন শুরু করুন",
+        "disclaimer_main": "⚠️ Asklepios শুধুমাত্র তথ্যমূলক উদ্দেশ্যে স্বাস্থ্য তথ্য প্রদান করে। এটি চিকিৎসা নির্ণয় বা চিকিৎসার বিকল্প নয়। জরুরি অবস্থায় **166** (EKAB) বা **112** তে কল করুন।",
+        "emergency": "🚨 জরুরি অবস্থা: 166 বা 112 তে কল করুন",
+        "name": "নাম", "age": "বয়স", "sex": "লিঙ্গ",
+        "male": "পুরুষ", "female": "মহিলা", "other": "অন্যান্য",
+        "history": "চিকিৎসা ইতিহাস (রোগ, অপারেশন)",
+        "allergies": "অ্যালার্জি",
+        "meds": "বর্তমান ওষুধ / সাপ্লিমেন্ট",
+        "next": "পরবর্তী →",
+        "back": "← ফিরে যান",
+        "vitals_title": "গুরুত্বপূর্ণ লক্ষণ",
+        "vitals_sub": "আপনার পরিমাপ লিখুন।",
+        "hr": "হৃদস্পন্দন (bpm)",
+        "bp_sys": "রক্তচাপ — সিস্টোলিক (mmHg)",
+        "bp_dia": "রক্তচাপ — ডায়াস্টোলিক (mmHg)",
+        "br": "শ্বাসের হার (/min)",
+        "spo2": "SpO2 (%)",
+        "temp": "তাপমাত্রা (°C)",
+        "weight": "ওজন (kg)",
+        "height": "উচ্চতা (cm)",
+        "analyse_vitals": "লক্ষণ বিশ্লেষণ করুন",
+        "triage_title": "লক্ষণ মূল্যায়ন",
+        "triage_sub": "আপনার লক্ষণ বর্ণনা করুন। Asklepios প্রশ্ন করবে।",
+        "triage_placeholder": "যেমন: তিন দিন ধরে মাথাব্যথা এবং বমি ভাব...",
+        "generate_report": "সম্পূর্ণ রিপোর্ট তৈরি করুন",
+        "report_title": "বিস্তারিত স্বাস্থ্য মূল্যায়ন",
+        "second_opinion": "GPT-4o দ্বিতীয় মতামত",
+        "pubmed": "PubMed গবেষণা তথ্যসূত্র",
+        "skip_vitals": "এড়িয়ে যান (পরিমাপ ছাড়া)",
+    },
+    "bg": {
+        "title": "Asklepios", "subtitle": "Вашата AI медицинска сестра",
+        "tagline": "Надеждна здравна информация · Винаги до вас",
+        "start": "Започни оценка",
+        "disclaimer_main": "⚠️ Asklepios предоставя здравна информация само за информационни цели. Не замества медицинска диагноза или лечение. При спешност се обадете на **166** (EKAB) или **112**.",
+        "emergency": "🚨 СПЕШНО: ОБАДЕТЕ СЕ НА 166 ИЛИ 112",
+        "name": "Име", "age": "Възраст", "sex": "Пол",
+        "male": "Мъж", "female": "Жена", "other": "Друго",
+        "history": "Медицинска история (заболявания, операции)", "allergies": "Алергии",
+        "meds": "Текущи лекарства / добавки", "next": "Напред →", "back": "← Назад",
+        "vitals_title": "Жизнени показатели", "vitals_sub": "Въведете измерванията си.",
+        "hr": "Сърдечен ритъм (bpm)", "bp_sys": "Кръвно налягане — Систолично (mmHg)",
+        "bp_dia": "Кръвно налягане — Диастолично (mmHg)", "br": "Дихателна честота (/min)",
+        "spo2": "SpO2 (%)", "temp": "Температура (°C)", "weight": "Тегло (kg)", "height": "Ръст (cm)",
+        "analyse_vitals": "Анализ на показателите", "triage_title": "Оценка на симптомите",
+        "triage_sub": "Опишете симптомите си. Asklepios ще задава въпроси.",
+        "triage_placeholder": "Напр. Имам главоболие от три дни с гадене...",
+        "generate_report": "Генерирай пълен доклад", "report_title": "Подробна здравна оценка",
+        "second_opinion": "Второ мнение GPT-4o", "pubmed": "PubMed научни референции",
+        "skip_vitals": "Пропусни (без измервания)",
+    },
+    "ro": {
+        "title": "Asklepios", "subtitle": "Asistenta ta AI",
+        "tagline": "Informații medicale de încredere · Mereu alături de tine",
+        "start": "Începe evaluarea",
+        "disclaimer_main": "⚠️ Asklepios oferă informații de sănătate exclusiv în scop informativ. Nu înlocuiește diagnosticul sau tratamentul medical. În urgențe sunați **166** (EKAB) sau **112**.",
+        "emergency": "🚨 URGENȚĂ: SUNAȚI 166 SAU 112",
+        "name": "Nume", "age": "Vârstă", "sex": "Sex",
+        "male": "Masculin", "female": "Feminin", "other": "Altul",
+        "history": "Istoric medical (afecțiuni, operații)", "allergies": "Alergii",
+        "meds": "Medicamente curente / suplimente", "next": "Înainte →", "back": "← Înapoi",
+        "vitals_title": "Semne vitale", "vitals_sub": "Introduceți măsurătorile.",
+        "hr": "Ritm cardiac (bpm)", "bp_sys": "Tensiune arterială — Sistolică (mmHg)",
+        "bp_dia": "Tensiune arterială — Diastolică (mmHg)", "br": "Frecvență respiratorie (/min)",
+        "spo2": "SpO2 (%)", "temp": "Temperatură (°C)", "weight": "Greutate (kg)", "height": "Înălțime (cm)",
+        "analyse_vitals": "Analizați semnele vitale", "triage_title": "Evaluarea simptomelor",
+        "triage_sub": "Descrieți simptomele. Asklepios va pune întrebări.",
+        "triage_placeholder": "De ex. Am dureri de cap de trei zile cu greață...",
+        "generate_report": "Generați raport complet", "report_title": "Evaluare detaliată a sănătății",
+        "second_opinion": "A doua opinie GPT-4o", "pubmed": "Referințe PubMed",
+        "skip_vitals": "Omiteți (fără măsurători)",
+    },
+    "al": {
+        "title": "Asklepios", "subtitle": "Infermierja juaj AI",
+        "tagline": "Informacion shëndetësor i besueshëm · Gjithmonë pranë jush",
+        "start": "Fillo vlerësimin",
+        "disclaimer_main": "⚠️ Asklepios ofron informacion shëndetësor vetëm për qëllime informative. Nuk zëvendëson diagnozën ose trajtimin mjekësor. Në raste urgjence telefononi **166** (EKAB) ose **112**.",
+        "emergency": "🚨 URGJENCË: TELEFONONI 166 OSE 112",
+        "name": "Emri", "age": "Mosha", "sex": "Gjinia",
+        "male": "Mashkull", "female": "Femër", "other": "Tjetër",
+        "history": "Historia mjekësore (sëmundje, operacione)", "allergies": "Alergji",
+        "meds": "Medikamente aktuale / suplemente", "next": "Tjetër →", "back": "← Kthehu",
+        "vitals_title": "Shenjat vitale", "vitals_sub": "Fusni matjet tuaja.",
+        "hr": "Ritmi i zemrës (bpm)", "bp_sys": "Presioni i gjakut — Sistolik (mmHg)",
+        "bp_dia": "Presioni i gjakut — Diastolik (mmHg)", "br": "Shkalla e frymëmarrjes (/min)",
+        "spo2": "SpO2 (%)", "temp": "Temperatura (°C)", "weight": "Pesha (kg)", "height": "Gjatësia (cm)",
+        "analyse_vitals": "Analizoni shenjat vitale", "triage_title": "Vlerësimi i simptomave",
+        "triage_sub": "Përshkruani simptomat tuaja. Asklepios do të bëjë pyetje.",
+        "triage_placeholder": "P.sh. Kam dhimbje koke prej tre ditësh me të përziera...",
+        "generate_report": "Gjenero raport të plotë", "report_title": "Vlerësim i detajuar shëndetësor",
+        "second_opinion": "Mendim i dytë GPT-4o", "pubmed": "Referenca PubMed",
+        "skip_vitals": "Kalo (pa matje)",
+    },
+    "ru": {
+        "title": "Asklepios", "subtitle": "Ваша AI медсестра",
+        "tagline": "Достоверная медицинская информация · Всегда рядом",
+        "start": "Начать оценку",
+        "disclaimer_main": "⚠️ Asklepios предоставляет медицинскую информацию исключительно в информационных целях. Не заменяет медицинскую диагностику или лечение. В экстренных случаях звоните **166** (EKAB) или **112**.",
+        "emergency": "🚨 ЭКСТРЕННЫЙ СЛУЧАЙ: ЗВОНИТЕ 166 ИЛИ 112",
+        "name": "Имя", "age": "Возраст", "sex": "Пол",
+        "male": "Мужской", "female": "Женский", "other": "Другое",
+        "history": "История болезни (заболевания, операции)", "allergies": "Аллергии",
+        "meds": "Текущие лекарства / добавки", "next": "Далее →", "back": "← Назад",
+        "vitals_title": "Жизненные показатели", "vitals_sub": "Введите ваши измерения.",
+        "hr": "Частота сердечных сокращений (bpm)", "bp_sys": "Артериальное давление — Систолическое (mmHg)",
+        "bp_dia": "Артериальное давление — Диастолическое (mmHg)", "br": "Частота дыхания (/min)",
+        "spo2": "SpO2 (%)", "temp": "Температура (°C)", "weight": "Вес (kg)", "height": "Рост (cm)",
+        "analyse_vitals": "Анализ показателей", "triage_title": "Оценка симптомов",
+        "triage_sub": "Опишите ваши симптомы. Asklepios задаст вопросы.",
+        "triage_placeholder": "Напр. У меня болит голова три дня с тошнотой...",
+        "generate_report": "Создать полный отчёт", "report_title": "Подробная оценка здоровья",
+        "second_opinion": "Второе мнение GPT-4o", "pubmed": "Научные ссылки PubMed",
+        "skip_vitals": "Пропустить (без измерений)",
+    },
+}
+# For languages without a full UI translation, fall back to English
+def t(key):
+    lang = st.session_state.get("lang", "el")
+    return T.get(lang, T["en"]).get(key, T["en"].get(key, key))
+
+
+# UI_LANGUAGES: the languages available for the app interface itself.
+# These drive the st.session_state.lang toggle in the topbar.
+# Keep to languages where the full UI strings are translated (el/en).
+# For report/AI output in other languages, OUTPUT_LANGUAGES handles that.
+UI_LANGUAGES = {
+    "el": "🇬🇷 ΕΛ",
+    "en": "🇬🇧 EN",
 }
 
-def t(key): return T[st.session_state.lang].get(key, key)
-
-
 def render_topbar():
-    """Top-right bar visible on every post-login screen: language toggle + logout.
-    Centralises both so each screen does not duplicate them."""
+    """Top-right controls visible on every post-login screen.
+    - Left: spacer (nav tabs are in render_bottom_nav fixed top)
+    - Right: language selector (all OUTPUT_LANGUAGES) + logout
+    The language selector here controls BOTH the UI lang (el/en) AND the
+    AI output/report language — one unified picker instead of two separate ones.
+    """
     lang = st.session_state.lang
-    _t1, _t2, _t3 = st.columns([7, 1, 1])
+    _t1, _t2, _t3 = st.columns([5, 2, 1])
     with _t2:
-        if st.button(("🇬🇧 EN" if lang=="el" else "🇬🇷 ΕΛ"),
-                     key="topbar_lang", use_container_width=True):
-            st.session_state.lang = "en" if lang=="el" else "el"
+        # Unified language picker: el/en → UI lang; others → output_lang only
+        _all_lang_codes = list(OUTPUT_LANGUAGES.keys())
+        _cur = st.session_state.get("output_lang") or lang
+        try:    _idx = _all_lang_codes.index(_cur)
+        except: _idx = 0
+        _chosen = st.selectbox(
+            "",
+            _all_lang_codes,
+            index=_idx,
+            format_func=lambda c: OUTPUT_LANGUAGES[c][0],
+            key="topbar_lang_select",
+            label_visibility="collapsed",
+        )
+        if _chosen != _cur:
+            # Every language changes both the UI lang AND the output lang.
+            # t() falls back to English for languages without full UI translation,
+            # but the UI lang key drives the Claude system prompt language.
+            st.session_state.lang = _chosen
+            st.session_state["output_lang"] = _chosen
             st.rerun()
     with _t3:
         if is_logged_in():
-            if st.button("🚪 " + ("Έξοδος" if lang=="el" else "Logout"),
-                         key="topbar_logout", use_container_width=True):
+            if st.button("🚪", key="topbar_logout", use_container_width=True,
+                         help=("Έξοδος" if lang=="el" else "Logout")):
                 logout()
                 st.rerun()
 
@@ -2489,27 +2740,14 @@ def render_doc_header(title_el, title_en, *, icon="📋",
 
 
 def render_bottom_nav():
-    """Persistent bottom tab bar: Αρχική / Ζωτικά / Συμπτώματα / Ιστορικό.
-    Lets the person jump between sections instead of being locked into the
-    linear intake→vitals→triage→report flow. The active assessment's own
-    progress (render_stepper) keeps showing inside intake/vitals/triage/report
-    — this nav is the higher-level "where in the app am I" layer, not a
-    replacement for it.
-
-    Tapping a tab that needs a profile (Ζωτικά/Συμπτώματα/Ιστορικό) while no
-    profile exists yet sends the person to intake first, rather than showing
-    a vitals/triage screen with no name attached to it.
+    """Top navigation bar — replaces the old fixed-bottom tab bar.
+    Sits at the top of every post-login screen via position:fixed top.
+    Contains: logo | tabs (Αρχική/Ζωτικά/Συμπτώματα/Ιστορικό) | lang+logout.
     """
     lang = st.session_state.lang
     has_profile = bool(st.session_state.profile.get("name"))
     cur = st.session_state.screen
 
-    # Which nav item is "active" for the current screen. intake/vitals both
-    # light up "Ζωτικά" is wrong — intake maps to no tab being forced active
-    # other than by section: intake counts toward the assessment, so we treat
-    # it as part of the "Συμπτώματα" entry point conceptually, but visually
-    # it's clearer to highlight nothing extra: home/vitals/triage/report each
-    # map 1:1 to a tab; intake highlights the same tab as wherever it leads.
     tab_for_screen = {
         "home": "home", "intake": "triage", "vitals": "vitals",
         "triage": "triage", "report": "history",
@@ -2517,40 +2755,39 @@ def render_bottom_nav():
     active_tab = tab_for_screen.get(cur, "home")
 
     items = [
-        ("home",    "🏠", "Αρχική"      if lang=="el" else "Home"),
-        ("vitals",  "❤️", "Ζωτικά"      if lang=="el" else "Vitals"),
-        ("triage",  "💬", "Συμπτώματα"  if lang=="el" else "Symptoms"),
-        ("history", "📋", "Ιστορικό"    if lang=="el" else "History"),
+        ("home",    "🏠", "Αρχική"     if lang=="el" else "Home"),
+        ("vitals",  "❤️", "Ζωτικά"     if lang=="el" else "Vitals"),
+        ("triage",  "💬", "Συμπτώματα" if lang=="el" else "Symptoms"),
+        ("history", "📋", "Ιστορικό"   if lang=="el" else "History"),
     ]
 
     st.markdown("""
 <style>
-.bottom-nav-spacer { height: 76px; }  /* keeps page content from hiding under the fixed bar */
+/* ── TOP NAV spacer — keeps content from hiding under the fixed bar ── */
+.bottom-nav-spacer { height: 60px; }
 
-/* .bn-marker is rendered INSIDE the first column below, making it a real
-   descendant of the st.columns() stHorizontalBlock. :has() then lets us pin
-   THAT ancestor block to the bottom of the viewport. st.columns() has no
-   built-in way to opt into fixed positioning — this is the reliable way to
-   do it without a custom component. */
+/* Fix the stHorizontalBlock that contains .bn-marker to the TOP */
 div[data-testid="stHorizontalBlock"]:has(.bn-marker) {
-  position: fixed; left: 0; right: 0; bottom: 0; z-index: 999;
-  background: white; border-top: 1px solid #EEF2FA;
-  padding: 8px 6px calc(8px + env(safe-area-inset-bottom));
-  box-shadow: 0 -2px 12px rgba(15,42,82,0.05);
-  max-width: 480px; margin: 0 auto;
+  position: fixed; left: 0; right: 0; top: 0; bottom: auto; z-index: 999;
+  background: white; border-bottom: 1px solid #EEF2FA; border-top: none;
+  padding: 0 8px;
+  box-shadow: 0 2px 12px rgba(15,42,82,0.07);
+  height: 52px;
+  display: flex !important; align-items: center !important;
   flex-wrap: nowrap !important;
   justify-content: space-between !important;
   gap: 2px !important;
 }
 div[data-testid="stHorizontalBlock"]:has(.bn-marker) > div[data-testid="stColumn"] {
   min-width: 0 !important; width: 25% !important; flex: 0 0 25% !important;
+  display: flex !important; align-items: center !important;
 }
 .bn-marker { display: none; }
 div[data-testid="stHorizontalBlock"]:has(.bn-marker) button {
   background: transparent !important; border: none !important; box-shadow: none !important;
   color: #B8C2D6 !important; font-weight: 700 !important; font-size: 9.5px !important;
-  line-height: 1.4 !important; padding: 4px 2px !important; min-height: 0 !important;
-  white-space: nowrap !important; width: 100% !important;
+  line-height: 1.3 !important; padding: 2px 2px !important; min-height: 0 !important;
+  white-space: nowrap !important; width: 100% !important; height: 48px !important;
   display: flex !important; align-items: center !important; justify-content: center !important;
   text-align: center !important;
 }
@@ -2558,7 +2795,7 @@ div[data-testid="stHorizontalBlock"]:has(.bn-marker) button p {
   text-align: center !important; width: 100%;
 }
 div[data-testid="stHorizontalBlock"]:has(.bn-marker) button[kind="primary"] {
-  color: #2D6FE0 !important;
+  color: #2D6FE0 !important; border-bottom: 2px solid #2D6FE0 !important;
 }
 div[data-testid="stHorizontalBlock"]:has(.bn-marker) button[kind="primary"] p {
   color: #2D6FE0 !important; font-weight: 800 !important;
@@ -2580,6 +2817,7 @@ div[data-testid="stHorizontalBlock"]:has(.bn-marker) button[kind="primary"] p {
                 else:
                     st.session_state.screen = key
                 st.rerun()
+
 
 
 def render_stepper(current):
@@ -2781,12 +3019,17 @@ def kira_system(): return KIRA_SYSTEM_EL if st.session_state.lang=="el" else KIR
 OUTPUT_LANGUAGES = {
     "el": ("🇬🇷 Ελληνικά",  "Greek (Ελληνικά)"),
     "en": ("🇬🇧 English",   "English"),
+    "hi": ("🇮🇳 हिन्दी",    "Hindi (हिन्दी)"),
+    "ur": ("🇵🇰 اردو",      "Urdu (اردو)"),
+    "ar": ("🇸🇦 العربية",   "Arabic (العربية)"),
+    "bn": ("🇧🇩 বাংলা",     "Bengali (বাংলা)"),
     "bg": ("🇧🇬 Български", "Bulgarian (Български)"),
     "ro": ("🇷🇴 Română",    "Romanian (Română)"),
     "al": ("🇦🇱 Shqip",     "Albanian (Shqip)"),
     "ru": ("🇷🇺 Русский",   "Russian (Русский)"),
     "de": ("🇩🇪 Deutsch",   "German (Deutsch)"),
     "fr": ("🇫🇷 Français",  "French (Français)"),
+    "pa": ("🇵🇰 ਪੰਜਾਬੀ",   "Punjabi (ਪੰਜਾਬੀ)"),
 }
 
 def output_lang_code():
@@ -6101,7 +6344,6 @@ elif screen=="report": render_report()
 elif screen=="history": render_history()
 else: render_home()
 
-# Bottom tab bar — spacer first (keeps the screen's own last element from
-# being hidden behind the fixed bar), then the nav itself.
+# Top nav bar — spacer pushes content below the fixed bar at the top.
 st.markdown('<div class="bottom-nav-spacer"></div>', unsafe_allow_html=True)
 render_bottom_nav()
