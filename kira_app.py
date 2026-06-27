@@ -1607,20 +1607,18 @@ def render_login_screen():
         ("6","📄","Report","PubMed + doctor"),
     ]
     _steps = _steps_el if el else _steps_en
-    _step_cards = "".join(f"""
-<div style="flex:0 0 108px;text-align:center;">
-  <div style="width:26px;height:26px;border-radius:50%;background:#2D3FE7;color:white;
-    display:flex;align-items:center;justify-content:center;font-weight:700;font-size:11px;
-    margin:0 auto 8px;">{n}</div>
+    _arrow = '<div style="flex:0 0 auto;align-self:flex-start;padding-top:14px;font-size:11px;color:#C7D2FE;">›</div>'
+    _steps_with_arrows = _arrow.join(f"""<div style="flex:1 1 0;min-width:0;text-align:center;padding:0 2px;">
+  <div style="width:28px;height:28px;border-radius:50%;background:#2D3FE7;color:white;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:12px;margin:0 auto 8px;">{n}</div>
   <div style="font-size:20px;margin-bottom:5px;">{ic}</div>
-  <div style="font-size:12px;font-weight:700;color:#1A1A2E;margin-bottom:2px;">{t}</div>
-  <div style="font-size:10.5px;color:#6B7280;line-height:1.35;">{s}</div>
+  <div style="font-size:12px;font-weight:700;color:#1A1A2E;margin-bottom:2px;line-height:1.25;">{t}</div>
+  <div style="font-size:10px;color:#6B7280;line-height:1.35;">{s}</div>
 </div>""" for n, ic, t, s in _steps)
     _how_title = "Πώς λειτουργεί" if el else "How it works"
     st.markdown(f"""
 <div style="font-family:'Inter',system-ui,sans-serif;margin:0 0 20px;">
   <div style="font-size:18px;font-weight:800;color:#1A1A2E;text-align:center;margin-bottom:16px;">{_how_title}</div>
-  <div style="display:flex;gap:10px;overflow-x:auto;padding-bottom:6px;">{_step_cards}</div>
+  <div style="display:flex;align-items:flex-start;gap:0;width:100%;">{_steps_with_arrows}</div>
 </div>
 """, unsafe_allow_html=True)
 
@@ -3380,11 +3378,9 @@ def render_home():
     """Formeto-style home screen, matching the approved mockup:
       1) Topbar — wordmark + greeting + circular avatar with initial
       2) Action-grid — 2 big square cards (Συμπτώματα / Ζωτικά) as the
-         primary entry points, replacing the old single 'Start' button
-      3) Group-card — 'Η Υγεία σου Σήμερα', stacked icon+label+value+bar
-         rows showing the most recent HR/BP and last report date
-    Intro video section (A2E) is left exactly as-is per explicit instruction
-    not to touch it right now."""
+         primary entry points
+      3) Explainer banner — shown until profile is completed
+      4) Emergency disclaimer"""
     lang = st.session_state.lang
     p = st.session_state.profile
     name = p.get("name", "")
@@ -3496,17 +3492,36 @@ def render_home():
     # ── 1) Topbar ─────────────────────────────────────────────────────────
     initial = (name[:1] or "?").upper() if name else "?"
     greeting = (f"Καλημέρα, {name}" if name else "Καλημέρα!") if el else (f"Hi, {name}" if name else "Hi there!")
+    # Avatar: shows user's initial if profile exists, or a prompt to complete intake
+    _avatar_content = initial if (name and initial != "?") else ("👤" if el else "👤")
+    _avatar_title   = name if name else ("Συμπλήρωσε το προφίλ σου" if el else "Complete your profile")
     st.markdown(f"""
 <div class="home-topbar">
   <div>
     <div class="home-brand">Asklepios</div>
     <div class="home-greeting">{greeting}</div>
   </div>
-  <div class="home-avatar">{initial}</div>
+  <div class="home-avatar" title="{_avatar_title}" style="font-size:{'18px' if (name and initial != '?') else '22px'};">{_avatar_content}</div>
 </div>
 """, unsafe_allow_html=True)
 
-    # ── 2) Action grid — 2 big cards, the primary navigation entry points ──
+    # ── Explainer banner — shown until user completes first assessment ────────
+    if not has_profile:
+        _exp_title = "Από πού ξεκινάω;" if el else "Where do I start?"
+        _exp_body  = ("Πάτα <strong>Έλεγχος Συμπτωμάτων</strong> για να ξεκινήσεις. Το Asklepios θα σε ρωτήσει για το προφίλ σου και μετά θα αξιολογήσει τα συμπτώματά σου βήμα-βήμα." if el else
+                      "Tap <strong>Check Symptoms</strong> to begin. Asklepios will ask for your profile and then assess your symptoms step by step.")
+        st.markdown(f"""
+<div style="background:#EEF2FF;border:1px solid #C7D2FE;border-radius:14px;
+  padding:13px 16px;margin:0 0 16px;font-family:'Inter',system-ui,sans-serif;
+  display:flex;gap:12px;align-items:flex-start;">
+  <span style="font-size:22px;flex-shrink:0;margin-top:1px;">💡</span>
+  <div>
+    <div style="font-size:13.5px;font-weight:700;color:#1A1A2E;margin-bottom:3px;">{_exp_title}</div>
+    <div style="font-size:12.5px;color:#4B5563;line-height:1.5;">{_exp_body}</div>
+  </div>
+</div>
+""", unsafe_allow_html=True)
+
     def _go(target):
         st.session_state.screen = target if has_profile else "intake"
         st.rerun()
@@ -3563,60 +3578,7 @@ div[data-testid="stVerticalBlock"]:has(> div[data-testid="stElementContainer"] .
             )
             st.video(_intro_url)
 
-    # ── 3) Group-card — 'Η Υγεία σου Σήμερα' ───────────────────────────────
-    v = st.session_state.vitals or {}
-    status = classify_vitals(v, age=p.get("age")) if v else {}
-    _color_class = {"green": "ok", "yellow": "warn", "red": "danger"}
-
-    rows_html = ""
-    if "hr" in v:
-        c = _color_class.get(status.get("hr", "green"), "ok")
-        rows_html += f"""
-  <div class="home-vrow">
-    <div class="home-vrow-icon">❤️</div>
-    <div class="home-vrow-body">
-      <div class="home-vrow-top"><span class="home-vrow-label">{"Καρδιακός Ρυθμός" if el else "Heart Rate"}</span><span class="home-vrow-val">{v['hr']} bpm</span></div>
-      <div class="home-vrow-bar"><div class="home-vrow-bar-fill {c}" style="width:62%"></div></div>
-    </div>
-  </div>"""
-    if "bp_sys" in v and "bp_dia" in v:
-        c = _color_class.get(status.get("bp", "green"), "ok")
-        rows_html += f"""
-  <div class="home-vrow">
-    <div class="home-vrow-icon">🩸</div>
-    <div class="home-vrow-body">
-      <div class="home-vrow-top"><span class="home-vrow-label">{"Πίεση" if el else "Blood Pressure"}</span><span class="home-vrow-val">{v['bp_sys']}/{v['bp_dia']}</span></div>
-      <div class="home-vrow-bar"><div class="home-vrow-bar-fill {c}" style="width:70%"></div></div>
-    </div>
-  </div>"""
-    # Last report date — always shown, even with no vitals yet, as a clear
-    # "you haven't done this yet" cue when report is empty.
-    if st.session_state.report:
-        _last_label = "Τελευταία Αναφορά" if el else "Latest Report"
-        _last_val = datetime.now().strftime("%d %b")
-        _bar_w = "100%"
-    else:
-        _last_label = "Τελευταία Αναφορά" if el else "Latest Report"
-        _last_val = "—" if el else "—"
-        _bar_w = "0%"
-    rows_html += f"""
-  <div class="home-vrow">
-    <div class="home-vrow-icon">🧪</div>
-    <div class="home-vrow-body">
-      <div class="home-vrow-top"><span class="home-vrow-label">{_last_label}</span><span class="home-vrow-val">{_last_val}</span></div>
-      <div class="home-vrow-bar"><div class="home-vrow-bar-fill" style="width:{_bar_w}"></div></div>
-    </div>
-  </div>"""
-
-    with st.container(border=True):
-        st.markdown(
-            f'<div class="home-group-title">{"Η Υγεία σου Σήμερα" if el else "Your Health Today"}</div>'
-            + rows_html,
-            unsafe_allow_html=True,
-        )
-
-    # Emergency disclaimer — condensed, always visible, no CTA button needed
-    # anymore since the 2 action cards above already start the right flow.
+    # Emergency disclaimer — condensed, always visible
     _em_text = (
         "Για πόνο στο στήθος, δυσκολία αναπνοής, σοβαρή αιμορραγία, απώλεια "
         "συνείδησης ή συμπτώματα εγκεφαλικού, καλέστε αμέσως 166 (ΕΚΑΒ) ή 112."
