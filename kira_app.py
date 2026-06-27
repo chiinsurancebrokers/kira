@@ -489,6 +489,52 @@ st.markdown("""
     text-align: left; vertical-align: top;
     word-break: normal !important; overflow-wrap: break-word !important; hyphens: none;
 }
+
+/* ── SOFT-MODERN PASS ──────────────────────────────────────────────────────
+ * Rounds and softens the native Streamlit widgets (buttons, text/number
+ * inputs, selectboxes, expanders) so they match the calmer, more rounded
+ * card language used elsewhere (doc-header, vital cards, bottom nav).
+ * Deliberately scoped to native widgets only — none of the existing custom
+ * .class components (kira-stepper, pill, vital-badge, etc.) are touched. */
+.stButton button, .stDownloadButton button, .stFormSubmitButton button {
+    border-radius: 14px !important;
+    font-weight: 700 !important;
+    transition: transform .12s ease, box-shadow .12s ease;
+}
+.stButton button:active { transform: scale(0.98); }
+.stButton button[kind="primary"] {
+    box-shadow: 0 4px 14px rgba(45,63,231,0.22) !important;
+    border: none !important;
+}
+.stButton button[kind="secondary"] {
+    border: 1.5px solid #E0E5FF !important;
+    box-shadow: 0 1px 4px rgba(15,23,42,0.04) !important;
+}
+div[data-baseweb="input"], div[data-baseweb="textarea"], div[data-baseweb="select"] {
+    border-radius: 14px !important;
+}
+.stTextInput input, .stNumberInput input, .stTextArea textarea {
+    border-radius: 14px !important;
+    background: #F7F8FC !important;
+    border: 1.5px solid transparent !important;
+}
+.stTextInput input:focus, .stNumberInput input:focus, .stTextArea textarea:focus {
+    border-color: #2D3FE7 !important;
+    box-shadow: 0 0 0 3px rgba(45,63,231,0.12) !important;
+}
+[data-testid="stExpander"] {
+    border-radius: 16px !important;
+    border: 1px solid #E5E7EB !important;
+    box-shadow: 0 1px 4px rgba(15,23,42,0.03) !important;
+    overflow: hidden;
+}
+[data-testid="stExpander"] summary {
+    font-weight: 700 !important;
+}
+/* Radio / checkbox accent — keep the same blue instead of Streamlit's default */
+.stRadio [data-baseweb="radio"] div:first-child, .stCheckbox [data-baseweb="checkbox"] div:first-child {
+    border-color: #2D3FE7 !important;
+}
 </style>
 """, unsafe_allow_html=True)
 
@@ -504,19 +550,22 @@ def get_claude_key():  return _key("Claude_API_Key")
 def get_openai_key():  return _key("OPENAI_API_KEY")
 def get_groq_key():    return _key("GROQ_API_KEY")
 def get_ncbi_key():    return _key("NCBI_API_KEY")
+def get_a2e_key():     return _key("A2E_API_KEY")
 
-def render_physio_card(condition_hint, lang="el"):
+def render_physio_card(condition_hint, lang="el", refs_override=None):
     """Render a Physiotherapy & Rehabilitation evidence card.
-    Sources refs from st.session_state.report_physio_refs (PEDro-equivalent
-    search over PubMed/MEDLINE — see pedro_pillar_search). No API key required;
-    this runs on the same NCBI eutils access already used for PubMed citations."""
+    By default sources refs from st.session_state.report_physio_refs (set once
+    the final report's PEDro-equivalent PubMed/MEDLINE search completes — see
+    pedro_pillar_search). Pass refs_override to render with a different list,
+    e.g. the live triage-time cache used when this card is surfaced proactively
+    mid-conversation (before any report exists). No API key required either way."""
     title = "🏃 Φυσιοθεραπεία & Αποκατάσταση" if lang == "el" else "🏃 Physiotherapy & Rehabilitation"
     sub   = ("Σχετική βιβλιογραφία φυσικοθεραπείας (RCT/συστηματικές ανασκοπήσεις) — "
              "συζήτησε με φυσιοθεραπευτή πριν ξεκινήσεις οποιαδήποτε άσκηση."
              if lang == "el" else
              "Relevant physiotherapy evidence (RCTs / systematic reviews) — "
              "discuss with a physiotherapist before starting any exercise.")
-    refs = st.session_state.get("report_physio_refs") or []
+    refs = refs_override if refs_override is not None else (st.session_state.get("report_physio_refs") or [])
 
     import html as _html_p
     if refs:
@@ -623,10 +672,14 @@ PSYCHOLOGY_RESOURCES_EN = [
      "https://www.mindhub.gr"),
 ]
 
-def render_psychology_card(lang="el"):
+def render_psychology_card(lang="el", refs_override=None):
     """Render a Mental Health & Psychology support card.
-    Shows curated Greek resources: helplines, directories, organisations.
-    AI-generated guidance (via Claude) is appended for psychoeducation."""
+    Shows curated Greek resources: helplines, directories, organisations, plus
+    a peer-reviewed PubMed/MEDLINE research section. By default the research
+    section sources from st.session_state.report_psych_refs (set once the final
+    report's search completes). Pass refs_override to use a different list —
+    e.g. the live triage-time cache used when this card is surfaced proactively
+    mid-conversation, before any report exists."""
     title = "🧠 Ψυχολογική Υποστήριξη & Ψυχική Υγεία" if lang == "el" else "🧠 Psychological Support & Mental Health"
     sub   = ("Επίσημες υπηρεσίες, γραμμές κρίσης και αδειοδοτημένοι ψυχολόγοι — η αξιολόγηση γίνεται πάντα από επαγγελματία."
              if lang == "el" else
@@ -662,7 +715,7 @@ def render_psychology_card(lang="el"):
     # crisis/directory resources above. Those resources are unaffected; this
     # only adds literature.
     import html as _html_q
-    _psych_refs = st.session_state.get("report_psych_refs") or []
+    _psych_refs = refs_override if refs_override is not None else (st.session_state.get("report_psych_refs") or [])
     research_lbl = "📚 Σχετική Έρευνα (PubMed)" if lang == "el" else "📚 Related Research (PubMed)"
     if _psych_refs:
         research_items = "".join(
@@ -1808,6 +1861,100 @@ def render_doc_header(title_el, title_en, *, icon="📋",
     )
 
 
+def render_bottom_nav():
+    """Persistent bottom tab bar: Αρχική / Ζωτικά / Συμπτώματα / Ιστορικό.
+    Lets the person jump between sections instead of being locked into the
+    linear intake→vitals→triage→report flow. The active assessment's own
+    progress (render_stepper) keeps showing inside intake/vitals/triage/report
+    — this nav is the higher-level "where in the app am I" layer, not a
+    replacement for it.
+
+    Tapping a tab that needs a profile (Ζωτικά/Συμπτώματα/Ιστορικό) while no
+    profile exists yet sends the person to intake first, rather than showing
+    a vitals/triage screen with no name attached to it.
+    """
+    lang = st.session_state.lang
+    has_profile = bool(st.session_state.profile.get("name"))
+    cur = st.session_state.screen
+
+    # Which nav item is "active" for the current screen. intake/vitals both
+    # light up "Ζωτικά" is wrong — intake maps to no tab being forced active
+    # other than by section: intake counts toward the assessment, so we treat
+    # it as part of the "Συμπτώματα" entry point conceptually, but visually
+    # it's clearer to highlight nothing extra: home/vitals/triage/report each
+    # map 1:1 to a tab; intake highlights the same tab as wherever it leads.
+    tab_for_screen = {
+        "home": "home", "intake": "triage", "vitals": "vitals",
+        "triage": "triage", "report": "history",
+    }
+    active_tab = tab_for_screen.get(cur, "home")
+
+    items = [
+        ("home",    "🏠", "Αρχική"      if lang=="el" else "Home"),
+        ("vitals",  "❤️", "Ζωτικά"      if lang=="el" else "Vitals"),
+        ("triage",  "💬", "Συμπτώματα"  if lang=="el" else "Symptoms"),
+        ("history", "📋", "Ιστορικό"    if lang=="el" else "History"),
+    ]
+
+    st.markdown("""
+<style>
+.bottom-nav-spacer { height: 76px; }  /* keeps page content from hiding under the fixed bar */
+
+/* .bn-marker is rendered INSIDE the first column below, making it a real
+   descendant of the st.columns() stHorizontalBlock. :has() then lets us pin
+   THAT ancestor block to the bottom of the viewport. st.columns() has no
+   built-in way to opt into fixed positioning — this is the reliable way to
+   do it without a custom component. */
+div[data-testid="stHorizontalBlock"]:has(.bn-marker) {
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: 999;
+  background: white; border-top: 1px solid #EEF2FA;
+  padding: 8px 6px calc(8px + env(safe-area-inset-bottom));
+  box-shadow: 0 -2px 12px rgba(15,42,82,0.05);
+  max-width: 480px; margin: 0 auto;
+  flex-wrap: nowrap !important;
+  justify-content: space-between !important;
+  gap: 2px !important;
+}
+div[data-testid="stHorizontalBlock"]:has(.bn-marker) > div[data-testid="stColumn"] {
+  min-width: 0 !important; width: 25% !important; flex: 0 0 25% !important;
+}
+.bn-marker { display: none; }
+div[data-testid="stHorizontalBlock"]:has(.bn-marker) button {
+  background: transparent !important; border: none !important; box-shadow: none !important;
+  color: #B8C2D6 !important; font-weight: 700 !important; font-size: 9.5px !important;
+  line-height: 1.4 !important; padding: 4px 2px !important; min-height: 0 !important;
+  white-space: nowrap !important; width: 100% !important;
+  display: flex !important; align-items: center !important; justify-content: center !important;
+  text-align: center !important;
+}
+div[data-testid="stHorizontalBlock"]:has(.bn-marker) button p {
+  text-align: center !important; width: 100%;
+}
+div[data-testid="stHorizontalBlock"]:has(.bn-marker) button[kind="primary"] {
+  color: #2D6FE0 !important;
+}
+div[data-testid="stHorizontalBlock"]:has(.bn-marker) button[kind="primary"] p {
+  color: #2D6FE0 !important; font-weight: 800 !important;
+}
+</style>
+""", unsafe_allow_html=True)
+
+    cols = st.columns(len(items))
+    for i, (col, (key, icon, label)) in enumerate(zip(cols, items)):
+        with col:
+            if i == 0:
+                st.markdown('<div class="bn-marker"></div>', unsafe_allow_html=True)
+            is_active = (key == active_tab)
+            if st.button(f"{icon}  {label}", key=f"bn_{key}",
+                         use_container_width=True,
+                         type=("primary" if is_active else "secondary")):
+                if key != "home" and not has_profile:
+                    st.session_state.screen = "intake"
+                else:
+                    st.session_state.screen = key
+                st.rerun()
+
+
 def render_stepper(current):
     steps_el = ["1 Στοιχεία","2 Ζωτικές","3 Συμπτώματα","4 Αναφορά"]
     steps_en = ["1 Profile","2 Vitals","3 Symptoms","4 Report"]
@@ -2143,6 +2290,74 @@ def _visual_relevant():
         "upload photo",
     ]
     return any(p in a_txt for p in photo_hints)
+
+# Musculoskeletal / physiotherapy-relevant complaints (shoulder/back/joint pain,
+# sprains, post-injury stiffness...). Same accent-insensitive root-matching as
+# _relevant_vitals / _visual_relevant. Used to surface the Physiotherapy card
+# proactively during triage, not only at the end inside the final report.
+_PHYSIO_ROOTS = [
+    # Greek (accent-insensitive)
+    "ωμ","αυχεν","πλατ","μεσ","οσφ","γοφ","γονατ","αστραγαλ","καρπ","αγκων",
+    "διαστρεμ","στρεμπουλ","θλασ","τραβηγ","πιασιμ","πονος στ","μυικ","αρθρ",
+    "αρθριτ","οσφυαλγ","αυχεναλγ","ισχιαλγ","δισκοπαθ","τενοντ","θλιψ",
+    "κηλη δισκου","φυσικοθεραπ","φυσιοθεραπ","αποκαταστασ","ακαμψ","δυσκαμψ",
+    # English
+    "shoulder pain","back pain","neck pain","knee pain","hip pain","joint pain",
+    "sprain","strain","stiffness","herniated disc","disc herniation","sciatica",
+    "tendinitis","tendonitis","physiotherapy","physical therapy","rehab",
+]
+def _physio_relevant():
+    user_txt = _strip_accents(" ".join(m["content"] for m in st.session_state.triage_chat
+                                       if m["role"] == "user"))
+    return any(_strip_accents(r) in user_txt for r in _PHYSIO_ROOTS)
+
+# Mental-health / psychological-support-relevant complaints (anxiety, stress,
+# low mood, sleep issues tied to stress, panic...). Same pattern as above.
+# Used to surface the Psychology card proactively during triage.
+_PSYCH_ROOTS = [
+    # Greek (accent-insensitive)
+    "αγχ","στρες","καταθλ","πανικ","φοβ","ανησυχ","θλιψ","απελπισ","μελαγχολ",
+    "αυπν","κρισ πανικου","συναισθηματ","ψυχολογ","ψυχικ","ευερεθιστ",
+    "ταση παν","σκεψεις","μοναξ","εξαντλησ","καψιμο","burnout",
+    # English
+    "anxiety","stress","depress","panic","worried","worry","hopeless",
+    "insomnia","panic attack","overwhelmed","psycholog","mental health",
+    "burnout","low mood","can't sleep","cant sleep",
+]
+def _psych_relevant():
+    user_txt = _strip_accents(" ".join(m["content"] for m in st.session_state.triage_chat
+                                       if m["role"] == "user"))
+    return any(_strip_accents(r) in user_txt for r in _PSYCH_ROOTS)
+
+def _triage_condition_hint():
+    """Best-effort condition phrase from the in-progress triage chat, for use
+    BEFORE the final report (and its clean AI-extracted CONDITION) exists.
+    Just the recent user text, trimmed — good enough as a PubMed search seed
+    since pedro_pillar_search/psychology_pillar_search already fall back to
+    a looser query if the strict MeSH+ptype combo finds nothing."""
+    user_msgs = [m["content"] for m in st.session_state.triage_chat if m["role"] == "user"]
+    return " ".join(user_msgs)[-200:].strip()
+
+def _cached_physio_refs():
+    """Physio refs for the proactive triage-time card, cached in session_state
+    so repeated Streamlit reruns don't re-hit PubMed on every keystroke."""
+    hint = _triage_condition_hint()
+    cache = st.session_state.get("_physio_refs_cache")
+    if cache and cache.get("hint") == hint:
+        return cache.get("refs", [])
+    refs = pedro_pillar_search(hint, n=3) if hint else []
+    st.session_state["_physio_refs_cache"] = {"hint": hint, "refs": refs}
+    return refs
+
+def _cached_psych_refs():
+    """Psychology refs for the proactive triage-time card, cached the same way."""
+    hint = _triage_condition_hint()
+    cache = st.session_state.get("_psych_refs_cache")
+    if cache and cache.get("hint") == hint:
+        return cache.get("refs", [])
+    refs = psychology_pillar_search(hint, n=3) if hint else []
+    st.session_state["_psych_refs_cache"] = {"hint": hint, "refs": refs}
+    return refs
 
 # Quick-select symptom chips, tailored to the person (age + sex from the profile).
 # These are common PRESENTING COMPLAINTS per group — not diagnoses — to speed up the
@@ -2539,6 +2754,20 @@ def render_home():
     today_str = datetime.now().strftime("%d.%m.%Y")
     # Editorial banner — now visible on home too (no CTA, Start button is right below).
     render_ad_banner(lang)
+    # ── Intro video (A2E avatar) ─────────────────────────────────────────
+    # Pre-generated ONCE offline via a2e_intro_video.py (not at runtime — we
+    # don't want to spend A2E credits on every page load). The resulting mp4
+    # URL is stored as a secret, same pattern as the other API keys. If it's
+    # not configured yet, this section simply doesn't render — no broken UI,
+    # no placeholder box.
+    _intro_url = _key(f"A2E_INTRO_VIDEO_URL_{lang.upper()}") or _key("A2E_INTRO_VIDEO_URL_EL")
+    if _intro_url:
+        with st.container(border=True):
+            st.markdown(
+                ("##### 🎬 Πώς λειτουργεί ο Ασκληπιός" if lang == "el"
+                 else "##### 🎬 How Asklepios works"),
+            )
+            st.video(_intro_url)
     # Doc-template "assessment sheet" card — Notion-clean white surface with
     # doctor's-report aesthetic: title block, patient fields, checklist, blue emergency box.
     if lang == "el":
@@ -2695,9 +2924,39 @@ def render_home():
     with col2:
         if st.button(txt["start"], type="primary", use_container_width=True, key="home_start"):
             st.session_state.screen = "intake"; st.rerun()
-    # ── Symptom Tracker ────────────────────────────────────────────────────────
-    # localStorage-only: nothing goes to our servers. The tracker lives entirely
-    # in the browser. Privacy note shown inline.
+    # Symptom Tracker + past reports now live in their own "Ιστορικό" tab
+    # (render_history) instead of being buried at the bottom of Home.
+
+
+def render_history():
+    """Ιστορικό tab: the latest generated report (if any) + the browser-only
+    symptom log. This is where _render_symptom_tracker now lives — it used to
+    be buried in an expander at the bottom of Home; giving it its own tab
+    makes past data something the person can deliberately go look for instead
+    of stumbling onto by scrolling."""
+    lang = st.session_state.lang
+    render_doc_header(
+        "Ιστορικό", "History",
+        icon="📋",
+        sub_el="Προηγούμενη αναφορά & ημερολόγιο συμπτωμάτων",
+        sub_en="Latest report & symptom log",
+        show_date=False,
+    )
+    if st.session_state.report:
+        with st.container(border=True):
+            st.markdown("##### 📄 " + ("Τελευταία Αναφορά" if lang=="el" else "Latest Report"))
+            _preview = st.session_state.report.strip()
+            if len(_preview) > 280:
+                _preview = _preview[:280].rsplit(" ", 1)[0] + "…"
+            st.markdown(_preview)
+            if st.button("→ " + ("Άνοιγμα πλήρους αναφοράς" if lang=="el" else "Open full report"),
+                         key="hist_open_report", use_container_width=True):
+                st.session_state.screen = "report"; st.rerun()
+    else:
+        st.info(("Δεν έχεις ακόμη ολοκληρωμένη αναφορά. Ξεκίνα μια εκτίμηση από το tab «Συμπτώματα»."
+                 if lang=="el" else
+                 "No completed report yet. Start an assessment from the «Symptoms» tab."))
+    st.divider()
     _render_symptom_tracker(lang)
 
 
@@ -3448,6 +3707,35 @@ def render_triage():
                                     "Optional. If Asklepios needs a photo for a visible symptom, "
                                     "it will say so — but you can also upload proactively."))
             render_photo_scan()
+    # Physiotherapy card — surfaces proactively as soon as the conversation
+    # mentions a musculoskeletal complaint (shoulder/back/joint pain, sprain,
+    # stiffness...), instead of only appearing later inside the final report.
+    # Dismissible per-conversation, same UX pattern as the vitals nudge above.
+    if (any(m["role"]=="assistant" for m in st.session_state.triage_chat)
+            and _physio_relevant()
+            and not st.session_state.get("_physio_card_off")):
+        _physio_label = ("🏃 Σχετική βιβλιογραφία φυσικοθεραπείας" if _lang=="el"
+                          else "🏃 Related physiotherapy evidence")
+        with st.expander(_physio_label, expanded=True):
+            render_physio_card(_triage_condition_hint(), lang=_lang,
+                                refs_override=_cached_physio_refs())
+            if st.button(("Απόκρυψη" if _lang=="el" else "Dismiss"),
+                         key="physio_card_off", use_container_width=True):
+                st.session_state["_physio_card_off"] = True; st.rerun()
+    # Psychology card — surfaces proactively when the conversation mentions
+    # anxiety/stress/low mood/sleep-related distress etc. Same dismissible,
+    # collapsible pattern. Crisis lines/directory resources are always shown
+    # first inside the card; the PubMed research section is additive.
+    if (any(m["role"]=="assistant" for m in st.session_state.triage_chat)
+            and _psych_relevant()
+            and not st.session_state.get("_psych_card_off")):
+        _psych_label = ("🧠 Ψυχολογική υποστήριξη" if _lang=="el"
+                         else "🧠 Psychological support")
+        with st.expander(_psych_label, expanded=True):
+            render_psychology_card(lang=_lang, refs_override=_cached_psych_refs())
+            if st.button(("Απόκρυψη" if _lang=="el" else "Dismiss"),
+                         key="psych_card_off", use_container_width=True):
+                st.session_state["_psych_card_off"] = True; st.rerun()
     # Lab analysis — always available once Asklepios has started talking, since
     # blood/hormonal/urinalysis results help for ANY complaint, not just visual.
     if any(m["role"]=="assistant" for m in st.session_state.triage_chat):
@@ -4518,12 +4806,23 @@ Language: {"Greek" if lang=="el" else "English"}. Be direct. End with a one-line
                 from concurrent.futures import ThreadPoolExecutor as _TPE
                 with st.spinner("📚 " + ("Αναζήτηση οδηγιών ανά πυλώνα..." if lang=="el"
                                           else "Searching guideline-level evidence per pillar...")):
-                    with _TPE(max_workers=5) as _ex:
+                    with _TPE(max_workers=6) as _ex:
                         _futs = {p: _ex.submit(pubmed_pillar_search, _condition, p, 2)
                                  for p in ("exercise","nutrition","lifestyle")}
                         _futs["physio"]     = _ex.submit(pedro_pillar_search, _condition, 3)
                         _futs["psychology"] = _ex.submit(psychology_pillar_search, _condition, 3)
+                        # Re-fetch the MAIN bibliography using the clean MeSH-friendly
+                        # condition name (e.g. "Aortic Stenosis TAVI") instead of the
+                        # original search_query, which was built from the raw last chat
+                        # message (often non-English/conversational) and could return
+                        # zero PubMed results even when the condition itself has plenty
+                        # of literature. This only refreshes the references shown in the
+                        # "🔬 PubMed" expander + PDF export — it does not rewrite the
+                        # "6. ΒΙΒΛΙΟΓΡΑΦΙΑ" text the AI already wrote in the report body.
+                        _futs["bibliography"] = _ex.submit(pubmed_search, _condition, 3)
                         _all_refs = {p: f.result() for p,f in _futs.items()}
+                if _all_refs.get("bibliography"):
+                    st.session_state.report_pubmed = _all_refs["bibliography"]
                 st.session_state.report_recs_refs = {p: _all_refs[p] for p in ("exercise","nutrition","lifestyle")}
                 st.session_state.report_physio_refs = _all_refs.get("physio", [])
                 st.session_state.report_psych_refs  = _all_refs.get("psychology", [])
@@ -5081,4 +5380,10 @@ elif screen=="intake": render_intake()
 elif screen=="vitals": render_vitals()
 elif screen=="triage": render_triage()
 elif screen=="report": render_report()
+elif screen=="history": render_history()
 else: render_home()
+
+# Bottom tab bar — spacer first (keeps the screen's own last element from
+# being hidden behind the fixed bar), then the nav itself.
+st.markdown('<div class="bottom-nav-spacer"></div>', unsafe_allow_html=True)
+render_bottom_nav()
