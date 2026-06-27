@@ -316,7 +316,13 @@ def check_video_status(task_id, api_key):
                        query={"current": 1, "pageSize": 20})
     if result.get("code") != 0:
         raise A2EError(f"Status check failed: {result}")
-    items = (result.get("data") or {}).get("data") or []
+    raw_data = result.get("data")
+    if isinstance(raw_data, list):
+        items = raw_data
+    elif isinstance(raw_data, dict):
+        items = raw_data.get("data") or []
+    else:
+        items = []
     for item in items:
         if item.get("_id") == task_id:
             return item
@@ -430,11 +436,20 @@ if __name__ == "__main__":
     print("\n[1] Λίστα διαθέσιμων avatars...")
     try:
         avatars = list_avatars(API_KEY)
-        items = (avatars.get("data") or {}).get("data") or avatars.get("data") or []
+        raw_data = avatars.get("data")
+        if isinstance(raw_data, list):
+            items = raw_data
+        elif isinstance(raw_data, dict):
+            items = raw_data.get("data") or []
+        else:
+            items = []
         if isinstance(items, list) and items:
             print(f"    Βρέθηκαν {len(items)} avatars. Πρώτα 5:")
             for a in items[:5]:
-                print(f"      _id={a.get('_id')}  name={a.get('name', '—')}  gender={a.get('gender','—')}")
+                if isinstance(a, dict):
+                    print(f"      _id={a.get('_id')}  name={a.get('name', '—')}  gender={a.get('gender','—')}")
+                else:
+                    print(f"      (unexpected item shape): {a}")
         else:
             print("    ⚠️ Δεν βρέθηκαν avatars στη λίστα — έλεγξε το raw response:")
             print("   ", json.dumps(avatars)[:500])
