@@ -2314,6 +2314,21 @@ T = {
         "second_opinion": "Δεύτερη Γνώμη GPT-4o",
         "pubmed": "Επιστημονικές Αναφορές PubMed",
         "skip_vitals": "Παράλειψη (χωρίς μετρήσεις)",
+        "home_explainer_title": 'Από πού ξεκινάω;',
+        "home_explainer_body": 'Πάτα <strong>Έλεγχος Συμπτωμάτων</strong> για να ξεκινήσεις. Το Asklepios θα σε ρωτήσει για το προφίλ σου και μετά θα αξιολογήσει τα συμπτώματά σου βήμα-βήμα.',
+        "home_symptoms_btn": 'Έλεγχος Συμπτωμάτων',
+        "home_vitals_btn": 'Ζωτικά Σημεία',
+        "home_emergency": 'Για πόνο στο στήθος, δυσκολία αναπνοής, σοβαρή αιμορραγία, απώλεια συνείδησης ή συμπτώματα εγκεφαλικού, καλέστε αμέσως 166 (ΕΚΑΒ) ή 112.',
+        "home_emergency_label": 'Επείγον',
+        "intake_for_whom": 'Για ποιον είναι αυτή η αξιολόγηση;',
+        "intake_for_me": 'Για μένα',
+        "intake_for_other": 'Για άλλο άτομο που φροντίζω',
+        "intake_tell_us": 'Πες μας λίγα για σένα',
+        "intake_tell_us_sub": 'Όνομα, ηλικία, ιατρικό ιστορικό',
+        "nav_home": 'Αρχική',
+        "nav_vitals": 'Ζωτικά',
+        "nav_symptoms": 'Συμπτώματα',
+        "nav_history": 'Ιστορικό',
         "hero_h1": "Περίγραψε τι νιώθεις.<br><span style='color:#2D3FE7'>Λάβε κλινική εκτίμηση.</span>",
         "hero_sub": 'Τεκμηριωμένη αξιολόγηση με αναφορές PubMed + δεύτερη γνώμη GPT-4o. Για τον <strong>ιατρό</strong> σου.',
         "hero_f1t": 'Περιγραφή συμπτωμάτων',
@@ -2386,6 +2401,21 @@ T = {
         "second_opinion": "GPT-4o Second Opinion",
         "pubmed": "PubMed Evidence",
         "skip_vitals": "Skip (no measurements)",
+        "home_explainer_title": 'Where do I start?',
+        "home_explainer_body": 'Tap <strong>Check Symptoms</strong> to begin. Asklepios will ask for your profile and then assess your symptoms step by step.',
+        "home_symptoms_btn": 'Symptom Check',
+        "home_vitals_btn": 'Vital Signs',
+        "home_emergency": 'For chest pain, difficulty breathing, severe bleeding, loss of consciousness, or stroke symptoms, call 166 (EKAB) or 112 immediately.',
+        "home_emergency_label": 'Emergency',
+        "intake_for_whom": 'Who is this assessment for?',
+        "intake_for_me": 'For me',
+        "intake_for_other": 'For someone I care for',
+        "intake_tell_us": 'Tell us about yourself',
+        "intake_tell_us_sub": 'Name, age, medical history',
+        "nav_home": 'Home',
+        "nav_vitals": 'Vitals',
+        "nav_symptoms": 'Symptoms',
+        "nav_history": 'History',
         "hero_h1": "Describe what you feel.<br><span style='color:#2D3FE7'>Get a clinical assessment.</span>",
         "hero_sub": 'Evidence-based assessment with PubMed references + GPT-4o second opinion. For your <strong>doctor</strong>.',
         "hero_f1t": 'Symptom description',
@@ -2458,6 +2488,21 @@ T = {
         "second_opinion": "GPT-4o दूसरी राय",
         "pubmed": "PubMed शोध संदर्भ",
         "skip_vitals": "छोड़ें (माप के बिना)",
+        "home_explainer_title": 'मैं कहाँ से शुरू करूँ?',
+        "home_explainer_body": '<strong>लक्षण जाँच</strong> पर टैप करें। Asklepios आपका प्रोफ़ाइल पूछेगा और फिर आपके लक्षणों का मूल्यांकन करेगा।',
+        "home_symptoms_btn": 'लक्षण जाँच',
+        "home_vitals_btn": 'महत्वपूर्ण संकेत',
+        "home_emergency": 'सीने में दर्द, सांस लेने में कठिनाई, गंभीर रक्तस्राव या बेहोशी के लिए तुरंत 166 (EKAB) या 112 पर कॉल करें।',
+        "home_emergency_label": 'आपातकाल',
+        "intake_for_whom": 'यह मूल्यांकन किसके लिए है?',
+        "intake_for_me": 'मेरे लिए',
+        "intake_for_other": 'मेरी देखभाल में किसी के लिए',
+        "intake_tell_us": 'अपने बारे में बताएं',
+        "intake_tell_us_sub": 'नाम, उम्र, चिकित्सा इतिहास',
+        "nav_home": 'होम',
+        "nav_vitals": 'संकेत',
+        "nav_symptoms": 'लक्षण',
+        "nav_history": 'इतिहास',
         "hero_h1": "बताएं आप क्या महसूस कर रहे हैं।<br><span style='color:#2D3FE7'>पाएं नैदानिक मूल्यांकन।</span>",
         "hero_sub": 'PubMed संदर्भों के साथ + GPT-4o दूसरी राय। आपके <strong>डॉक्टर</strong> के लिए।',
         "hero_f1t": 'लक्षणों का विवरण',
@@ -2530,6 +2575,21 @@ T = {
         "second_opinion": "GPT-4o دوسری رائے",
         "pubmed": "PubMed تحقیقی حوالہ جات",
         "skip_vitals": "چھوڑیں (پیمائش کے بغیر)",
+        "home_explainer_title": 'میں کہاں سے شروع کروں؟',
+        "home_explainer_body": '<strong>علامات جانچ</strong> پر ٹیپ کریں۔ Asklepios آپ کا پروفائل پوچھے گا اور پھر آپ کی علامات کا جائزہ لے گا۔',
+        "home_symptoms_btn": 'علامات جانچ',
+        "home_vitals_btn": 'اہم علامات',
+        "home_emergency": 'سینے میں درد، سانس لینے میں دشواری یا بے ہوشی کے لیے فوری 166 یا 112 پر کال کریں۔',
+        "home_emergency_label": 'ہنگامی',
+        "intake_for_whom": 'یہ تشخیص کس کے لیے ہے؟',
+        "intake_for_me": 'میرے لیے',
+        "intake_for_other": 'جس کی میں دیکھ بھال کرتا ہوں',
+        "intake_tell_us": 'اپنے بارے میں بتائیں',
+        "intake_tell_us_sub": 'نام، عمر، طبی تاریخ',
+        "nav_home": 'ہوم',
+        "nav_vitals": 'علامات',
+        "nav_symptoms": 'علامات',
+        "nav_history": 'تاریخ',
         "hero_h1": "بتائیں آپ کیا محسوس کر رہے ہیں۔<br><span style='color:#2D3FE7'>طبی تشخیص حاصل کریں۔</span>",
         "hero_sub": 'PubMed + GPT-4o دوسری رائے۔ آپ کے <strong>ڈاکٹر</strong> کے لیے۔',
         "hero_f1t": 'علامات کی وضاحت',
@@ -2602,6 +2662,21 @@ T = {
         "second_opinion": "رأي ثانٍ من GPT-4o",
         "pubmed": "مراجع PubMed العلمية",
         "skip_vitals": "تخطَّ (بدون قياسات)",
+        "home_explainer_title": 'من أين أبدأ؟',
+        "home_explainer_body": 'اضغط على <strong>فحص الأعراض</strong>. سيسألك Asklepios عن ملفك الشخصي ثم يقيّم أعراضك خطوة بخطوة.',
+        "home_symptoms_btn": 'فحص الأعراض',
+        "home_vitals_btn": 'العلامات الحيوية',
+        "home_emergency": 'لألم الصدر أو صعوبة التنفس أو فقدان الوعي، اتصل فوراً بـ 166 أو 112.',
+        "home_emergency_label": 'طوارئ',
+        "intake_for_whom": 'لمن هذا التقييم؟',
+        "intake_for_me": 'لي',
+        "intake_for_other": 'لشخص أرعاه',
+        "intake_tell_us": 'أخبرنا عن نفسك',
+        "intake_tell_us_sub": 'الاسم، العمر، التاريخ الطبي',
+        "nav_home": 'الرئيسية',
+        "nav_vitals": 'الحيوية',
+        "nav_symptoms": 'الأعراض',
+        "nav_history": 'التاريخ',
         "hero_h1": "صف ما تشعر به.<br><span style='color:#2D3FE7'>احصل على تقييم طبي.</span>",
         "hero_sub": 'تقييم مبني على الأدلة + رأي ثانٍ من GPT-4o. لـ<strong>طبيبك</strong>.',
         "hero_f1t": 'وصف الأعراض',
@@ -2674,6 +2749,21 @@ T = {
         "second_opinion": "GPT-4o দ্বিতীয় মতামত",
         "pubmed": "PubMed গবেষণা তথ্যসূত্র",
         "skip_vitals": "এড়িয়ে যান (পরিমাপ ছাড়া)",
+        "home_explainer_title": 'আমি কোথা থেকে শুরু করব?',
+        "home_explainer_body": '<strong>লক্ষণ পরীক্ষা</strong> ট্যাপ করুন। Asklepios আপনার প্রোফাইল জিজ্ঞেস করবে এবং তারপর ধাপে ধাপে লক্ষণ মূল্যায়ন করবে।',
+        "home_symptoms_btn": 'লক্ষণ পরীক্ষা',
+        "home_vitals_btn": 'গুরুত্বপূর্ণ লক্ষণ',
+        "home_emergency": 'বুকে ব্যথা, শ্বাস নিতে কষ্ট বা চেতনা হারানোর জন্য অবিলম্বে 166 বা 112 কল করুন।',
+        "home_emergency_label": 'জরুরি',
+        "intake_for_whom": 'এই মূল্যায়ন কার জন্য?',
+        "intake_for_me": 'আমার জন্য',
+        "intake_for_other": 'যার যত্ন নিচ্ছি তার জন্য',
+        "intake_tell_us": 'আপনার সম্পর্কে বলুন',
+        "intake_tell_us_sub": 'নাম, বয়স, চিকিৎসা ইতিহাস',
+        "nav_home": 'হোম',
+        "nav_vitals": 'লক্ষণ',
+        "nav_symptoms": 'উপসর্গ',
+        "nav_history": 'ইতিহাস',
         "hero_h1": "বলুন আপনি কী অনুভব করছেন।<br><span style='color:#2D3FE7'>ক্লিনিক্যাল মূল্যায়ন পান।</span>",
         "hero_sub": 'PubMed রেফারেন্স + GPT-4o দ্বিতীয় মতামত সহ প্রমাণ-ভিত্তিক মূল্যায়ন। আপনার <strong>ডাক্তারের</strong> জন্য।',
         "hero_f1t": 'লক্ষণের বিবরণ',
@@ -2733,6 +2823,21 @@ T = {
         "generate_report": "Генерирай пълен доклад", "report_title": "Подробна здравна оценка",
         "second_opinion": "Второ мнение GPT-4o", "pubmed": "PubMed научни референции",
         "skip_vitals": "Пропусни (без измервания)",
+        "home_explainer_title": 'Откъде да започна?',
+        "home_explainer_body": 'Натиснете <strong>Оценка на симптоми</strong>. Asklepios ще попита за вашия профил и след това ще оцени симптомите ви стъпка по стъпка.',
+        "home_symptoms_btn": 'Оценка на симптоми',
+        "home_vitals_btn": 'Жизнени показатели',
+        "home_emergency": 'При болка в гърдите, затруднено дишане или загуба на съзнание, незабавно се обадете на 166 или 112.',
+        "home_emergency_label": 'Спешно',
+        "intake_for_whom": 'За кого е тази оценка?',
+        "intake_for_me": 'За мен',
+        "intake_for_other": 'За някой, за когото се грижа',
+        "intake_tell_us": 'Разкажете ни за себе си',
+        "intake_tell_us_sub": 'Ime, възраст, медицинска история',
+        "nav_home": 'Начало',
+        "nav_vitals": 'Показатели',
+        "nav_symptoms": 'Симптоми',
+        "nav_history": 'История',
         "hero_h1": "Опишете какво чувствате.<br><span style='color:#2D3FE7'>Получете клинична оценка.</span>",
         "hero_sub": 'Оценка, основана на доказателства с PubMed референции + второ мнение от GPT-4o. За вашия <strong>лекар</strong>.',
         "hero_f1t": 'Описание на симптомите',
@@ -2792,6 +2897,21 @@ T = {
         "generate_report": "Generați raport complet", "report_title": "Evaluare detaliată a sănătății",
         "second_opinion": "A doua opinie GPT-4o", "pubmed": "Referințe PubMed",
         "skip_vitals": "Omiteți (fără măsurători)",
+        "home_explainer_title": 'De unde încep?',
+        "home_explainer_body": 'Apăsați <strong>Verificare Simptome</strong>. Asklepios va întreba despre profilul dvs. și apoi va evalua simptomele pas cu pas.',
+        "home_symptoms_btn": 'Verificare Simptome',
+        "home_vitals_btn": 'Semne Vitale',
+        "home_emergency": 'Pentru dureri în piept, dificultăți de respirație sau pierderea cunoștinței, sunați imediat la 166 sau 112.',
+        "home_emergency_label": 'Urgență',
+        "intake_for_whom": 'Pentru cine este această evaluare?',
+        "intake_for_me": 'Pentru mine',
+        "intake_for_other": 'Pentru cineva de care am grijă',
+        "intake_tell_us": 'Spuneți-ne despre dvs.',
+        "intake_tell_us_sub": 'Nume, vârstă, istoric medical',
+        "nav_home": 'Acasă',
+        "nav_vitals": 'Vitale',
+        "nav_symptoms": 'Simptome',
+        "nav_history": 'Istoric',
         "hero_h1": "Descrieți ce simțiți.<br><span style='color:#2D3FE7'>Obțineți o evaluare clinică.</span>",
         "hero_sub": 'Evaluare bazată pe dovezi cu referințe PubMed + a doua opinie GPT-4o. Pentru <strong>medicul</strong> dumneavoastră.',
         "hero_f1t": 'Descrierea simptomelor',
@@ -2851,6 +2971,21 @@ T = {
         "generate_report": "Gjenero raport të plotë", "report_title": "Vlerësim i detajuar shëndetësor",
         "second_opinion": "Mendim i dytë GPT-4o", "pubmed": "Referenca PubMed",
         "skip_vitals": "Kalo (pa matje)",
+        "home_explainer_title": 'Nga ku filloj?',
+        "home_explainer_body": 'Shtypni <strong>Vlerësim Simptomesh</strong>. Asklepios do të pyesë për profilin tuaj dhe pastaj do të vlerësojë simptomat hap pas hapi.',
+        "home_symptoms_btn": 'Vlerësim Simptomesh',
+        "home_vitals_btn": 'Shenjat Vitale',
+        "home_emergency": 'Për dhimbje gjoksi, vështirësi frymëmarrjeje ose humbje ndërgjegjeje, telefononi menjëherë 166 ose 112.',
+        "home_emergency_label": 'Urgjencë',
+        "intake_for_whom": 'Ky vlerësim është për kë?',
+        "intake_for_me": 'Për mua',
+        "intake_for_other": 'Për dikë që kujdesem',
+        "intake_tell_us": 'Tregoni për veten tuaj',
+        "intake_tell_us_sub": 'Emri, mosha, historia mjekësore',
+        "nav_home": 'Kryefaqja',
+        "nav_vitals": 'Vitale',
+        "nav_symptoms": 'Simptoma',
+        "nav_history": 'Historia',
         "hero_h1": "Përshkruani çfarë ndiheni.<br><span style='color:#2D3FE7'>Merrni një vlerësim klinik.</span>",
         "hero_sub": 'Vlerësim i bazuar në dëshmi me referenca PubMed + mendim i dytë GPT-4o. Për <strong>mjekun</strong> tuaj.',
         "hero_f1t": 'Përshkrimi i simptomave',
@@ -2910,6 +3045,21 @@ T = {
         "generate_report": "Создать полный отчёт", "report_title": "Подробная оценка здоровья",
         "second_opinion": "Второе мнение GPT-4o", "pubmed": "Научные ссылки PubMed",
         "skip_vitals": "Пропустить (без измерений)",
+        "home_explainer_title": 'С чего начать?',
+        "home_explainer_body": 'Нажмите <strong>Оценка симптомов</strong>. Asklepios спросит о вашем профиле и затем пошагово оценит симптомы.',
+        "home_symptoms_btn": 'Оценка симптомов',
+        "home_vitals_btn": 'Жизненные показатели',
+        "home_emergency": 'При боли в груди, затруднённом дыхании или потере сознания немедленно звоните 166 или 112.',
+        "home_emergency_label": 'Экстренно',
+        "intake_for_whom": 'Для кого эта оценка?',
+        "intake_for_me": 'Для меня',
+        "intake_for_other": 'Для того, о ком я забочусь',
+        "intake_tell_us": 'Расскажите о себе',
+        "intake_tell_us_sub": 'Имя, возраст, история болезни',
+        "nav_home": 'Главная',
+        "nav_vitals": 'Показатели',
+        "nav_symptoms": 'Симптомы',
+        "nav_history": 'История',
         "hero_h1": "Опишите, что вы чувствуете.<br><span style='color:#2D3FE7'>Получите клиническую оценку.</span>",
         "hero_sub": 'Оценка на основе доказательств с PubMed + второе мнение GPT-4o. Для вашего <strong>врача</strong>.',
         "hero_f1t": 'Описание симптомов',
@@ -2969,6 +3119,21 @@ T = {
         "generate_report": "生成完整临床报告", "report_title": "详细健康评估",
         "second_opinion": "GPT-4o第二意见", "pubmed": "PubMed参考文献",
         "skip_vitals": "跳过（无测量值）",
+        "home_explainer_title": '我从哪里开始？',
+        "home_explainer_body": '点击<strong>症状检查</strong>开始。Asklepios将询问您的基本情况，然后逐步评估您的症状。',
+        "home_symptoms_btn": '症状检查',
+        "home_vitals_btn": '生命体征',
+        "home_emergency": '如有胸痛、呼吸困难或失去意识，请立即拨打 166 或 112。',
+        "home_emergency_label": '紧急情况',
+        "intake_for_whom": '这次评估是为谁？',
+        "intake_for_me": '为我自己',
+        "intake_for_other": '为我照顾的人',
+        "intake_tell_us": '告诉我们关于您的情况',
+        "intake_tell_us_sub": '姓名、年龄、病史',
+        "nav_home": '首页',
+        "nav_vitals": '体征',
+        "nav_symptoms": '症状',
+        "nav_history": '历史',
         "hero_h1": "描述您的感受。<br><span style='color:#2D3FE7'>获取临床评估。</span>",
         "hero_sub": '基于证据的评估，含PubMed参考文献 + GPT-4o第二意见。为您的<strong>医生</strong>。',
         "hero_f1t": '症状描述',
@@ -3028,6 +3193,21 @@ T = {
         "generate_report": "اعمل تقرير طبي كامل", "report_title": "تقييم صحي مفصّل",
         "second_opinion": "رأي ثاني من GPT-4o", "pubmed": "مراجع PubMed العلمية",
         "skip_vitals": "تخطَّ (بدون قياسات)",
+        "home_explainer_title": 'من وين بدأ؟',
+        "home_explainer_body": 'اضغط على <strong>فحص الأعراض</strong>. Asklepios رح يسألك عن معلوماتك وبعدين يقيّم أعراضك.',
+        "home_symptoms_btn": 'فحص الأعراض',
+        "home_vitals_btn": 'العلامات الحيوية',
+        "home_emergency": 'لألم الصدر أو صعوبة التنفس أو فقدان الوعي، اتصل فوراً بـ 166 أو 112.',
+        "home_emergency_label": 'طوارئ',
+        "intake_for_whom": 'التقييم هاد لمين؟',
+        "intake_for_me": 'إلي',
+        "intake_for_other": 'لحدا عم رعاه',
+        "intake_tell_us": 'قولنا عنك',
+        "intake_tell_us_sub": 'الاسم، العمر، التاريخ الطبي',
+        "nav_home": 'الرئيسية',
+        "nav_vitals": 'الحيوية',
+        "nav_symptoms": 'الأعراض',
+        "nav_history": 'التاريخ',
         "hero_h1": "قول شو حاسس فيه.<br><span style='color:#2D3FE7'>احصل على تقييم طبي.</span>",
         "hero_sub": 'تقييم مبني على الأدلة + رأي ثانٍ من GPT-4o. لـ<strong>دكتورك</strong>.',
         "hero_f1t": 'وصف الأعراض',
@@ -3087,6 +3267,21 @@ T = {
         "generate_report": "צור דוח קליני מלא", "report_title": "הערכת בריאות מפורטת",
         "second_opinion": "חוות דעת שנייה GPT-4o", "pubmed": "מקורות PubMed",
         "skip_vitals": "דלג (ללא מדידות)",
+        "home_explainer_title": 'מאיפה מתחילים?',
+        "home_explainer_body": 'לחץ על <strong>בדיקת תסמינים</strong>. Asklepios ישאל על הפרופיל שלך ואז יעריך את התסמינים שלך שלב אחר שלב.',
+        "home_symptoms_btn": 'בדיקת תסמינים',
+        "home_vitals_btn": 'סימנים חיוניים',
+        "home_emergency": 'לכאב חזה, קשיי נשימה או אובדן הכרה, התקשר מיד לـ 166 או 112.',
+        "home_emergency_label": 'חירום',
+        "intake_for_whom": 'עבור מי ההערכה הזו?',
+        "intake_for_me": 'בשבילי',
+        "intake_for_other": 'עבור מישהו שאני מטפל בו',
+        "intake_tell_us": 'ספר לנו על עצמך',
+        "intake_tell_us_sub": 'שם, גיל, היסטוריה רפואית',
+        "nav_home": 'בית',
+        "nav_vitals": 'חיוניים',
+        "nav_symptoms": 'תסמינים',
+        "nav_history": 'היסטוריה',
         "hero_h1": "תאר מה אתה מרגיש.<br><span style='color:#2D3FE7'>קבל הערכה קלינית.</span>",
         "hero_sub": 'הערכה מבוססת ראיות + חוות דעת שנייה מ-GPT-4o. ל<strong>רופא</strong> שלך.',
         "hero_f1t": 'תיאור תסמינים',
@@ -3146,6 +3341,21 @@ T = {
         "generate_report": "ਪੂਰੀ ਰਿਪੋਰਟ ਬਣਾਓ", "report_title": "ਵਿਸਤ੍ਰਿਤ ਸਿਹਤ ਮੁਲਾਂਕਣ",
         "second_opinion": "GPT-4o ਦੂਜੀ ਰਾਏ", "pubmed": "PubMed ਹਵਾਲੇ",
         "skip_vitals": "ਛੱਡੋ (ਮਾਪ ਤੋਂ ਬਿਨਾਂ)",
+        "home_explainer_title": 'ਮੈਂ ਕਿੱਥੋਂ ਸ਼ੁਰੂ ਕਰਾਂ?',
+        "home_explainer_body": "<strong>ਲੱਛਣ ਜਾਂਚ</strong> 'ਤੇ ਟੈਪ ਕਰੋ। Asklepios ਤੁਹਾਡਾ ਪ੍ਰੋਫਾਈਲ ਪੁੱਛੇਗਾ ਅਤੇ ਫਿਰ ਲੱਛਣਾਂ ਦਾ ਮੁਲਾਂਕਣ ਕਰੇਗਾ।",
+        "home_symptoms_btn": 'ਲੱਛਣ ਜਾਂਚ',
+        "home_vitals_btn": 'ਮਹੱਤਵਪੂਰਨ ਸੰਕੇਤ',
+        "home_emergency": "ਸੀਨੇ ਵਿੱਚ ਦਰਦ, ਸਾਹ ਲੈਣ ਵਿੱਚ ਮੁਸ਼ਕਲ ਜਾਂ ਬੇਹੋਸ਼ੀ ਲਈ ਤੁਰੰਤ 166 ਜਾਂ 112 'ਤੇ ਕਾਲ ਕਰੋ।",
+        "home_emergency_label": 'ਐਮਰਜੈਂਸੀ',
+        "intake_for_whom": 'ਇਹ ਮੁਲਾਂਕਣ ਕਿਸ ਲਈ ਹੈ?',
+        "intake_for_me": 'ਮੇਰੇ ਲਈ',
+        "intake_for_other": 'ਜਿਸਦੀ ਮੈਂ ਦੇਖਭਾਲ ਕਰਦਾ ਹਾਂ ਉਸ ਲਈ',
+        "intake_tell_us": 'ਸਾਨੂੰ ਆਪਣੇ ਬਾਰੇ ਦੱਸੋ',
+        "intake_tell_us_sub": 'ਨਾਮ, ਉਮਰ, ਡਾਕਟਰੀ ਇਤਿਹਾਸ',
+        "nav_home": 'ਹੋਮ',
+        "nav_vitals": 'ਸੰਕੇਤ',
+        "nav_symptoms": 'ਲੱਛਣ',
+        "nav_history": 'ਇਤਿਹਾਸ',
         "hero_h1": "ਦੱਸੋ ਤੁਸੀਂ ਕੀ ਮਹਿਸੂਸ ਕਰ ਰਹੇ ਹੋ।<br><span style='color:#2D3FE7'>ਕਲੀਨੀਕਲ ਮੁਲਾਂਕਣ ਪ੍ਰਾਪਤ ਕਰੋ।</span>",
         "hero_sub": "PubMed + GPT-4o ਦੂਜੀ ਰਾਏ ਨਾਲ ਮੁਲਾਂਕਣ। ਤੁਹਾਡੇ <strong>ਡਾਕਟਰ</strong> ਲਈ।",
         "hero_f1t": "ਲੱਛਣਾਂ ਦਾ ਵਰਣਨ", "hero_f1s": "ਕੁਦਰਤੀ ਤੌਰ 'ਤੇ ਬੋਲੋ — AI ਪੁੱਛਦਾ ਹੈ",
@@ -3322,10 +3532,10 @@ def render_bottom_nav():
     active_tab = tab_for_screen.get(cur, "home")
 
     items = [
-        ("home",    "🏠", "Αρχική"     if lang=="el" else "Home"),
-        ("vitals",  "❤️", "Ζωτικά"     if lang=="el" else "Vitals"),
-        ("triage",  "💬", "Συμπτώματα" if lang=="el" else "Symptoms"),
-        ("history", "📋", "Ιστορικό"   if lang=="el" else "History"),
+        ("home",    "🏠", t("nav_home")),
+        ("vitals",  "❤️", t("nav_vitals")),
+        ("triage",  "💬", t("nav_symptoms")),
+        ("history", "📋", t("nav_history")),
     ]
 
     st.markdown("""
@@ -4320,9 +4530,8 @@ def render_home():
 
     # ── Explainer banner — shown until user completes first assessment ────────
     if not has_profile:
-        _exp_title = "Από πού ξεκινάω;" if el else "Where do I start?"
-        _exp_body  = ("Πάτα <strong>Έλεγχος Συμπτωμάτων</strong> για να ξεκινήσεις. Το Asklepios θα σε ρωτήσει για το προφίλ σου και μετά θα αξιολογήσει τα συμπτώματά σου βήμα-βήμα." if el else
-                      "Tap <strong>Check Symptoms</strong> to begin. Asklepios will ask for your profile and then assess your symptoms step by step.")
+        _exp_title = t("home_explainer_title")
+        _exp_body  = t("home_explainer_body")
         st.markdown(f"""
 <div style="background:#EEF2FF;border:1px solid #C7D2FE;border-radius:14px;
   padding:13px 16px;margin:0 0 16px;font-family:'Inter',system-ui,sans-serif;
@@ -4361,7 +4570,7 @@ div[data-testid="stVerticalBlock"]:has(> div[data-testid="stElementContainer"] .
                 '<div style="text-align:center"><div class="home-action-icon">💬</div></div>',
                 unsafe_allow_html=True,
             )
-            _lbl1 = ("Έλεγχος Συμπτωμάτων" if el else "Symptom Check")
+            _lbl1 = t("home_symptoms_btn")
             if st.button(_lbl1, key="home_go_triage", use_container_width=True):
                 _go("triage")
     with ac2:
@@ -4371,7 +4580,7 @@ div[data-testid="stVerticalBlock"]:has(> div[data-testid="stElementContainer"] .
                 '<div style="text-align:center"><div class="home-action-icon warm">❤️</div></div>',
                 unsafe_allow_html=True,
             )
-            _lbl2 = ("Ζωτικά Σημεία" if el else "Vital Signs")
+            _lbl2 = t("home_vitals_btn")
             if st.button(_lbl2, key="home_go_vitals", use_container_width=True):
                 _go("vitals")
 
@@ -4392,15 +4601,9 @@ div[data-testid="stVerticalBlock"]:has(> div[data-testid="stElementContainer"] .
             st.video(_intro_url)
 
     # Emergency disclaimer — condensed, always visible
-    _em_text = (
-        "Για πόνο στο στήθος, δυσκολία αναπνοής, σοβαρή αιμορραγία, απώλεια "
-        "συνείδησης ή συμπτώματα εγκεφαλικού, καλέστε αμέσως 166 (ΕΚΑΒ) ή 112."
-        if el else
-        "For chest pain, difficulty breathing, severe bleeding, loss of "
-        "consciousness, or stroke symptoms, call 166 (EKAB) or 112 immediately."
-    )
+    _em_text = t("home_emergency")
     st.markdown(
-        f'<div class="home-emergency"><strong>🚨 {"Επείγον" if el else "Emergency"}:</strong> {_em_text}</div>',
+        f'<div class="home-emergency"><strong>🚨 {t("home_emergency_label")}:</strong> {_em_text}</div>',
         unsafe_allow_html=True,
     )
 
@@ -4464,18 +4667,17 @@ def render_intake():
     render_stepper("intake")
     lang = st.session_state.lang
     render_doc_header(
-        "Πες μας λίγα για σένα", "Tell us about yourself",
+        t("intake_tell_us"), t("intake_tell_us"),
         icon="👤",
-        sub_el="Όνομα, ηλικία, ιατρικό ιστορικό",
-        sub_en="Name, age, medical history",
+        sub_el=t("intake_tell_us_sub"),
+        sub_en=t("intake_tell_us_sub"),
     )
     # ── Caregiver toggle ───────────────────────────────────────────────────
     # First question: is this assessment for the user themselves or someone
     # they care for (γιαγιά, παιδί, κλπ). Affects copy + Claude system prompt.
-    _caregiver_q = ("Για ποιον είναι αυτή η αξιολόγηση;" if lang=="el"
-                    else "Who is this assessment for?")
-    _opt_self = "Για μένα" if lang=="el" else "For me"
-    _opt_other = "Για άλλο άτομο που φροντίζω" if lang=="el" else "For someone I care for"
+    _caregiver_q = t("intake_for_whom")
+    _opt_self  = t("intake_for_me")
+    _opt_other = t("intake_for_other")
     _current = st.session_state.profile.get("for_whom", "self")
     with st.container(border=True):
         _choice = st.radio(
