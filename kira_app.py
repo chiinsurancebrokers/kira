@@ -932,6 +932,7 @@ def verify_otp(email, token):
             res = sb.auth.verify_otp({"email": email, "token": token, "type": otp_type})
             if getattr(res, "user", None):
                 st.session_state["auth_user"] = email
+                st.session_state["_hero_seen"] = True  # hero already seen — don't show again after login
                 return True, ""
         except Exception as e:
             last_err = str(e)
@@ -1687,15 +1688,28 @@ def render_login_screen():
 </div>
 """, unsafe_allow_html=True)
 
-    # ── LOGIN FORM ────────────────────────────────────────────────────────────
+    # ── LOGIN FORM / CONTINUE BUTTON ─────────────────────────────────────────
     _login_title = "Ξεκίνα — δωρεάν, χωρίς password" if el else "Get started — free, no password"
     st.markdown(f"""
 <div style="font-size:16px;font-weight:800;color:#1A1A2E;text-align:center;
   margin:4px 0 12px;font-family:'Inter',system-ui,sans-serif;">{_login_title}</div>
 """, unsafe_allow_html=True)
-    col1, col2, col3 = st.columns([1, 2, 1])
-    with col2:
-        render_login_gate()
+
+    # If already logged in, show a single "Συνέχεια" CTA that sets _hero_seen
+    # and sends the user to home. Otherwise show the OTP login form.
+    if is_logged_in():
+        _cta_lbl = "✦ Ξεκίνα αξιολόγηση & αναφορά" if el else "✦ Start assessment & report"
+        col1, col2, col3 = st.columns([1, 2, 1])
+        with col2:
+            if st.button(_cta_lbl, type="primary", use_container_width=True, key="hero_cta_loggedin"):
+                st.session_state["_hero_seen"] = True
+                st.rerun()
+    else:
+        col1, col2, col3 = st.columns([1, 2, 1])
+        with col2:
+            render_login_gate()
+        # render_login_gate sets is_logged_in() on success and st.rerun()s.
+        # After rerun the block above (is_logged_in()) fires and shows the CTA.
 
     st.markdown(f'<div class="disclaimer">{t("disclaimer_main")}</div>', unsafe_allow_html=True)
 
@@ -2274,6 +2288,7 @@ def claude(messages, system="", max_tokens=1200, timeout=60):
 defaults = {
     "lang": "el",
     "screen": "home",
+    "_hero_seen": False,  # hero landing shown once per session before home
     "profile": {},
     "vitals": {},
     "vitals_analysis": "",
@@ -5980,6 +5995,8 @@ if auth_enabled() and not is_logged_in():
     _em = _read_token(_ctok) if _ctok else None
     if _em:
         st.session_state["auth_user"] = _em
+        # Cookie restore = returning user; skip the hero landing for this session.
+        st.session_state.setdefault("_hero_seen", True)
 
 # Restore the in-progress assessment from the ENCRYPTED server-side draft ONLY
 # when returning from the face scan (which sets _from_facescan on the very first
@@ -6071,6 +6088,17 @@ if (st.session_state.get("_from_facescan") and st.session_state.vitals
 if st.query_params.get("admin") == "1":
     if render_admin_gate():
         render_admin_panel()
+    st.stop()
+
+# ── HERO LANDING — shown once per session to every visitor ───────────────────
+# Mirrors the pet app pattern (_hero_seen). The hero is shown:
+#   • to non-logged-in visitors  → replaces the bare login screen
+#   • to logged-in users on first open of the session → before home
+# Once the CTA button is clicked inside render_login_screen(), it sets
+# _hero_seen = True and calls st.rerun() — this block is then skipped.
+# Admin and face-scan round-trips skip it via st.stop() above.
+if not st.session_state.get("_hero_seen"):
+    render_login_screen()
     st.stop()
 
 # ── LOGIN GATE ────────────────────────────────────────────────────────────────
