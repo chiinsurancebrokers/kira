@@ -2314,6 +2314,14 @@ T = {
         "second_opinion": "Δεύτερη Γνώμη GPT-4o",
         "pubmed": "Επιστημονικές Αναφορές PubMed",
         "skip_vitals": "Παράλειψη (χωρίς μετρήσεις)",
+        "triage_explainer": '👇 Βήμα 3 — Περίγραψε εδώ τι σε απασχολεί (π.χ. «πόνος στο μάτι 2 μέρες»). Ο Asklepios θα σου κάνει ερωτήσεις και στο τέλος θα δημιουργήσει αναφορά.',
+        "triage_quick_select": 'Γρήγορη επιλογή',
+        "triage_send_selected": 'Αποστολή επιλεγμένων',
+        "triage_main_symptoms": 'Κύρια συμπτώματα: ',
+        "vitals_core_title": 'Βασικές Μετρήσεις',
+        "vitals_optional": 'Αναπνοή, βάρος, ύψος (προαιρετικά)',
+        "vitals_skip_continue": 'Δεν έχω μετρήσεις — Συνέχεια στα συμπτώματα →',
+        "voice_input_label": '🎤 Φωνητική εισαγωγή (μίλα αντί να πληκτρολογείς)',
         "home_explainer_title": 'Από πού ξεκινάω;',
         "home_explainer_body": 'Πάτα <strong>Έλεγχος Συμπτωμάτων</strong> για να ξεκινήσεις. Το Asklepios θα σε ρωτήσει για το προφίλ σου και μετά θα αξιολογήσει τα συμπτώματά σου βήμα-βήμα.',
         "home_symptoms_btn": 'Έλεγχος Συμπτωμάτων',
@@ -2401,6 +2409,14 @@ T = {
         "second_opinion": "GPT-4o Second Opinion",
         "pubmed": "PubMed Evidence",
         "skip_vitals": "Skip (no measurements)",
+        "triage_explainer": "👇 Step 3 — Describe what's bothering you (e.g. 'eye pain for 2 days'). Asklepios will ask follow-up questions and then generate a report.",
+        "triage_quick_select": 'Quick select',
+        "triage_send_selected": 'Send selected',
+        "triage_main_symptoms": 'Main symptoms: ',
+        "vitals_core_title": 'Core Vitals',
+        "vitals_optional": 'Breathing, weight, height (optional)',
+        "vitals_skip_continue": "I don't need vitals — Continue to symptoms →",
+        "voice_input_label": '🎤 Voice input (speak instead of typing)',
         "home_explainer_title": 'Where do I start?',
         "home_explainer_body": 'Tap <strong>Check Symptoms</strong> to begin. Asklepios will ask for your profile and then assess your symptoms step by step.',
         "home_symptoms_btn": 'Symptom Check',
@@ -2488,6 +2504,14 @@ T = {
         "second_opinion": "GPT-4o दूसरी राय",
         "pubmed": "PubMed शोध संदर्भ",
         "skip_vitals": "छोड़ें (माप के बिना)",
+        "triage_explainer": "👇 चरण 3 — यहाँ बताएं क्या परेशान कर रहा है (जैसे 'आँख में दर्द 2 दिन से')। Asklepios सवाल पूछेगा और फिर रिपोर्ट बनाएगा।",
+        "triage_quick_select": 'त्वरित चयन',
+        "triage_send_selected": 'चुने हुए भेजें',
+        "triage_main_symptoms": 'मुख्य लक्षण: ',
+        "vitals_core_title": 'मुख्य संकेत',
+        "vitals_optional": 'श्वास, वजन, ऊंचाई (वैकल्पिक)',
+        "vitals_skip_continue": 'मुझे संकेत नहीं चाहिए — लक्षणों पर जारी रखें →',
+        "voice_input_label": '🎤 आवाज़ इनपुट (टाइप करने की बजाय बोलें)',
         "home_explainer_title": 'मैं कहाँ से शुरू करूँ?',
         "home_explainer_body": '<strong>लक्षण जाँच</strong> पर टैप करें। Asklepios आपका प्रोफ़ाइल पूछेगा और फिर आपके लक्षणों का मूल्यांकन करेगा।',
         "home_symptoms_btn": 'लक्षण जाँच',
@@ -2575,6 +2599,14 @@ T = {
         "second_opinion": "GPT-4o دوسری رائے",
         "pubmed": "PubMed تحقیقی حوالہ جات",
         "skip_vitals": "چھوڑیں (پیمائش کے بغیر)",
+        "triage_explainer": "👇 مرحلہ 3 — یہاں بتائیں کیا پریشان کر رہا ہے (جیسے 'آنکھ میں درد 2 دن سے')۔ Asklepios سوال پوچھے گا اور پھر رپورٹ بنائے گا۔",
+        "triage_quick_select": 'فوری انتخاب',
+        "triage_send_selected": 'منتخب بھیجیں',
+        "triage_main_symptoms": 'اہم علامات: ',
+        "vitals_core_title": 'اہم علامات',
+        "vitals_optional": 'سانس، وزن، قد (اختیاری)',
+        "vitals_skip_continue": 'مجھے علامات نہیں چاہییں — علامات پر جاری رکھیں →',
+        "voice_input_label": '🎤 آواز ان پٹ (ٹائپ کرنے کی بجائے بولیں)',
         "home_explainer_title": 'میں کہاں سے شروع کروں؟',
         "home_explainer_body": '<strong>علامات جانچ</strong> پر ٹیپ کریں۔ Asklepios آپ کا پروفائل پوچھے گا اور پھر آپ کی علامات کا جائزہ لے گا۔',
         "home_symptoms_btn": 'علامات جانچ',
@@ -2662,6 +2694,14 @@ T = {
         "second_opinion": "رأي ثانٍ من GPT-4o",
         "pubmed": "مراجع PubMed العلمية",
         "skip_vitals": "تخطَّ (بدون قياسات)",
+        "triage_explainer": "👇 الخطوة 3 — صف هنا ما يزعجك (مثل 'ألم في العين منذ يومين'). سيطرح عليك Asklepios أسئلة ثم ينشئ تقريراً.",
+        "triage_quick_select": 'اختيار سريع',
+        "triage_send_selected": 'إرسال المختار',
+        "triage_main_symptoms": 'الأعراض الرئيسية: ',
+        "vitals_core_title": 'العلامات الحيوية الأساسية',
+        "vitals_optional": 'التنفس، الوزن، الطول (اختياري)',
+        "vitals_skip_continue": 'لا أحتاج علامات حيوية — المتابعة للأعراض →',
+        "voice_input_label": '🎤 إدخال صوتي (تحدث بدلاً من الكتابة)',
         "home_explainer_title": 'من أين أبدأ؟',
         "home_explainer_body": 'اضغط على <strong>فحص الأعراض</strong>. سيسألك Asklepios عن ملفك الشخصي ثم يقيّم أعراضك خطوة بخطوة.',
         "home_symptoms_btn": 'فحص الأعراض',
@@ -2749,6 +2789,14 @@ T = {
         "second_opinion": "GPT-4o দ্বিতীয় মতামত",
         "pubmed": "PubMed গবেষণা তথ্যসূত্র",
         "skip_vitals": "এড়িয়ে যান (পরিমাপ ছাড়া)",
+        "triage_explainer": "👇 ধাপ 3 — এখানে বলুন কী সমস্যা হচ্ছে (যেমন 'চোখে ব্যথা ২ দিন')। Asklepios প্রশ্ন করবে এবং রিপোর্ট তৈরি করবে।",
+        "triage_quick_select": 'দ্রুত নির্বাচন',
+        "triage_send_selected": 'নির্বাচিত পাঠান',
+        "triage_main_symptoms": 'প্রধান লক্ষণ: ',
+        "vitals_core_title": 'মূল গুরুত্বপূর্ণ লক্ষণ',
+        "vitals_optional": 'শ্বাস, ওজন, উচ্চতা (ঐচ্ছিক)',
+        "vitals_skip_continue": 'আমার ভাইটাল দরকার নেই — লক্ষণে চালিয়ে যান →',
+        "voice_input_label": '🎤 ভয়েস ইনপুট (টাইপের বদলে বলুন)',
         "home_explainer_title": 'আমি কোথা থেকে শুরু করব?',
         "home_explainer_body": '<strong>লক্ষণ পরীক্ষা</strong> ট্যাপ করুন। Asklepios আপনার প্রোফাইল জিজ্ঞেস করবে এবং তারপর ধাপে ধাপে লক্ষণ মূল্যায়ন করবে।',
         "home_symptoms_btn": 'লক্ষণ পরীক্ষা',
@@ -2823,6 +2871,14 @@ T = {
         "generate_report": "Генерирай пълен доклад", "report_title": "Подробна здравна оценка",
         "second_opinion": "Второ мнение GPT-4o", "pubmed": "PubMed научни референции",
         "skip_vitals": "Пропусни (без измервания)",
+        "triage_explainer": "👇 Стъпка 3 — Опишете какво ви притеснява (напр. 'болка в окото 2 дни'). Asklepios ще задава въпроси и ще изготви доклад.",
+        "triage_quick_select": 'Бърз избор',
+        "triage_send_selected": 'Изпрати избраните',
+        "triage_main_symptoms": 'Основни симптоми: ',
+        "vitals_core_title": 'Основни жизнени показатели',
+        "vitals_optional": 'Дишане, тегло, ръст (незадължително)',
+        "vitals_skip_continue": 'Нямам измервания — Продължи към симптоми →',
+        "voice_input_label": '🎤 Гласов вход (говорете вместо да пишете)',
         "home_explainer_title": 'Откъде да започна?',
         "home_explainer_body": 'Натиснете <strong>Оценка на симптоми</strong>. Asklepios ще попита за вашия профил и след това ще оцени симптомите ви стъпка по стъпка.',
         "home_symptoms_btn": 'Оценка на симптоми',
@@ -2897,6 +2953,14 @@ T = {
         "generate_report": "Generați raport complet", "report_title": "Evaluare detaliată a sănătății",
         "second_opinion": "A doua opinie GPT-4o", "pubmed": "Referințe PubMed",
         "skip_vitals": "Omiteți (fără măsurători)",
+        "triage_explainer": "👇 Pasul 3 — Descrieți ce vă deranjează (de ex. 'durere la ochi 2 zile'). Asklepios va pune întrebări și va genera un raport.",
+        "triage_quick_select": 'Selecție rapidă',
+        "triage_send_selected": 'Trimite selectate',
+        "triage_main_symptoms": 'Simptome principale: ',
+        "vitals_core_title": 'Semne vitale de bază',
+        "vitals_optional": 'Respirație, greutate, înălțime (opțional)',
+        "vitals_skip_continue": 'Nu am măsurători — Continuă la simptome →',
+        "voice_input_label": '🎤 Introducere vocală (vorbiți în loc să tastați)',
         "home_explainer_title": 'De unde încep?',
         "home_explainer_body": 'Apăsați <strong>Verificare Simptome</strong>. Asklepios va întreba despre profilul dvs. și apoi va evalua simptomele pas cu pas.',
         "home_symptoms_btn": 'Verificare Simptome',
@@ -2971,6 +3035,14 @@ T = {
         "generate_report": "Gjenero raport të plotë", "report_title": "Vlerësim i detajuar shëndetësor",
         "second_opinion": "Mendim i dytë GPT-4o", "pubmed": "Referenca PubMed",
         "skip_vitals": "Kalo (pa matje)",
+        "triage_explainer": "👇 Hapi 3 — Përshkruani çfarë ju shqetëson (p.sh. 'dhimbje syri 2 ditë'). Asklepios do të bëjë pyetje dhe do të gjenerojë raport.",
+        "triage_quick_select": 'Zgjidhje e shpejtë',
+        "triage_send_selected": 'Dërgoni të zgjedhurat',
+        "triage_main_symptoms": 'Simptomat kryesore: ',
+        "vitals_core_title": 'Shenjat vitale bazë',
+        "vitals_optional": 'Frymëmarrje, peshë, gjatësi (opsional)',
+        "vitals_skip_continue": 'Nuk kam matje — Vazhdoni te simptomat →',
+        "voice_input_label": '🎤 Hyrje me zë (flisni në vend të shtypjes)',
         "home_explainer_title": 'Nga ku filloj?',
         "home_explainer_body": 'Shtypni <strong>Vlerësim Simptomesh</strong>. Asklepios do të pyesë për profilin tuaj dhe pastaj do të vlerësojë simptomat hap pas hapi.',
         "home_symptoms_btn": 'Vlerësim Simptomesh',
@@ -3045,6 +3117,14 @@ T = {
         "generate_report": "Создать полный отчёт", "report_title": "Подробная оценка здоровья",
         "second_opinion": "Второе мнение GPT-4o", "pubmed": "Научные ссылки PubMed",
         "skip_vitals": "Пропустить (без измерений)",
+        "triage_explainer": "👇 Шаг 3 — Опишите здесь что беспокоит (напр. 'боль в глазу 2 дня'). Asklepios задаст вопросы и составит отчёт.",
+        "triage_quick_select": 'Быстрый выбор',
+        "triage_send_selected": 'Отправить выбранные',
+        "triage_main_symptoms": 'Основные симптомы: ',
+        "vitals_core_title": 'Основные жизненные показатели',
+        "vitals_optional": 'Дыхание, вес, рост (по желанию)',
+        "vitals_skip_continue": 'Нет измерений — Продолжить к симптомам →',
+        "voice_input_label": '🎤 Голосовой ввод (говорите вместо печати)',
         "home_explainer_title": 'С чего начать?',
         "home_explainer_body": 'Нажмите <strong>Оценка симптомов</strong>. Asklepios спросит о вашем профиле и затем пошагово оценит симптомы.',
         "home_symptoms_btn": 'Оценка симптомов',
@@ -3119,6 +3199,14 @@ T = {
         "generate_report": "生成完整临床报告", "report_title": "详细健康评估",
         "second_opinion": "GPT-4o第二意见", "pubmed": "PubMed参考文献",
         "skip_vitals": "跳过（无测量值）",
+        "triage_explainer": "👇 第3步 — 在此描述困扰您的问题（例如'眼睛痛2天'）。Asklepios将提问并生成报告。",
+        "triage_quick_select": '快速选择',
+        "triage_send_selected": '发送所选',
+        "triage_main_symptoms": '主要症状：',
+        "vitals_core_title": '核心生命体征',
+        "vitals_optional": '呼吸、体重、身高（可选）',
+        "vitals_skip_continue": '我不需要生命体征 — 继续症状 →',
+        "voice_input_label": '🎤 语音输入（说话代替打字）',
         "home_explainer_title": '我从哪里开始？',
         "home_explainer_body": '点击<strong>症状检查</strong>开始。Asklepios将询问您的基本情况，然后逐步评估您的症状。',
         "home_symptoms_btn": '症状检查',
@@ -3193,6 +3281,14 @@ T = {
         "generate_report": "اعمل تقرير طبي كامل", "report_title": "تقييم صحي مفصّل",
         "second_opinion": "رأي ثاني من GPT-4o", "pubmed": "مراجع PubMed العلمية",
         "skip_vitals": "تخطَّ (بدون قياسات)",
+        "triage_explainer": "👇 خطوة 3 — وصف هون شو عم يضايقك (مثلاً 'ألم بالعين يومين'). Asklepios رح يسأل ويعمل تقرير.",
+        "triage_quick_select": 'اختيار سريع',
+        "triage_send_selected": 'ارسل المختار',
+        "triage_main_symptoms": 'الأعراض الرئيسية: ',
+        "vitals_core_title": 'العلامات الحيوية الأساسية',
+        "vitals_optional": 'التنفس، الوزن، الطول (اختياري)',
+        "vitals_skip_continue": 'ما محتاج علامات حيوية — كمّل للأعراض →',
+        "voice_input_label": '🎤 إدخال صوتي',
         "home_explainer_title": 'من وين بدأ؟',
         "home_explainer_body": 'اضغط على <strong>فحص الأعراض</strong>. Asklepios رح يسألك عن معلوماتك وبعدين يقيّم أعراضك.',
         "home_symptoms_btn": 'فحص الأعراض',
@@ -3267,6 +3363,14 @@ T = {
         "generate_report": "צור דוח קליני מלא", "report_title": "הערכת בריאות מפורטת",
         "second_opinion": "חוות דעת שנייה GPT-4o", "pubmed": "מקורות PubMed",
         "skip_vitals": "דלג (ללא מדידות)",
+        "triage_explainer": "👇 שלב 3 — תאר כאן מה מטריד אותך (למשל 'כאב עין יומיים'). Asklepios ישאל שאלות ואז ייצור דוח.",
+        "triage_quick_select": 'בחירה מהירה',
+        "triage_send_selected": 'שלח נבחרים',
+        "triage_main_symptoms": 'תסמינים עיקריים: ',
+        "vitals_core_title": 'סימנים חיוניים בסיסיים',
+        "vitals_optional": 'נשימה, משקל, גובה (אופציונלי)',
+        "vitals_skip_continue": 'אין לי סימנים חיוניים — המשך לתסמינים →',
+        "voice_input_label": '🎤 קלט קולי (דבר במקום להקליד)',
         "home_explainer_title": 'מאיפה מתחילים?',
         "home_explainer_body": 'לחץ על <strong>בדיקת תסמינים</strong>. Asklepios ישאל על הפרופיל שלך ואז יעריך את התסמינים שלך שלב אחר שלב.',
         "home_symptoms_btn": 'בדיקת תסמינים',
@@ -3341,6 +3445,14 @@ T = {
         "generate_report": "ਪੂਰੀ ਰਿਪੋਰਟ ਬਣਾਓ", "report_title": "ਵਿਸਤ੍ਰਿਤ ਸਿਹਤ ਮੁਲਾਂਕਣ",
         "second_opinion": "GPT-4o ਦੂਜੀ ਰਾਏ", "pubmed": "PubMed ਹਵਾਲੇ",
         "skip_vitals": "ਛੱਡੋ (ਮਾਪ ਤੋਂ ਬਿਨਾਂ)",
+        "triage_explainer": "👇 ਕਦਮ 3 — ਇੱਥੇ ਦੱਸੋ ਕੀ ਪਰੇਸ਼ਾਨ ਕਰ ਰਿਹਾ ਹੈ (ਜਿਵੇਂ 'ਅੱਖ ਵਿੱਚ ਦਰਦ 2 ਦਿਨ')। Asklepios ਸਵਾਲ ਪੁੱਛੇਗਾ ਅਤੇ ਰਿਪੋਰਟ ਬਣਾਏਗਾ।",
+        "triage_quick_select": 'ਤੇਜ਼ ਚੋਣ',
+        "triage_send_selected": 'ਚੁਣੇ ਭੇਜੋ',
+        "triage_main_symptoms": 'ਮੁੱਖ ਲੱਛਣ: ',
+        "vitals_core_title": 'ਮੁੱਖ ਸੰਕੇਤ',
+        "vitals_optional": 'ਸਾਹ, ਭਾਰ, ਉਚਾਈ (ਵਿਕਲਪਿਕ)',
+        "vitals_skip_continue": 'ਮੈਨੂੰ ਸੰਕੇਤਾਂ ਦੀ ਲੋੜ ਨਹੀਂ — ਲੱਛਣਾਂ ਤੇ ਜਾਰੀ ਰੱਖੋ →',
+        "voice_input_label": '🎤 ਆਵਾਜ਼ ਇਨਪੁੱਟ (ਟਾਈਪ ਕਰਨ ਦੀ ਬਜਾਏ ਬੋਲੋ)',
         "home_explainer_title": 'ਮੈਂ ਕਿੱਥੋਂ ਸ਼ੁਰੂ ਕਰਾਂ?',
         "home_explainer_body": "<strong>ਲੱਛਣ ਜਾਂਚ</strong> 'ਤੇ ਟੈਪ ਕਰੋ। Asklepios ਤੁਹਾਡਾ ਪ੍ਰੋਫਾਈਲ ਪੁੱਛੇਗਾ ਅਤੇ ਫਿਰ ਲੱਛਣਾਂ ਦਾ ਮੁਲਾਂਕਣ ਕਰੇਗਾ।",
         "home_symptoms_btn": 'ਲੱਛਣ ਜਾਂਚ',
@@ -4866,7 +4978,7 @@ Use a certified upper-arm cuff device, note systolic/diastolic values
         v=st.session_state.vitals
         with st.container(border=True):
             st.markdown(
-                f'<div class="home-group-title">{"Βασικές Μετρήσεις" if lang=="el" else "Core Vitals"}</div>',
+                f'<div class="home-group-title">{t("vitals_core_title")}</div>',
                 unsafe_allow_html=True,
             )
             cc1,cc2=st.columns(2)
@@ -4881,7 +4993,7 @@ Use a certified upper-arm cuff device, note systolic/diastolic values
                 with bp_col2:
                     bp_d=st.number_input(t("bp_dia"),min_value=0,max_value=200,value=int(v.get("bp_dia",0)) or None,placeholder="80")
 
-        with st.expander("＋ " + ("Αναπνοή, βάρος, ύψος (προαιρετικά)" if lang=="el" else "Breathing, weight, height (optional)")):
+        with st.expander("＋ " + t("vitals_optional")):
             ec1, ec2, ec3 = st.columns(3)
             with ec1:
                 br=st.number_input(t("br"),min_value=0,max_value=60,value=int(v.get("br",0)) or None,placeholder="15")
@@ -5002,8 +5114,7 @@ Use a certified upper-arm cuff device, note systolic/diastolic values
     with col_b:
         if st.button(t("back")): st.session_state.screen="intake"; st.rerun()
     with col_s:
-        if st.button(("Δεν χρειάζομαι ζωτικά — Συνέχεια στα συμπτώματα →" if lang=="el"
-                      else "I don't need vitals — Continue to symptoms →"), use_container_width=True):
+        if st.button(t("vitals_skip_continue"), use_container_width=True):
             st.session_state.vitals={}; st.session_state.screen="triage"; st.rerun()
 
 def render_vitals_summary():
@@ -5334,47 +5445,28 @@ def render_triage():
     # Symptom quick-select: only BEFORE the conversation starts, so once chatting
     # the previous Q&A stays visible instead of being buried under the buttons.
     if not st.session_state.triage_chat:
-        st.info(("👇 Βήμα 3 — Περίγραψε εδώ τι σε απασχολεί (π.χ. «πόνος στο μάτι 2 μέρες»). "
-                 "Ο Asklepios θα σου κάνει ερωτήσεις και στο τέλος θα δημιουργήσει αναφορά."
-                 if st.session_state.lang=="el" else
-                 "👇 Step 3 — Describe what's bothering you (e.g. 'eye pain for 2 days'). "
-                 "Asklepios will ask follow-up questions and then generate a report."))
+        st.info(t("triage_explainer"))
         chips, _chips_label = _symptom_chips(st.session_state.profile, st.session_state.lang)
-        _cap = ("Γρήγορη επιλογή" if st.session_state.lang=="el" else "Quick select")
+        _cap = t("triage_quick_select")
         if _chips_label:
             _cap += f" ({_chips_label})"
         st.caption(_cap + ":")
-        # Wrap-flow pill layout (matches the mockup) instead of st.columns rows,
-        # which stack vertically on narrow/mobile viewports. Same marker+:has()
-        # CSS targeting pattern already proven reliable for the bottom nav.
-        st.markdown("""
-<style>
-div[data-testid="stHorizontalBlock"]:has(.chip-flow-marker) {
-  flex-wrap: wrap !important; gap: 7px !important;
-}
-div[data-testid="stHorizontalBlock"]:has(.chip-flow-marker) > div[data-testid="stColumn"] {
-  width: auto !important; min-width: 0 !important; flex: 0 0 auto !important;
-}
-div[data-testid="stHorizontalBlock"]:has(.chip-flow-marker) button {
-  border-radius: 18px !important; padding: 8px 15px !important;
-  font-size: 12.5px !important; font-weight: 700 !important;
-  white-space: nowrap !important; min-height: 0 !important;
-}
-</style>
-""", unsafe_allow_html=True)
-        _chip_cols = st.columns(len(chips))
-        for _i, (chip, _col) in enumerate(zip(chips, _chip_cols)):
-            with _col:
-                if _i == 0:
-                    st.markdown('<div class="chip-flow-marker"></div>', unsafe_allow_html=True)
-                sel = chip in st.session_state.symptom_chips
-                if st.button(("✓ " if sel else "")+chip, key=f"chip_{_i}"):
-                    if chip in st.session_state.symptom_chips: st.session_state.symptom_chips.remove(chip)
-                    else: st.session_state.symptom_chips.append(chip)
-                    st.rerun()
+        # Chips in rows of 4 — aligned and wrapped
+        _PER_ROW = 4
+        for _rs in range(0, len(chips), _PER_ROW):
+            _row = chips[_rs:_rs+_PER_ROW]
+            _cc = st.columns(_PER_ROW)
+            for _j, chip in enumerate(_row):
+                _i = _rs + _j
+                with _cc[_j]:
+                    sel = chip in st.session_state.symptom_chips
+                    if st.button(("✓ " if sel else "")+chip, key=f"chip_{_i}", use_container_width=True):
+                        if chip in st.session_state.symptom_chips: st.session_state.symptom_chips.remove(chip)
+                        else: st.session_state.symptom_chips.append(chip)
+                        st.rerun()
         if st.session_state.symptom_chips:
-            if st.button("➤ "+("Αποστολή επιλεγμένων" if st.session_state.lang=="el" else "Send selected"),type="primary"):
-                msg=("Κύρια συμπτώματα: " if st.session_state.lang=="el" else "Main symptoms: ")+", ".join(st.session_state.symptom_chips)
+            if st.button("➤ " + t("triage_send_selected"), type="primary"):
+                msg = t("triage_main_symptoms") + ", ".join(st.session_state.symptom_chips)
                 st.session_state.triage_chat.append({"role":"user","content":msg}); st.session_state.symptom_chips=[]; st.rerun()
     st.divider()
     for msg in st.session_state.triage_chat:
@@ -5493,9 +5585,7 @@ div[data-testid="stHorizontalBlock"]:has(.chip-flow-marker) button {
     # Tab 2 (Whisper) needs Groq or OpenAI key.
     # Critical for 60+ demographic: IOBE data shows this group has the highest
     # unmet healthcare needs and lowest digital comfort.
-    _voice_lbl = ("🎤 Φωνητική εισαγωγή (μίλα αντί να γράφεις)"
-                  if st.session_state.lang=="el" else
-                  "🎤 Voice input (speak instead of typing)")
+    _voice_lbl = t("voice_input_label")
     with st.expander(_voice_lbl, expanded=False):
         # Web Speech API — uses st.iframe (HTML string mode)
         _has_stt = bool(get_groq_key() or get_openai_key())
