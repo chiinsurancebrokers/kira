@@ -1411,21 +1411,292 @@ def render_explainer_video(lang):
 
 
 def render_login_screen():
-    """Full-page login shown at the very start when auth is enabled."""
+    """Hero landing + login. Shows value-prop, gov.gr links, how-it-works,
+    and audience cards before (and around) the OTP login form."""
     lang = st.session_state.lang
-    c1, c2 = st.columns([6,1])
-    with c2:
-        if st.button("🇬🇧 EN" if lang=="el" else "🇬🇷 ΕΛ", key="login_lang"):
-            st.session_state.lang = "en" if lang=="el" else "el"; st.rerun()
-    # Value-prop banner: tells new visitors what the app does at a glance.
-    render_ad_banner(lang)
-    # Login form
-    col1, col2, col3 = st.columns([1,2,1])
+    el = (lang == "el")
+
+    # ── Language picker — top of page, first thing the user sees ─────────────
+    _lp_css = """
+<style>
+.lang-bar{display:flex;align-items:center;justify-content:space-between;
+  padding:10px 4px 14px;font-family:'Inter',system-ui,sans-serif;}
+.lang-bar-logo{font-size:17px;font-weight:800;color:#1A1A2E;}
+.lang-bar-logo span{color:#2D3FE7;}
+.lang-btns{display:flex;gap:6px;}
+.lang-btn{background:#F4F6FF;border:1px solid #E0E5FF;border-radius:999px;
+  padding:6px 14px;font-size:12px;font-weight:700;color:#2D3FE7;cursor:pointer;
+  font-family:'Inter',system-ui,sans-serif;}
+.lang-btn.active{background:#2D3FE7;color:white;border-color:#2D3FE7;}
+</style>
+"""
+    st.markdown(_lp_css, unsafe_allow_html=True)
+    lc1, lc2 = st.columns([6, 1])
+    with lc1:
+        st.markdown(
+            '<div class="lang-bar"><div class="lang-bar-logo">⚕ <span>Asklepios</span></div></div>',
+            unsafe_allow_html=True)
+    with lc2:
+        if st.button("🇬🇧 EN" if el else "🇬🇷 ΕΛ", key="login_lang"):
+            st.session_state.lang = "en" if el else "el"; st.rerun()
+
+    # ── HERO CARD ─────────────────────────────────────────────────────────────
+    _h1     = ("Περίγραψε τι νιώθεις.<br><span style='color:#2D3FE7'>Λάβε κλινική εκτίμηση.</span>"
+               if el else
+               "Describe what you feel.<br><span style='color:#2D3FE7'>Get a clinical assessment.</span>")
+    _sub    = ("Τεκμηριωμένη αξιολόγηση με αναφορές PubMed + δεύτερη γνώμη GPT-4o. Για τον <strong>ιατρό</strong> σου. Στα Ελληνικά."
+               if el else
+               "Evidence-based assessment with PubMed references + GPT-4o second opinion. For your <strong>doctor</strong>.")
+    _f1t = "Περιγραφή συμπτωμάτων" if el else "Symptom description"
+    _f1s = "Μιλάς φυσικά — το AI ρωτά & οργανώνει" if el else "Speak naturally — AI asks & organises"
+    _f2t = "Καταγραφή ζωτικών" if el else "Vital signs"
+    _f2s = "HR, BP, SpO₂, θερμοκρασία" if el else "HR, BP, SpO₂, temperature"
+    _f3t = "Εξετάσεις & φωτογραφία" if el else "Lab results & photos"
+    _f3s = "Ανέβασε αιματολογικά, PDF εξετάσεων ή φωτογραφία" if el else "Upload blood tests, PDF results or a photo"
+    _f4t = "Κλινική αναφορά για τον ιατρό" if el else "Clinical report for your doctor"
+    _f4s = "PubMed + δεύτερη γνώμη GPT-4o" if el else "PubMed + GPT-4o second opinion"
+    _p1t  = "Δεύτερη ιατρική γνώμη" if el else "Second medical opinion"
+    _p1s  = "Claude + GPT-4o ανεξάρτητα — σύγκριση αξιολογήσεων" if el else "Claude + GPT-4o independently — compare assessments"
+    _p1b  = "Μοναδικό" if el else "Unique"
+    _p2t  = "Σύνδεση gov.gr" if el else "gov.gr integration"
+    _p2s  = "Ηλεκτρ. Φάκελος, ΑΜΚΑ, e-Συνταγογράφηση" if el else "Health record, AMKA, e-Prescription"
+    _p2b  = "Ελληνικό ΣΥ" if el else "Greek NHS"
+    _disc = ("Δεν αντικαθιστά τον <strong>ιατρό</strong>. Σε επείγον: <strong>166</strong> (ΕΚΑΒ) ή <strong>112</strong>. Δεν αποθηκεύουμε ιατρικά δεδομένα. 🔒 GDPR"
+             if el else
+             "Does not replace your <strong>doctor</strong>. In emergency: <strong>112</strong>. We store no medical data. 🔒 GDPR")
+
+    st.markdown(f"""
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+.ask-hr-hero{{background:#F4F6FF;border:1px solid #E0E5FF;border-radius:24px;
+  padding:30px 22px 22px;margin:0 0 16px;text-align:center;
+  font-family:'Inter',system-ui,sans-serif;}}
+.ask-hr-kicker{{font-size:10px;font-weight:700;letter-spacing:0.18em;color:#2D3FE7;
+  margin-bottom:12px;text-transform:uppercase;}}
+.ask-hr-h1{{font-size:28px;font-weight:800;line-height:1.18;color:#1A1A2E;
+  letter-spacing:-0.5px;margin-bottom:12px;}}
+.ask-hr-sub{{font-size:14px;color:#4B5563;line-height:1.6;max-width:400px;
+  margin:0 auto 20px;}}
+.ask-hr-fcards{{display:flex;flex-direction:column;gap:8px;text-align:left;margin-bottom:14px;}}
+.ask-hr-fc{{background:white;border:1px solid #E0E5FF;border-radius:12px;
+  padding:10px 13px;display:flex;align-items:center;gap:10px;}}
+.ask-hr-fc-ic{{width:30px;height:30px;border-radius:50%;display:flex;
+  align-items:center;justify-content:center;font-size:14px;flex-shrink:0;}}
+.ask-hr-fc-ic.blue{{background:#E8ECFE;}}
+.ask-hr-fc-ic.red{{background:#FEE2E2;}}
+.ask-hr-fc-ic.grn{{background:#ECFDF5;}}
+.ask-hr-fc-txt{{font-size:12.5px;font-weight:600;color:#1A1A2E;flex:1;line-height:1.3;}}
+.ask-hr-fc-txt small{{font-weight:400;color:#6B7280;display:block;font-size:11px;}}
+.ask-hr-fc-badge{{background:#E8ECFE;color:#2D3FE7;font-size:10.5px;font-weight:700;
+  padding:2px 8px;border-radius:999px;flex-shrink:0;white-space:nowrap;}}
+.ask-hr-fc-badge.ok{{background:#ECFDF5;color:#059669;}}
+.ask-hr-power{{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-bottom:13px;}}
+.ask-hr-pow{{background:white;border:1.5px solid #2D3FE7;border-radius:12px;
+  padding:11px 12px;display:flex;align-items:flex-start;gap:9px;text-align:left;}}
+.ask-hr-pow.gov{{border-color:#059669;}}
+.ask-hr-pow-ic{{font-size:18px;flex-shrink:0;margin-top:1px;}}
+.ask-hr-pow-t{{font-size:11.5px;font-weight:700;color:#1A1A2E;margin-bottom:2px;}}
+.ask-hr-pow-s{{font-size:10.5px;color:#6B7280;line-height:1.4;}}
+.ask-hr-pow-tag{{display:inline-block;background:#E8ECFE;color:#2D3FE7;
+  font-size:10px;font-weight:700;padding:2px 7px;border-radius:999px;margin-top:4px;}}
+.ask-hr-pow.gov .ask-hr-pow-tag{{background:#ECFDF5;color:#059669;}}
+.ask-hr-disc{{background:white;border:1px solid #E5E7EB;border-radius:10px;
+  padding:9px 12px;font-size:11px;color:#6B7280;line-height:1.5;
+  display:flex;gap:8px;align-items:flex-start;text-align:left;}}
+</style>
+<div class="ask-hr-hero">
+  <div class="ask-hr-kicker">ASKLEPIOS · {"AI ΝΟΣΗΛΕΥΤΗΣ" if el else "AI NURSE"}</div>
+  <div class="ask-hr-h1">{_h1}</div>
+  <div class="ask-hr-sub">{_sub}</div>
+  <div class="ask-hr-fcards">
+    <div class="ask-hr-fc">
+      <div class="ask-hr-fc-ic blue">💬</div>
+      <div class="ask-hr-fc-txt">{_f1t}<small>{_f1s}</small></div>
+      <div class="ask-hr-fc-badge">{"Βήμα 1" if el else "Step 1"}</div>
+    </div>
+    <div class="ask-hr-fc">
+      <div class="ask-hr-fc-ic red">❤️</div>
+      <div class="ask-hr-fc-txt">{_f2t}<small>{_f2s}</small></div>
+      <div class="ask-hr-fc-badge">{"Βήμα 2" if el else "Step 2"}</div>
+    </div>
+    <div class="ask-hr-fc">
+      <div class="ask-hr-fc-ic blue">🧬</div>
+      <div class="ask-hr-fc-txt">{_f3t}<small>{_f3s}</small></div>
+      <div class="ask-hr-fc-badge">{"Βήμα 3" if el else "Step 3"}</div>
+    </div>
+    <div class="ask-hr-fc">
+      <div class="ask-hr-fc-ic grn">📋</div>
+      <div class="ask-hr-fc-txt">{_f4t}<small>{_f4s}</small></div>
+      <div class="ask-hr-fc-badge ok">✓ {"Αναφορά" if el else "Report"}</div>
+    </div>
+  </div>
+  <div class="ask-hr-power">
+    <div class="ask-hr-pow">
+      <div class="ask-hr-pow-ic">🤖</div>
+      <div>
+        <div class="ask-hr-pow-t">{_p1t}</div>
+        <div class="ask-hr-pow-s">{_p1s}</div>
+        <div class="ask-hr-pow-tag">{_p1b}</div>
+      </div>
+    </div>
+    <div class="ask-hr-pow gov">
+      <div class="ask-hr-pow-ic">🇬🇷</div>
+      <div>
+        <div class="ask-hr-pow-t">{_p2t}</div>
+        <div class="ask-hr-pow-s">{_p2s}</div>
+        <div class="ask-hr-pow-tag">{_p2b}</div>
+      </div>
+    </div>
+  </div>
+  <div class="ask-hr-disc">
+    <span style="font-size:14px;flex-shrink:0">ℹ️</span>
+    <span>{_disc}</span>
+  </div>
+</div>
+""", unsafe_allow_html=True)
+
+    # ── gov.gr QUICK ACCESS ───────────────────────────────────────────────────
+    _gov_title = "🔒 Ηλεκτρονικές Υπηρεσίες Υγείας (gov.gr)" if el else "🔒 Digital Health Services (gov.gr)"
+    _gov_note  = "Ανοίγουν σε νέα καρτέλα στο gov.gr — δεν αποθηκεύουμε δεδομένα." if el else "Open in a new tab on gov.gr — we store no data."
+    _gov_links = [
+        ("📂", "Ηλεκτρονικός Φάκελος Υγείας" if el else "Health Record",
+         "https://www.gov.gr/ipiresies/ugeia-kai-pronoia/phakelos-ugeias"),
+        ("💊", "e-Συνταγογράφηση" if el else "e-Prescription",
+         "https://esyntagografisi.amka.gr"),
+        ("👨‍⚕️", "Ιατροί ΕΟΠΥΥ" if el else "EOPYY Doctors",
+         "https://www.eopyy.gov.gr"),
+        ("📋", "ΑΜΚΑ" if el else "AMKA",
+         "https://www.gov.gr/ipiresies/apasxolisi-kai-syntaxiodotisi/amka"),
+        ("🔔", "ΕΟΔΥ" if el else "EODY",
+         "https://eody.gov.gr"),
+    ]
+    _gov_btn_html = " ".join(
+        f'<a href="{url}" target="_blank" rel="noopener" style="'
+        f'display:inline-flex;align-items:center;gap:5px;background:white;'
+        f'border:1px solid #6EE7B7;border-radius:999px;padding:7px 13px;'
+        f'font-size:12px;font-weight:600;color:#065F46;text-decoration:none;'
+        f'margin:3px 2px;">{ic} {label}</a>'
+        for ic, label, url in _gov_links
+    )
+    st.markdown(f"""
+<div style="background:#F0FDF4;border:1.5px solid #A7F3D0;border-radius:16px;
+  padding:15px 17px;margin:0 0 18px;font-family:'Inter',system-ui,sans-serif;">
+  <div style="font-size:11px;font-weight:700;letter-spacing:0.1em;color:#065F46;
+    text-transform:uppercase;margin-bottom:11px;">{_gov_title}</div>
+  <div style="line-height:2;">{_gov_btn_html}</div>
+  <div style="font-size:10.5px;color:#6B7280;margin-top:9px;">{_gov_note}</div>
+</div>
+""", unsafe_allow_html=True)
+
+    # ── HOW IT WORKS ─────────────────────────────────────────────────────────
+    _steps_el = [
+        ("1","👤","Προφίλ","Ηλικία, φύλο, ιστορικό"),
+        ("2","💬","Συμπτώματα","Το AI ρωτά δομημένα"),
+        ("3","❤️","Ζωτικά","HR, BP, SpO₂"),
+        ("4","🧬","Εξετάσεις","Ανέβασε αιματολογικά, PDF εξετάσεων, φωτογραφία πληγής/δέρματος"),
+        ("5","🧠","Triage AI","Claude + GPT-4o"),
+        ("6","📄","Αναφορά","PubMed + ιατρός"),
+    ]
+    _steps_en = [
+        ("1","👤","Profile","Age, sex, history"),
+        ("2","💬","Symptoms","AI asks step by step"),
+        ("3","❤️","Vitals","HR, BP, SpO₂"),
+        ("4","🧬","Lab & Photos","Upload blood tests, PDF results, wound/skin photo"),
+        ("5","🧠","Triage AI","Claude + GPT-4o"),
+        ("6","📄","Report","PubMed + doctor"),
+    ]
+    _steps = _steps_el if el else _steps_en
+    _step_cards = "".join(f"""
+<div style="flex:0 0 108px;text-align:center;">
+  <div style="width:26px;height:26px;border-radius:50%;background:#2D3FE7;color:white;
+    display:flex;align-items:center;justify-content:center;font-weight:700;font-size:11px;
+    margin:0 auto 8px;">{n}</div>
+  <div style="font-size:20px;margin-bottom:5px;">{ic}</div>
+  <div style="font-size:12px;font-weight:700;color:#1A1A2E;margin-bottom:2px;">{t}</div>
+  <div style="font-size:10.5px;color:#6B7280;line-height:1.35;">{s}</div>
+</div>""" for n, ic, t, s in _steps)
+    _how_title = "Πώς λειτουργεί" if el else "How it works"
+    st.markdown(f"""
+<div style="font-family:'Inter',system-ui,sans-serif;margin:0 0 20px;">
+  <div style="font-size:18px;font-weight:800;color:#1A1A2E;text-align:center;margin-bottom:16px;">{_how_title}</div>
+  <div style="display:flex;gap:10px;overflow-x:auto;padding-bottom:6px;">{_step_cards}</div>
+</div>
+""", unsafe_allow_html=True)
+
+    # ── STATS BAND ────────────────────────────────────────────────────────────
+    _s1l = "Ακρίβεια triage (Semigran-45)" if el else "Triage accuracy (Semigran-45)"
+    _s2l = "Unsafe undertriage" if el else "Unsafe undertriage"
+    _s3l = "Claude + GPT-4o δεύτερη γνώμη" if el else "Claude + GPT-4o second opinion"
+    st.markdown(f"""
+<div style="display:flex;border:1px solid #E0E5FF;border-radius:14px;overflow:hidden;
+  background:white;margin:0 0 20px;font-family:'Inter',system-ui,sans-serif;">
+  <div style="flex:1;text-align:center;padding:13px 6px;border-right:1px solid #E0E5FF;">
+    <div style="font-size:19px;font-weight:800;color:#2D3FE7;">88.9%</div>
+    <div style="font-size:10.5px;color:#6B7280;margin-top:3px;line-height:1.3;">{_s1l}</div>
+  </div>
+  <div style="flex:1;text-align:center;padding:13px 6px;border-right:1px solid #E0E5FF;">
+    <div style="font-size:19px;font-weight:800;color:#2D3FE7;">0%</div>
+    <div style="font-size:10.5px;color:#6B7280;margin-top:3px;line-height:1.3;">{_s2l}</div>
+  </div>
+  <div style="flex:1;text-align:center;padding:13px 6px;">
+    <div style="font-size:19px;font-weight:800;color:#2D3FE7;">2 AI</div>
+    <div style="font-size:10.5px;color:#6B7280;margin-top:3px;line-height:1.3;">{_s3l}</div>
+  </div>
+</div>
+""", unsafe_allow_html=True)
+
+    # ── FOR WHOM ─────────────────────────────────────────────────────────────
+    _aud_title = "Για ποιον είναι" if el else "Who is it for"
+    if el:
+        _aud = [
+            ("👨‍👩‍👧","ic-blue","Για όλη την οικογένεια",
+             "Για σένα, τα παιδιά σου, τους γονείς σου. Πήγαινε στον ιατρό έτοιμος, με ιστορικό στα χέρια σου.",
+             "Ενήλικες · Παιδιά · Ηλικιωμένοι","#E8ECFE","#2D3FE7"),
+            ("🤝","ic-amber","Για φροντιστές υγείας",
+             "Φροντίζεις κάποιον άλλο; Το Asklepios δουλεύει σε caregiver mode — περιγράφεις αυτό που παρατηρείς και λαμβάνεις δομημένη εκτίμηση.",
+             "Caregiver mode ενσωματωμένο","#FFFBEB","#92400E"),
+            ("👨‍⚕️","ic-green","Για ιατρούς & ιατρεία",
+             "Ο ασθενής φτάνει με οργανωμένο ιστορικό και PubMed εκτίμηση. Λιγότερα τηλεφωνήματα ρουτίνας, ποιοτικότερος χρόνος.",
+             "Εξοικονόμηση χρόνου · Ποιοτικότερες επισκέψεις","#ECFDF5","#065F46"),
+        ]
+    else:
+        _aud = [
+            ("👨‍👩‍👧","ic-blue","For the whole family",
+             "For you, your children, your parents. Go to your doctor prepared, with an organised history.",
+             "Adults · Children · Elderly","#E8ECFE","#2D3FE7"),
+            ("🤝","ic-amber","For caregivers",
+             "Caring for someone else? Asklepios works in caregiver mode — describe what you observe and get a structured assessment.",
+             "Caregiver mode built-in","#FFFBEB","#92400E"),
+            ("👨‍⚕️","ic-green","For doctors & clinics",
+             "Patients arrive with organised history and PubMed assessment. Fewer routine calls, higher-quality consultations.",
+             "Save time · Better appointments","#ECFDF5","#065F46"),
+        ]
+    _aud_cards = "".join(f"""
+<div style="flex:1 1 180px;background:white;border:1px solid #E0E5FF;border-radius:14px;padding:14px 14px 12px;">
+  <div style="width:34px;height:34px;border-radius:50%;background:{bg};display:flex;
+    align-items:center;justify-content:center;font-size:17px;margin-bottom:9px;">{ic}</div>
+  <div style="font-size:13px;font-weight:800;color:#1A1A2E;margin-bottom:4px;">{t}</div>
+  <div style="font-size:11.5px;color:#4B5563;line-height:1.5;margin-bottom:7px;">{d}</div>
+  <div style="display:inline-block;background:{bg};color:{tc};font-size:10px;font-weight:700;
+    padding:2px 9px;border-radius:999px;">{badge}</div>
+</div>""" for ic, _, t, d, badge, bg, tc in _aud)
+    st.markdown(f"""
+<div style="font-family:'Inter',system-ui,sans-serif;margin:0 0 22px;">
+  <div style="font-size:18px;font-weight:800;color:#1A1A2E;text-align:center;margin-bottom:16px;">{_aud_title}</div>
+  <div style="display:flex;gap:10px;flex-wrap:wrap;">{_aud_cards}</div>
+</div>
+""", unsafe_allow_html=True)
+
+    # ── LOGIN FORM ────────────────────────────────────────────────────────────
+    _login_title = "Ξεκίνα — δωρεάν, χωρίς password" if el else "Get started — free, no password"
+    st.markdown(f"""
+<div style="font-size:16px;font-weight:800;color:#1A1A2E;text-align:center;
+  margin:4px 0 12px;font-family:'Inter',system-ui,sans-serif;">{_login_title}</div>
+""", unsafe_allow_html=True)
+    col1, col2, col3 = st.columns([1, 2, 1])
     with col2:
         render_login_gate()
-    # "How it works" photo-slider — visible inline, no click needed.
-    # Horizontal scrollable cards, mobile-swipeable.
-    render_explainer_video(lang)
+
     st.markdown(f'<div class="disclaimer">{t("disclaimer_main")}</div>', unsafe_allow_html=True)
 
 
@@ -4179,34 +4450,7 @@ div[data-testid="stHorizontalBlock"]:has(.chip-flow-marker) button {
                                     "it will say so — but you can also upload proactively."))
             render_photo_scan()
     # Physiotherapy card — surfaces proactively as soon as the conversation
-    # mentions a musculoskeletal complaint (shoulder/back/joint pain, sprain,
-    # stiffness...), instead of only appearing later inside the final report.
-    # Dismissible per-conversation, same UX pattern as the vitals nudge above.
-    if (any(m["role"]=="assistant" for m in st.session_state.triage_chat)
-            and _physio_relevant()
-            and not st.session_state.get("_physio_card_off")):
-        _physio_label = ("🏃 Σχετική βιβλιογραφία φυσικοθεραπείας" if _lang=="el"
-                          else "🏃 Related physiotherapy evidence")
-        with st.expander(_physio_label, expanded=True):
-            render_physio_card(_triage_condition_hint(), lang=_lang,
-                                refs_override=_cached_physio_refs())
-            if st.button(("Απόκρυψη" if _lang=="el" else "Dismiss"),
-                         key="physio_card_off", use_container_width=True):
-                st.session_state["_physio_card_off"] = True; st.rerun()
-    # Psychology card — surfaces proactively when the conversation mentions
-    # anxiety/stress/low mood/sleep-related distress etc. Same dismissible,
-    # collapsible pattern. Crisis lines/directory resources are always shown
-    # first inside the card; the PubMed research section is additive.
-    if (any(m["role"]=="assistant" for m in st.session_state.triage_chat)
-            and _psych_relevant()
-            and not st.session_state.get("_psych_card_off")):
-        _psych_label = ("🧠 Ψυχολογική υποστήριξη" if _lang=="el"
-                         else "🧠 Psychological support")
-        with st.expander(_psych_label, expanded=True):
-            render_psychology_card(lang=_lang, refs_override=_cached_psych_refs())
-            if st.button(("Απόκρυψη" if _lang=="el" else "Dismiss"),
-                         key="psych_card_off", use_container_width=True):
-                st.session_state["_psych_card_off"] = True; st.rerun()
+    # (Physio and psychology cards removed — no dedicated API available.)
     # Lab analysis — always available once Asklepios has started talking, since
     # blood/hormonal/urinalysis results help for ANY complaint, not just visual.
     if any(m["role"]=="assistant" for m in st.session_state.triage_chat):
@@ -4453,13 +4697,25 @@ function copyText(){{
     with col_b:
         if st.button(t("back")): st.session_state.screen="vitals"; st.rerun()
     with col_r:
-        # Language picker: lets non-Greek speakers get report in their language
-        render_output_language_picker(st.session_state.lang, key_suffix="triage")
         enabled=triage_ready or len(st.session_state.triage_chat)>=6
         if st.button(t("generate_report"),type="primary",use_container_width=True,disabled=not enabled):
             st.session_state.screen="report"; st.rerun()
+    # Report-language selector: ask only the clinically relevant question.
+    # The UI stays in the chosen app language. The report is generated in that
+    # same language by default. If the user wants a Greek copy for a Greek
+    # doctor, they tick this — the report is then generated in Greek regardless
+    # of the UI language (useful for non-Greek-speaking users living in Greece).
+    _lang = st.session_state.lang
+    if _lang != "el":
+        _also_greek = st.checkbox(
+            "📋 Δημιούργησε την αναφορά και στα **Ελληνικά** (για να τη δείξεις σε Έλληνα ιατρό)",
+            value=st.session_state.get("report_also_greek", False),
+            key="report_also_greek_cb",
+        )
+        if _also_greek != st.session_state.get("report_also_greek", False):
+            st.session_state["report_also_greek"] = _also_greek
     if not enabled:
-        st.caption("Συνεχίστε — ο Asklepios θα σας ειδοποιήσει όταν έχει αρκετά." if st.session_state.lang=="el" else "Continue — Asklepios will let you know when it has enough.")
+        st.caption("Συνεχίστε — ο Asklepios θα σας ειδοποιήσει όταν έχει αρκετά." if _lang=="el" else "Continue — Asklepios will let you know when it has enough.")
 
 # ── PNOE-inspired report helpers ──────────────────────────────────────────────
 # Inspired by the PNOE Metabolic Blueprint report (Frank Shallenberger), which
@@ -5174,7 +5430,7 @@ def render_report():
   border:4px solid #3B82F6;display:flex;align-items:center;justify-content:center;
   font-size:48px;overflow:hidden}}
 .ask-super{{font-size:11px;font-weight:700;letter-spacing:5px;color:#2563EB;margin-top:18px}}
-.ask-name{{font-size:24px;font-weight:800;color:#1E3A5F;margin-top:2px;line-height:1.1;word-break:break-word}}
+.ask-name{{font-size:20px;font-weight:800;color:#1E3A5F;margin-top:2px;line-height:1.2;word-break:break-word;max-width:300px;margin-left:auto;margin-right:auto;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}}
 .ask-bubble{{position:relative;margin-top:18px;background:#DBEAFE;border:2px solid #93C5FD;
   border-radius:18px 18px 18px 4px;padding:13px 15px;min-height:50px;
   display:flex;align-items:center;justify-content:center;
@@ -5534,22 +5790,7 @@ Language: {"Greek" if lang=="el" else "English"}. Be direct. End with a one-line
         _render_recs_card(st.session_state.report_recs, lang,
                           refs=st.session_state.get("report_recs_refs") or {})
 
-    # ── PHYSIOTHERAPY CARD (PEDro-equivalent evidence via PubMed/MEDLINE) ─────
-    # Build a condition hint from the report_recs["condition"] field (English
-    # MeSH term) so the exercise search is clinically targeted.
-    _physio_hint = (st.session_state.get("report_recs") or {}).get("condition", "")
-    if not _physio_hint:
-        # Fall back to the last user message as a keyword hint
-        _physio_hint = next((m["content"][:60] for m in reversed(st.session_state.triage_chat)
-                             if m["role"] == "user"), "musculoskeletal pain")
-    with st.expander("🏃 " + ("Φυσιοθεραπεία & Αποκατάσταση" if lang=="el"
-                               else "Physiotherapy & Rehabilitation"), expanded=False):
-        render_physio_card(_physio_hint, lang)
-
-    # ── PSYCHOLOGY & MENTAL HEALTH CARD ──────────────────────────────────────
-    with st.expander("🧠 " + ("Ψυχολογική Υποστήριξη" if lang=="el"
-                               else "Psychological Support"), expanded=False):
-        render_psychology_card(lang)
+    # (Physio and psychology cards removed — no dedicated API available.)
 
     # Where-to-go card: emergency numbers + nearby clinics/pharmacies finder.
     # Placed right after the personalised recs so the user has all the info
