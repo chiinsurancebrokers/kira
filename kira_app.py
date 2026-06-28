@@ -2054,7 +2054,19 @@ def _admin_delete(table, row_id):
 # ── NCBI HELPERS ──────────────────────────────────────────────────────────────
 def pubmed_search(query, n=3):
     try:
-        p = urllib.parse.urlencode({"db":"pubmed","term":query,"retmax":n,"retmode":"json","api_key":get_ncbi_key()})
+        # NOTE: eutils' esearch defaults to sorting by most-recent-publication-
+        # date when no `sort` param is given — NOT by relevance, even though
+        # that's what the pubmed.ncbi.nlm.nih.gov website shows by default.
+        # We use "most+cited" rather than "relevance": relevance only scores
+        # keyword-match strength in title/abstract/MeSH, so it can still rank
+        # a niche case report above a well-established, heavily-cited review
+        # just because the case report's text happens to match more closely.
+        # Citation count is a much closer proxy for "this is strong, well-
+        # validated literature" — combined with the existing _PILLAR_PTYPE
+        # filter (Practice Guideline/Systematic Review/Meta-Analysis/Review),
+        # this surfaces the most-cited paper *within* the high-evidence-type
+        # subset, rather than just the most recent or most keyword-matched one.
+        p = urllib.parse.urlencode({"db":"pubmed","term":query,"retmax":n,"retmode":"json","sort":"most+cited","api_key":get_ncbi_key()})
         with urllib.request.urlopen(f"https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi?{p}", timeout=8) as r:
             ids = json.loads(r.read()).get("esearchresult",{}).get("idlist",[])
         if not ids: return []
@@ -4384,7 +4396,9 @@ def generate_html_report(profile, vitals, report_text, pubmed_refs, lang="el", r
         for line in text.splitlines():
             l=line.strip()
             if not l: out.append("<br>"); continue
-            if l.startswith("## ") or l.startswith("# "): out.append(f"<h2>{_html.escape(l.lstrip('#').strip())}</h2>")
+            if l.startswith("#"):
+                out.append(f"<h3>{_html.escape(l.lstrip('#').strip())}</h3>" if l.startswith("###")
+                            else f"<h2>{_html.escape(l.lstrip('#').strip())}</h2>")
             elif l.startswith(("- ","* ","• ")): out.append(f"<li>{_re.sub(r'\*\*(.*?)\*\*',r'<strong>\1</strong>',_html.escape(l[2:]))}</li>")
             else: out.append(f"<p>{_re.sub(r'\*\*(.*?)\*\*',r'<strong>\1</strong>',_html.escape(l))}</p>")
         r="\n".join(out)
@@ -4395,9 +4409,10 @@ def generate_html_report(profile, vitals, report_text, pubmed_refs, lang="el", r
     # PNOE-style Recommendations section (Exercise / Nutrition / Lifestyle)
     recs_html = ""
     if recs and any(recs.get(k) for k in ("exercise","nutrition","lifestyle")):
-        _ex = _html.escape(recs.get("exercise","—"))
-        _nu = _html.escape(recs.get("nutrition","—"))
-        _li = _html.escape(recs.get("lifestyle","—"))
+        def _md_bold(t): return _re.sub(r'\*\*(.*?)\*\*', r'<strong>\1</strong>', _html.escape(t or "—"))
+        _ex = _md_bold(recs.get("exercise"))
+        _nu = _md_bold(recs.get("nutrition"))
+        _li = _md_bold(recs.get("lifestyle"))
         _t = ("Εξατομικευμένες Συστάσεις", "Φυσική Δραστηριότητα", "Διατροφή", "Τρόπος Ζωής",
               "Οδηγίες & μετα-αναλύσεις") if lang=="el" \
              else ("Personalised Recommendations", "Exercise", "Nutrition", "Lifestyle",
@@ -4462,6 +4477,7 @@ def generate_html_report(profile, vitals, report_text, pubmed_refs, lang="el", r
 .patient{{background:linear-gradient(135deg,#2D3FE7,#7B2FE0);color:white;border-radius:12px;padding:18px 22px;margin-bottom:20px}}
 .patient-name{{font-size:20px;font-weight:700;margin-bottom:4px}}.patient-meta{{font-size:12px;opacity:.8}}.patient-detail{{font-size:11px;opacity:.75;margin-top:10px;line-height:1.8}}
 h2{{font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:#7B2FE0;border-bottom:1px solid #E0E5FF;padding-bottom:5px;margin:20px 0 10px}}
+h3{{font-size:12.5px;font-weight:700;color:#2D3FE7;margin:14px 0 6px}}
 p{{margin:4px 0;line-height:1.65}}ul{{margin:6px 0 6px 18px}}li{{margin:3px 0;line-height:1.6}}
 table.vitals{{width:100%;border-collapse:collapse;margin:10px 0;font-size:12px}}
 table.vitals thead tr{{background:#2D3FE7;color:white}}table.vitals th,table.vitals td{{padding:7px 12px;text-align:left;border:1px solid #E0E5FF}}
@@ -6123,9 +6139,10 @@ def _render_recs_card(recs, lang, refs=None):
     # (the bug visible in the user's screenshot). Recs are short prose, so a
     # single-line collapse is safe and preserves readability.
     def _flat(t): return _re_rec.sub(r"\s+", " ", (t or "—").strip()) or "—"
-    ex = _html_r.escape(_flat(recs.get("exercise")))
-    nu = _html_r.escape(_flat(recs.get("nutrition")))
-    li = _html_r.escape(_flat(recs.get("lifestyle")))
+    def _bold(t): return _re_rec.sub(r'\*\*(.*?)\*\*', r'<strong>\1</strong>', t)
+    ex = _bold(_html_r.escape(_flat(recs.get("exercise"))))
+    nu = _bold(_html_r.escape(_flat(recs.get("nutrition"))))
+    li = _bold(_html_r.escape(_flat(recs.get("lifestyle"))))
 
     def _refs_html(pillar_key):
         items = (refs or {}).get(pillar_key) or []
