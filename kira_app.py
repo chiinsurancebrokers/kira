@@ -431,7 +431,7 @@ st.markdown("""
 }
 .kira-step.done   .kira-step-circle { background: #7B2FE0; border-color: #7B2FE0; color: white; }
 .kira-step.active .kira-step-circle { background: #2D3FE7; border-color: #2D3FE7; color: white; box-shadow: 0 0 0 4px rgba(45,63,231,.15); }
-.kira-step-label { font-size: 10px; color: #94A3B8; text-align: center; letter-spacing: .02em; }
+.kira-step-label { font-size: 10px; color: #94A3B8; text-align: center; letter-spacing: .02em; word-break: break-word; overflow-wrap: break-word; }
 .kira-step.done   .kira-step-label  { color: #7B2FE0; }
 .kira-step.active .kira-step-label  { color: #2D3FE7; font-weight: 600; }
 .kira-step-line {
@@ -1484,7 +1484,7 @@ def render_login_screen():
 .ask-hr-fc-ic.red{{background:#FEE2E2;}}
 .ask-hr-fc-ic.grn{{background:#ECFDF5;}}
 .ask-hr-fc-ic.pur{{background:#EDE9FE;}}
-.ask-hr-fc-txt{{font-size:12.5px;font-weight:600;color:#1A1A2E;flex:1;line-height:1.3;text-align:{"right" if rtl else "left"};}}
+.ask-hr-fc-txt{{font-size:12.5px;font-weight:600;color:#1A1A2E;flex:1;min-width:0;line-height:1.3;text-align:{"right" if rtl else "left"};word-break:break-word;}}
 .ask-hr-fc-txt small{{font-weight:400;color:#6B7280;display:block;font-size:11px;}}
 .ask-hr-fc-badge{{background:#E8ECFE;color:#2D3FE7;font-size:10.5px;font-weight:700;
   padding:2px 8px;border-radius:999px;flex-shrink:0;white-space:nowrap;}}
@@ -1597,11 +1597,17 @@ def render_login_screen():
 """, unsafe_allow_html=True)
 
     # ── HOW IT WORKS ─────────────────────────────────────────────────────────
+    # NOTE: previously this truncated labels with hard character counts
+    # (text[:14]+"…") tuned by eyeballing the English strings. That cut Greek/
+    # Hindi/Urdu/Arabic words mid-glyph (e.g. "φωτογραφία" → "φω…") since other
+    # scripts don't share English's chars-per-pixel ratio. Now we pass the full
+    # text through and let CSS line-clamp (below) wrap/truncate visually,
+    # which adapts correctly to any language and any font.
     _steps_data = [
-        ("1","👤", t("stepper_profile").split(" ",1)[1] if " " in t("stepper_profile") else t("name"), t("history")[:28]+"…" if len(t("history"))>28 else t("history")),
-        ("2","💬", t("triage_title")[:14]+"…" if len(t("triage_title"))>14 else t("triage_title"), t("triage_sub")[:35]+"…" if len(t("triage_sub"))>35 else t("triage_sub")),
-        ("3","❤️", t("vitals_title")[:12]+"…" if len(t("vitals_title"))>12 else t("vitals_title"), "HR, BP, SpO₂"),
-        ("4","🧬", t("hero_f3t")[:14]+"…" if len(t("hero_f3t"))>14 else t("hero_f3t"), t("hero_f3s")[:30]+"…" if len(t("hero_f3s"))>30 else t("hero_f3s")),
+        ("1","👤", t("stepper_profile").split(" ",1)[1] if " " in t("stepper_profile") else t("name"), t("history")),
+        ("2","💬", t("triage_title"), t("triage_sub")),
+        ("3","❤️", t("vitals_title"), "HR, BP, SpO₂"),
+        ("4","🧬", t("hero_f3t"), t("hero_f3s")),
         ("5","🧠", "Triage AI", "Claude + GPT-4o"),
         ("6","📄", t("stepper_report").split(" ",1)[1] if " " in t("stepper_report") else "Report", "PubMed"),
     ]
@@ -1609,8 +1615,8 @@ def render_login_screen():
     _steps_html = _arrow.join(f"""<div style="flex:1 1 0;min-width:0;text-align:{_ta};padding:0 2px;">
   <div style="width:28px;height:28px;border-radius:50%;background:#2D3FE7;color:white;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:12px;margin:0 auto 8px;">{n}</div>
   <div style="font-size:20px;margin-bottom:5px;">{ic}</div>
-  <div style="font-size:12px;font-weight:700;color:#1A1A2E;margin-bottom:2px;line-height:1.25;">{tt}</div>
-  <div style="font-size:10px;color:#6B7280;line-height:1.35;">{ss}</div>
+  <div style="font-size:12px;font-weight:700;color:#1A1A2E;margin-bottom:2px;line-height:1.25;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;word-break:break-word;">{tt}</div>
+  <div style="font-size:10px;color:#6B7280;line-height:1.35;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;word-break:break-word;">{ss}</div>
 </div>""" for n, ic, tt, ss in _steps_data)
     st.markdown(f"""
 <div style="font-family:'Inter',system-ui,sans-serif;margin:0 0 20px;direction:{_dir};">
@@ -2093,6 +2099,34 @@ def pubmed_pillar_search(condition, pillar, n=2):
         return res
     # Fallback: drop ptype filter — still MeSH-scoped, just any pub type
     return pubmed_search(f"{cond_q} AND {mesh}", n=n)
+
+# ── MAIN BIBLIOGRAPHY (diagnosis-level evidence) ────────────────────────────
+# This feeds the "🔬 PubMed" expander + PDF export — the section the user sees
+# as the report's general references. It used to be a bare pubmed_search() on
+# the condition name with no field/quality scoping, which let NCBI's relevance
+# ranking surface tangential hits (e.g. a pediatric case report or an unrelated
+# surgical-technique paper that merely shares a MeSH term with the diagnosis).
+# Fix: search the condition in the Title field specifically (so the diagnosis
+# has to be a primary subject, not an incidental mention) and prefer
+# guideline/review-quality literature, same as the pillar searches do.
+def bibliography_search(condition, n=3):
+    """Diagnosis-level PubMed search for the main report bibliography.
+    Returns the same list-of-dicts shape as pubmed_search. Tries, in order:
+    1) condition in Title + high-evidence ptype (most specific)
+    2) condition in Title, any ptype (still on-topic, just not guideline-tier)
+    3) plain keyword search (last-resort, old behaviour) so we never show
+       nothing when NCBI genuinely has no closely-titled paper."""
+    if not condition:
+        return []
+    cond_q = condition.strip()
+    title_scoped = f"{cond_q}[Title] AND {_PILLAR_PTYPE}"
+    res = pubmed_search(title_scoped, n=n)
+    if res:
+        return res
+    res = pubmed_search(f"{cond_q}[Title]", n=n)
+    if res:
+        return res
+    return pubmed_search(cond_q, n=n)
 
 # ── PHYSIOTHERAPY EVIDENCE (PubMed/MEDLINE, PEDro-equivalent MeSH scope) ─────
 # PEDro (pedro.org.au) itself has no public API — it is search-UI only — so we
@@ -5891,6 +5925,32 @@ function copyText(){{
 </div>
 """, unsafe_allow_html=True)
 
+    # ── Mobile chat-input viewport fix ───────────────────────────────────────
+    # st.chat_input renders fixed to the bottom of the browser viewport. Inside
+    # mobile webviews (in-app browsers, PWA wrappers) this can misbehave: when
+    # the on-screen keyboard opens, some mobile browsers don't update the CSS
+    # viewport height, so the fixed input either sits underneath the keyboard
+    # or gets pushed out past the visible area, forcing the user to hunt/scroll
+    # for it. Using the dynamic-viewport unit (100dvh) instead of the static
+    # one keeps the input pinned to the *visually visible* bottom edge, and the
+    # safe-area inset avoids it being clipped on notched devices.
+    st.markdown("""
+<style>
+[data-testid="stChatInput"] {
+  position: sticky;
+  bottom: 0;
+  z-index: 999;
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+  background: var(--background-color, #F4F6FF);
+}
+@supports (height: 100dvh) {
+  [data-testid="stAppViewContainer"] {
+    min-height: 100dvh;
+  }
+}
+</style>
+""", unsafe_allow_html=True)
+
     user_input=st.chat_input(t("triage_placeholder"),key="triage_input")
     _auto_reply = st.session_state.pop("_scan_reply_pending", False)
     _voice_reply = st.session_state.pop("_voice_send_pending", False)
@@ -6639,7 +6699,7 @@ def render_report():
 @keyframes ask-bounce{{0%,80%,100%{{transform:scale(0.55);opacity:.35}}40%{{transform:scale(1.1);opacity:1}}}}
 @keyframes ask-spin{{from{{transform:rotate(0deg)}}to{{transform:rotate(360deg)}}}}
 @keyframes ask-fadein{{from{{opacity:0}}to{{opacity:1}}}}
-@keyframes ask-msg{{0%{{opacity:0;transform:translateY(6px)}}8%{{opacity:1;transform:translateY(0)}}88%{{opacity:1;transform:translateY(0)}}96%{{opacity:0;transform:translateY(-4px)}}100%{{opacity:0}}}}
+@keyframes ask-msg{{0%{{opacity:0;transform:translateY(6px)}}3%{{opacity:1;transform:translateY(0)}}14%{{opacity:1;transform:translateY(0)}}17%{{opacity:0;transform:translateY(-4px)}}100%{{opacity:0}}}}
 .ask-overlay{{position:fixed;inset:0;z-index:2147483600;background:rgba(15,23,42,.55);
   backdrop-filter:blur(6px);display:flex;align-items:center;justify-content:center;
   animation:ask-fadein 220ms ease-out;font-family:Inter,system-ui,sans-serif;padding:16px}}
@@ -6770,7 +6830,7 @@ Language: {"Greek" if lang=="el" else "English"}. Be direct. End with a one-line
                         # of literature. This only refreshes the references shown in the
                         # "🔬 PubMed" expander + PDF export — it does not rewrite the
                         # "6. ΒΙΒΛΙΟΓΡΑΦΙΑ" text the AI already wrote in the report body.
-                        _futs["bibliography"] = _ex.submit(pubmed_search, _condition, 3)
+                        _futs["bibliography"] = _ex.submit(bibliography_search, _condition, 3)
                         _all_refs = {p: f.result() for p,f in _futs.items()}
                 if _all_refs.get("bibliography"):
                     st.session_state.report_pubmed = _all_refs["bibliography"]
