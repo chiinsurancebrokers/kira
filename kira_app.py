@@ -6571,6 +6571,7 @@ def render_emergency_resources(lang):
             "pharm": "pharmacy",
         }
     import urllib.parse as _up
+    import html as _html_mod
     def _maps(q):
         return f"https://www.google.com/maps/search/?api=1&query={_up.quote(q)}"
     # Official Ministry of Health page for Athens hospital duty schedule.
@@ -6578,6 +6579,57 @@ def render_emergency_resources(lang):
     URL_DOC   = "https://www.vrisko.gr/dir/giatroi-eopyy"
     URL_HOSP  = "https://www.moh.gov.gr/articles/citizen/efhmeries-nosokomeiwn/68-efhmeries-nosokomeiwn-attikhs"
     URL_PHARM = "https://www.vrisko.gr/efimeries-farmakeion"
+
+    # ── Featured / partner provider (B2B2C) ──────────────────────────────────
+    # Pulled from the existing `partners` table (already managed via the admin
+    # panel — see _admin_partners_tab). Shown ABOVE the general Google Maps /
+    # EOPYY links as a supplementary option, never as a replacement: Greece-
+    # wide coverage and live geolocation from Google Maps stay available no
+    # matter what, so a user outside a partner's city/specialty still gets a
+    # genuinely useful "where to go" answer. Any partner shown here carries an
+    # explicit "Συνεργαζόμενος Πάροχος" badge — this is a paid/affiliated
+    # placement, not a clinical recommendation, and must never be presented
+    # as if it were one.
+    _partner_html = ""
+    try:
+        _partners_active = [r for r in _admin_list("partners") if r.get("active", True)]
+    except Exception:
+        _partners_active = []
+    if _partners_active:
+        _badge_lbl = "⭐ Συνεργαζόμενος Πάροχος" if lang == "el" else "⭐ Partner Provider"
+        _disclosure = ("Συνεργαζόμενος φορέας — εμφανίζεται επιπλέον των γενικών επιλογών παρακάτω, όχι στη θέση τους."
+                       if lang == "el" else
+                       "Affiliated provider — shown in addition to, not instead of, the general options below.")
+        _rows = ""
+        for _pr in _partners_active:
+            _pname = _html_mod.escape(str(_pr.get("name","")))
+            _pspec = _html_mod.escape(str(_pr.get("specialty","") or ""))
+            _pcity = _html_mod.escape(str(_pr.get("city","") or ""))
+            _pphone = _html_mod.escape(str(_pr.get("phone","") or ""))
+            _pweb  = _pr.get("website","") or ""
+            if _pweb and not _pweb.startswith(("http://", "https://")):
+                _pweb = "https://" + _pweb
+            _pmeta = " · ".join(x for x in [_pspec, _pcity] if x)
+            _pmaps = _maps(f"{_pr.get('name','')} {_pr.get('city','')}".strip())
+            _rows += f"""
+    <div class="er-partner-row">
+      <div class="er-partner-info">
+        <div class="er-partner-name">{_pname}</div>
+        {f'<div class="er-partner-meta">{_pmeta}</div>' if _pmeta else ''}
+      </div>
+      <div class="er-partner-actions">
+        {f'<a class="er-partner-btn" href="tel:{_pphone}">📞</a>' if _pphone else ''}
+        <a class="er-partner-btn" href="{_pmaps}" target="_blank" rel="noopener">🗺️</a>
+        {f'<a class="er-partner-btn" href="{_html_mod.escape(_pweb)}" target="_blank" rel="noopener">🌐</a>' if _pweb else ''}
+      </div>
+    </div>"""
+        _partner_html = f"""
+  <div class="er-partner-section">
+    <div class="er-partner-title">{_badge_lbl}</div>
+    {_rows}
+    <div class="er-partner-disclosure">ℹ️ {_disclosure}</div>
+  </div>"""
+
     st.markdown(f"""
 <style>
 .er-card {{
@@ -6616,6 +6668,36 @@ def render_emergency_resources(lang):
   font-variant-numeric: tabular-nums; white-space: nowrap; flex-shrink: 0;
 }}
 .er-call-btn:hover {{ background: #B91C1C; color: white; text-decoration: none; }}
+
+.er-partner-section {{
+  background: linear-gradient(135deg, #FFFBEB 0%, #FEF3C7 100%);
+  border: 1px solid #FCD34D; border-radius: 12px;
+  padding: 14px 16px; margin-bottom: 16px;
+}}
+.er-partner-title {{
+  font-size: 10.5px; font-weight: 800; color: #92400E;
+  letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 10px;
+}}
+.er-partner-row {{
+  display: flex; justify-content: space-between; align-items: center;
+  gap: 12px; padding: 8px 0; border-top: 1px dashed rgba(146,64,14,0.18);
+}}
+.er-partner-row:first-of-type {{ border-top: none; padding-top: 0; }}
+.er-partner-info {{ flex: 1; min-width: 0; }}
+.er-partner-name {{ font-size: 13px; font-weight: 700; color: #1A1A2E; }}
+.er-partner-meta {{ font-size: 11px; color: #92400E; margin-top: 1px; }}
+.er-partner-actions {{ display: flex; gap: 6px; flex-shrink: 0; }}
+.er-partner-btn {{
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 30px; height: 30px; border-radius: 8px;
+  background: white; border: 1px solid #FCD34D; text-decoration: none;
+  font-size: 13px;
+}}
+.er-partner-btn:hover {{ background: #FEF3C7; text-decoration: none; }}
+.er-partner-disclosure {{
+  font-size: 10.5px; color: #92400E; margin-top: 8px; padding-top: 8px;
+  border-top: 1px dashed rgba(146,64,14,0.18); line-height: 1.4;
+}}
 
 .er-grid {{
   display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px;
@@ -6671,6 +6753,7 @@ def render_emergency_resources(lang):
 @media (max-width: 640px) {{
   .er-grid {{ grid-template-columns: 1fr; }}
   .er-emerg-row {{ flex-wrap: wrap; }}
+  .er-partner-row {{ flex-wrap: wrap; }}
   .er-maps-btn {{ min-width: 100%; }}
   .er-gov-link {{ font-size: 11.5px; }}
 }}
@@ -6694,7 +6777,7 @@ def render_emergency_resources(lang):
       <a class="er-call-btn" href="tel:1135">📞 1135</a>
     </div>
   </div>
-
+{_partner_html}
   <div class="er-grid">
     <a class="er-link" href="{URL_DOC}" target="_blank" rel="noopener">
       <div class="er-link-title">{tx['find_doc']}</div>
