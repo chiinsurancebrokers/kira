@@ -5898,6 +5898,21 @@ function copyText(){{
                                 if st.session_state.lang=="el" else
                                 "Copy the text and paste it into the chat below."))
 
+    # ── Back / Generate-report buttons ───────────────────────────────────────
+    # Rendered BEFORE the "write here" banner + chat_input on purpose: st.chat_input
+    # is fixed/sticky to the bottom of the viewport regardless of where it sits in
+    # the code, so anything coded *after* it still visually appears ABOVE it —
+    # which used to sandwich these buttons between the banner and the actual
+    # input box (confusing on mobile, see user report). Moving them here keeps
+    # the code order == visual order: chat → these buttons → banner → input.
+    col_b,col_r=st.columns([1,2])
+    with col_b:
+        if st.button(t("back")): st.session_state.screen="vitals"; st.rerun()
+    with col_r:
+        enabled=triage_ready or len(st.session_state.triage_chat)>=6
+        if st.button(t("generate_report"),type="primary",use_container_width=True,disabled=not enabled):
+            st.session_state.screen="report"; st.rerun()
+
     # ── "Write here" indicator — shown when no conversation yet ──────────────
     if not st.session_state.triage_chat:
         _write_lbl = {
@@ -5980,13 +5995,6 @@ function copyText(){{
             reply=claude([{"role":m["role"],"content":m["content"]} for m in st.session_state.triage_chat],system=system_ctx,max_tokens=1500)
             if reply and reply.strip() and reply.strip()[-1] not in ".!?»)": reply=reply.rstrip()+" ..."
         st.session_state.triage_chat.append({"role":"assistant","content":reply}); st.rerun()
-    col_b,col_r=st.columns([1,2])
-    with col_b:
-        if st.button(t("back")): st.session_state.screen="vitals"; st.rerun()
-    with col_r:
-        enabled=triage_ready or len(st.session_state.triage_chat)>=6
-        if st.button(t("generate_report"),type="primary",use_container_width=True,disabled=not enabled):
-            st.session_state.screen="report"; st.rerun()
     # Report-language selector: ask only the clinically relevant question.
     # The UI stays in the chosen app language. The report is generated in that
     # same language by default. If the user wants a Greek copy for a Greek
