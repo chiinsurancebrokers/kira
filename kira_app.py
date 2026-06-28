@@ -2073,6 +2073,45 @@ def pubmed_search(query, n=3):
         return out
     except: return []
 
+# pubmed_search()/esummary only gives title+journal+date — no abstract text.
+# This pulls the actual abstract via efetch (XML) so the report-generation
+# prompt can ground the clinical write-up in what these specific papers say,
+# rather than the model filling in plan/citations purely from its own training
+# knowledge with the title as a label. Best-effort: any PMID that fails to
+# parse is just omitted, never raises.
+def pubmed_fetch_abstracts(pmids, timeout=10):
+    """Fetch abstract text for a list of PMIDs via NCBI efetch.
+    Returns {pmid: abstract_text}. PMIDs with no abstract (e.g. some letters/
+    editorials) or that fail to parse are simply absent from the result —
+    callers should treat a missing key the same as 'no abstract available'."""
+    if not pmids:
+        return {}
+    try:
+        import xml.etree.ElementTree as _ET
+        p = urllib.parse.urlencode({"db":"pubmed","id":",".join(pmids),"retmode":"xml","api_key":get_ncbi_key()})
+        with urllib.request.urlopen(f"https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?{p}", timeout=timeout) as r:
+            root = _ET.fromstring(r.read())
+        out = {}
+        for art in root.findall(".//PubmedArticle"):
+            pmid_el = art.find(".//PMID")
+            if pmid_el is None or not pmid_el.text:
+                continue
+            pmid = pmid_el.text.strip()
+            # AbstractText can appear multiple times (structured abstracts:
+            # Background/Methods/Results/Conclusion) — join them in order.
+            parts = []
+            for ab in art.findall(".//Abstract/AbstractText"):
+                label = ab.get("Label")
+                txt = (ab.text or "").strip()
+                if not txt:
+                    continue
+                parts.append(f"{label}: {txt}" if label else txt)
+            if parts:
+                out[pmid] = " ".join(parts)
+        return out
+    except Exception:
+        return {}
+
 # Pillar-targeted PubMed query: scopes results to *high-evidence* publication
 # types (Practice Guideline, Systematic Review, Meta-Analysis, Review) crossed
 # with the MeSH heading that matches the pillar — so each recommendation gets
@@ -6707,7 +6746,7 @@ def render_report():
 @keyframes ask-bounce{{0%,80%,100%{{transform:scale(0.55);opacity:.35}}40%{{transform:scale(1.1);opacity:1}}}}
 @keyframes ask-spin{{from{{transform:rotate(0deg)}}to{{transform:rotate(360deg)}}}}
 @keyframes ask-fadein{{from{{opacity:0}}to{{opacity:1}}}}
-@keyframes ask-msg{{0%{{opacity:0;transform:translateY(6px)}}3%{{opacity:1;transform:translateY(0)}}14%{{opacity:1;transform:translateY(0)}}17%{{opacity:0;transform:translateY(-4px)}}100%{{opacity:0}}}}
+@keyframes ask-msg{{0%{{opacity:0;transform:translateY(6px)}}2%{{opacity:1;transform:translateY(0)}}10%{{opacity:1;transform:translateY(0)}}12%{{opacity:0;transform:translateY(-4px)}}100%{{opacity:0}}}}
 .ask-overlay{{position:fixed;inset:0;z-index:2147483600;background:rgba(15,23,42,.55);
   backdrop-filter:blur(6px);display:flex;align-items:center;justify-content:center;
   animation:ask-fadein 220ms ease-out;font-family:Inter,system-ui,sans-serif;padding:16px}}
@@ -6730,13 +6769,15 @@ def render_report():
   color:#1E40AF;font-size:14px;font-weight:600}}
 .ask-msg-stack{{position:relative;width:100%;min-height:20px}}
 .ask-msg{{position:absolute;left:0;right:0;opacity:0;
-  animation:ask-msg 18s infinite ease-in-out}}
+  animation:ask-msg 80s infinite ease-in-out}}
 .ask-msg:nth-child(1){{animation-delay:0s}}
-.ask-msg:nth-child(2){{animation-delay:3s}}
-.ask-msg:nth-child(3){{animation-delay:6s}}
-.ask-msg:nth-child(4){{animation-delay:9s}}
-.ask-msg:nth-child(5){{animation-delay:12s}}
-.ask-msg:nth-child(6){{animation-delay:15s}}
+.ask-msg:nth-child(2){{animation-delay:10s}}
+.ask-msg:nth-child(3){{animation-delay:20s}}
+.ask-msg:nth-child(4){{animation-delay:30s}}
+.ask-msg:nth-child(5){{animation-delay:40s}}
+.ask-msg:nth-child(6){{animation-delay:50s}}
+.ask-msg:nth-child(7){{animation-delay:60s}}
+.ask-msg:nth-child(8){{animation-delay:70s}}
 .ask-dots{{display:flex;gap:8px;justify-content:center;margin-top:18px}}
 .ask-dot{{width:10px;height:10px;border-radius:50%;background:#3B82F6;animation:ask-bounce 1s infinite}}
 .ask-dot:nth-child(2){{animation-delay:.15s}}
@@ -6754,9 +6795,11 @@ def render_report():
   <div class="ask-bubble">
     <div class="ask-msg-stack">
       <span class="ask-msg">{"🔬 Αναζήτηση PubMed…" if lang=="el" else "🔬 Searching PubMed…"}</span>
-      <span class="ask-msg">{"📚 Ανάλυση βιβλιογραφίας…" if lang=="el" else "📚 Analysing literature…"}</span>
+      <span class="ask-msg">{"📖 Ανάγνωση επιστημονικών άρθρων…" if lang=="el" else "📖 Reading research abstracts…"}</span>
       <span class="ask-msg">{"🩺 Σύνταξη κλινικής εκτίμησης…" if lang=="el" else "🩺 Writing clinical assessment…"}</span>
       <span class="ask-msg">{"💊 Έλεγχος φαρμάκων & αντενδείξεων…" if lang=="el" else "💊 Checking medications…"}</span>
+      <span class="ask-msg">{"📚 Αναζήτηση οδηγιών ανά πυλώνα…" if lang=="el" else "📚 Searching guideline-level evidence…"}</span>
+      <span class="ask-msg">{"🔁 Βελτίωση θεραπευτικού πλάνου…" if lang=="el" else "🔁 Refining the treatment plan…"}</span>
       <span class="ask-msg">{"📍 Εξατομικευμένες συστάσεις…" if lang=="el" else "📍 Personalised recommendations…"}</span>
       <span class="ask-msg">{"✨ Σχεδόν έτοιμο!" if lang=="el" else "✨ Almost ready!"}</span>
     </div>
@@ -6764,14 +6807,24 @@ def render_report():
   <div class="ask-dots">
     <div class="ask-dot"></div><div class="ask-dot"></div><div class="ask-dot"></div>
   </div>
-  <div class="ask-foot">{"Μην κλείσεις τη σελίδα — η αναφορά δημιουργείται (20–40″)." if lang=="el" else "Don't close the page — report is being generated (20–40s)."}</div>
+  <div class="ask-foot">{"Μην κλείσεις τη σελίδα — η αναφορά δημιουργείται (60–100″)." if lang=="el" else "Don't close the page — report is being generated (60–100s)."}</div>
 </div>
 </div>
 """, unsafe_allow_html=True)
 
         with st.spinner("🔬 PubMed..." if lang=="el" else "🔬 Searching PubMed..."):
             refs=pubmed_search(search_query,n=3); st.session_state.report_pubmed=refs
-        pubmed_ctx="\n".join(f"- {a['title']} ({a['journal']}, {a['date']}) {a['url']}" for a in refs) if refs else "None found."
+        # Pull abstract text for these refs (best-effort — a PMID with no
+        # abstract or a failed fetch just falls back to title-only, same as
+        # before). This grounds the report in what the papers actually say
+        # instead of letting the model fill in citations from training
+        # knowledge with only a title as a label.
+        _abstracts = pubmed_fetch_abstracts([a["pmid"] for a in refs]) if refs else {}
+        def _ref_block(a):
+            head = f"- {a['title']} ({a['journal']}, {a['date']}) {a['url']}"
+            abs_txt = _abstracts.get(a["pmid"])
+            return f"{head}\n  ABSTRACT: {abs_txt}" if abs_txt else head
+        pubmed_ctx="\n".join(_ref_block(a) for a in refs) if refs else "None found."
         pp=p.get
         # Special-population flags that the report MUST respect
         _rep_flags = []
@@ -6790,11 +6843,12 @@ VITALS: {vitals_text}
 VITALS ANALYSIS: {vitals_analysis}
 CONSULTATION: {conversation}
 PUBMED: {pubmed_ctx}
+(If ABSTRACT lines are present above, ground the Treatment Plan in what those abstracts actually say, not only the paper titles. Do NOT write a references/bibliography list yourself — a verified, clickable PubMed reference list is generated separately from real PMIDs and appended after your text. A free-text reference list you write would not be independently verifiable and would duplicate that section, so it must be omitted entirely.)
 Write these sections IN THIS ORDER, using EXACTLY these headers as written (do not abbreviate or drop letters):
-{"1. ΚΥΡΙΟ ΠΑΡΑΠΟΝΟ  2. ΙΣΤΟΡΙΚΟ  3. ΕΚΤΙΜΗΣΗ (Πρωτεύουσα Διάγνωση + Διαφορικές Διαγνώσεις)  4. ΘΕΡΑΠΕΥΤΙΚΟ ΠΛΑΝΟ  5. ΚΟΚΚΙΝΕΣ ΣΗΜΑΙΕΣ  6. ΒΙΒΛΙΟΓΡΑΦΙΑ" if lang=="el" else "1. CHIEF COMPLAINT  2. HISTORY  3. ASSESSMENT (Primary Diagnosis + Differentials)  4. TREATMENT PLAN  5. RED FLAGS  6. REFERENCES"}
+{"1. ΚΥΡΙΟ ΠΑΡΑΠΟΝΟ  2. ΙΣΤΟΡΙΚΟ  3. ΕΚΤΙΜΗΣΗ (Πρωτεύουσα Διάγνωση + Διαφορικές Διαγνώσεις)  4. ΘΕΡΑΠΕΥΤΙΚΟ ΠΛΑΝΟ  5. ΚΟΚΚΙΝΕΣ ΣΗΜΑΙΕΣ" if lang=="el" else "1. CHIEF COMPLAINT  2. HISTORY  3. ASSESSMENT (Primary Diagnosis + Differentials)  4. TREATMENT PLAN  5. RED FLAGS"}
 For the differentials use a markdown table with EXACTLY 3 columns and these short headers: {"| Διάγνωση | % | Σχόλιο |" if lang=="el" else "| Diagnosis | % | Comment |"} (keep the probability header as just "%", and put values like "~8%"). Keep cell text short.
 
-After section 6 (References), append EXACTLY this delimited block — same format, no extra text inside the delimiters:
+After section 5 (Red Flags), append EXACTLY this delimited block — same format, no extra text inside the delimiters:
 <<<RECS
 CONDITION: [the primary clinical condition in 2-4 ENGLISH words, MeSH-friendly — e.g. "Hypertension", "Migraine", "Type 2 Diabetes", "Gastroesophageal Reflux", "Anxiety Disorder". Just the noun phrase, no extra text. This is used to fetch matching guideline literature.]
 EXERCISE: [2-3 sentences of PERSONALISED exercise advice for this specific patient — based on age, conditions, symptoms. Direct and actionable. {"Σε Ελληνικά." if lang=="el" else "In English."} No generic platitudes.]
@@ -6835,9 +6889,10 @@ Language: {"Greek" if lang=="el" else "English"}. Be direct. End with a one-line
                         # original search_query, which was built from the raw last chat
                         # message (often non-English/conversational) and could return
                         # zero PubMed results even when the condition itself has plenty
-                        # of literature. This only refreshes the references shown in the
-                        # "🔬 PubMed" expander + PDF export — it does not rewrite the
-                        # "6. ΒΙΒΛΙΟΓΡΑΦΙΑ" text the AI already wrote in the report body.
+                        # of literature. This refreshes report_pubmed (the single,
+                        # PMID-verified reference list rendered separately in the
+                        # "🔬 PubMed" expander + PDF export — Claude no longer writes
+                        # its own free-text bibliography, see report_prompt above).
                         _futs["bibliography"] = _ex.submit(bibliography_search, _condition, 3)
                         _all_refs = {p: f.result() for p,f in _futs.items()}
                 if _all_refs.get("bibliography"):
@@ -6845,6 +6900,50 @@ Language: {"Greek" if lang=="el" else "English"}. Be direct. End with a one-line
                 st.session_state.report_recs_refs = {p: _all_refs[p] for p in ("exercise","nutrition","lifestyle")}
                 st.session_state.report_physio_refs = _all_refs.get("physio", [])
                 st.session_state.report_psych_refs  = _all_refs.get("psychology", [])
+                # ── Re-ground Treatment Plan on the FINAL, condition-scoped refs ─
+                # The first Claude pass (above) only saw 3 papers from a rough,
+                # un-scoped search query (often the raw last chat message). This
+                # refetch just got better, condition-scoped papers — re-write the
+                # Treatment Plan section so it's grounded in what THESE abstracts
+                # say (the same papers the user sees in the expander/PDF), rather
+                # than the earlier, looser set. Cheaper and lower-risk than
+                # regenerating the whole report, and the prompt explicitly forbids
+                # touching the diagnosis/differentials/red flags already shown.
+                _final_refs = _all_refs.get("bibliography") or []
+                if _final_refs:
+                    _final_abstracts = pubmed_fetch_abstracts([a["pmid"] for a in _final_refs])
+                    def _final_ref_block(a):
+                        head = f"- {a['title']} ({a['journal']}, {a['date']}) {a['url']}"
+                        abs_txt = _final_abstracts.get(a["pmid"])
+                        return f"{head}\n  ABSTRACT: {abs_txt}" if abs_txt else head
+                    _final_pubmed_ctx = "\n".join(_final_ref_block(a) for a in _final_refs)
+                    _plan_hdr = "4. ΘΕΡΑΠΕΥΤΙΚΟ ΠΛΑΝΟ" if lang=="el" else "4. TREATMENT PLAN"
+                    _regroup_prompt = f"""Here is a clinical assessment already written for this patient:
+---
+{st.session_state.report}
+---
+You now have more specific PubMed literature for the diagnosis "{_condition}" than what was available when the assessment above was written:
+{_final_pubmed_ctx}
+
+Rewrite ONLY the "{_plan_hdr}" section, grounding it in what these specific abstracts actually say (do not invent citations — just use the findings to make the plan more specific/evidence-aligned). Do NOT change the diagnosis, differentials, or red flags, and do NOT write a references/bibliography list. Keep the header EXACTLY as written above. Output ONLY that one section (header + content), nothing else — no preamble, no other sections. Language: {"Greek" if lang=="el" else "English"}.{output_language_directive()}"""
+                    with st.spinner("📚 " + ("Ενημέρωση θεραπευτικού πλάνου..." if lang=="el"
+                                              else "Refining treatment plan...")):
+                        _regroup = claude([{"role":"user","content":_regroup_prompt}],system=kira_system(),max_tokens=900,timeout=60)
+                    if _regroup and not _regroup.startswith("⚠️") and _regroup.strip():
+                        import re as _re_regroup
+                        # Best-effort swap: replace the existing Treatment Plan section
+                        # (from its header up to the next "## "-style header, or end of
+                        # text) with the rewritten one. If the header can't be located,
+                        # the original report is left untouched — a regex miss must
+                        # never corrupt or blank out the report.
+                        pat = rf"(#{{1,3}}\s*{_re_regroup.escape(_plan_hdr)}.*?)(?=\n#{{1,3}}\s|\Z)"
+                        m = _re_regroup.search(pat, st.session_state.report, _re_regroup.DOTALL)
+                        if m:
+                            st.session_state.report = (
+                                st.session_state.report[:m.start()]
+                                + _regroup.strip() + "\n\n"
+                                + st.session_state.report[m.end():]
+                            )
             else:
                 st.session_state.report_recs_refs = {}
                 st.session_state.report_physio_refs = []
