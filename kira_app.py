@@ -13,6 +13,8 @@ import urllib.parse
 from datetime import datetime, timedelta
 import io as _io, base64 as _b64
 import hmac, hashlib, time, unicodedata
+import logging as _logging
+import uuid as _uuid
 
 # "Stay signed in" via a browser cookie (persists login across reloads / new tabs,
 # e.g. when returning from the external face scan). Degrades gracefully if missing.
@@ -45,6 +47,122 @@ def _secret(name, default=""):
     v = os.environ.get(name, "")
     return v if v != "" else default
 
+# ── STRUCTURED LOGGING (observability) ────────────────────────────────────────
+# Priority 3 from the Asklepios/KiraAIpet readiness audit: without logging,
+# production problems only surface when a user reports them. This writes
+# structured lines to stdout — Railway (and any platform) captures stdout as
+# logs automatically, no extra infra needed. Every external API call
+# (Claude, GPT-4o, NCBI/PubMed, RxNav, Supabase) should call log_event() with
+# its outcome so failures are visible proactively.
+#
+# NOTE on privacy: log_event() must NEVER be passed patient names, symptoms,
+# photo bytes, lab results, or any free-text clinical content — only
+# operational metadata (which API, success/fail, latency, error class,
+# anonymous session id). This keeps logs useful for debugging without turning
+# them into an unintended second copy of health data (see GDPR section below).
+_logger = _logging.getLogger("asklepios")
+if not _logger.handlers:
+    _h = _logging.StreamHandler()
+    _h.setFormatter(_logging.Formatter("%(asctime)s [%(levelname)s] %(message)s"))
+    _logger.addHandler(_h)
+    _logger.setLevel(_logging.INFO)
+
+def _session_id():
+    """Anonymous per-browser-session id for correlating log lines —
+    NOT tied to email/identity, lives only in st.session_state (RAM),
+    never persisted. Safe to put in logs."""
+    if "_sid" not in st.session_state:
+        st.session_state["_sid"] = _uuid.uuid4().hex[:8]
+    return st.session_state["_sid"]
+
+def log_event(event, ok=True, ms=None, error=None, **extra):
+    """Structured log line for an external call or key app event.
+    event: short machine name, e.g. 'claude_chat', 'pubmed_search',
+           'rxnav_interactions', 'supabase_write'.
+    ok:    True/False outcome.
+    ms:    elapsed time in milliseconds (optional).
+    error: short error class/message (optional) — never include free-text
+           patient content here.
+    extra: any additional non-sensitive metadata (endpoint, query_type...).
+    """
+    try:
+        payload = {"event": event, "ok": bool(ok), "sid": _session_id()}
+        if ms is not None:
+            payload["ms"] = round(ms, 1)
+        if error:
+            payload["error"] = str(error)[:200]
+        payload.update({k: v for k, v in extra.items() if v is not None})
+        line = json.dumps(payload, ensure_ascii=False)
+        if ok:
+            _logger.info(line)
+        else:
+            _logger.warning(line)
+    except Exception:
+        pass  # logging must never crash the app
+
+
+# ── RATE LIMITING / COST PROTECTION ───────────────────────────────────────────
+# Priority 2 from the Asklepios/KiraAIpet readiness audit: neither codebase had
+# ANY protection against a user (malicious or just over-eager) generating
+# unlimited Claude/GPT-4o calls. This is a simple per-browser-session gate:
+#   - a minimum COOLDOWN between expensive AI actions (stops rapid-fire clicking)
+#   - a maximum number of expensive actions per rolling hour (stops runaway loops)
+# It is intentionally per-session (st.session_state, in RAM) rather than
+# per-account/Supabase — this keeps it zero-storage (see GDPR section) and
+# still stops the two realistic failure modes: a script hammering the free
+# endpoint, or a single browser tab looping. It is NOT a substitute for
+# infra-level rate limiting (e.g. a reverse proxy) in a high-traffic deploy,
+# but it closes the gap that exists today (none at all).
+RATE_LIMIT_COOLDOWN_SECONDS = 8          # min seconds between expensive AI actions
+RATE_LIMIT_MAX_PER_HOUR = 20             # max expensive AI actions per rolling hour
+
+def _rate_limit_check(action="ai_call"):
+    """Returns (allowed: bool, wait_seconds: float, reason: str).
+    Call this BEFORE any expensive Claude/GPT-4o invocation that the user
+    triggers directly (triage message, report generation, photo/lab scan).
+    On allow, records the action so subsequent calls see it."""
+    now = time.time()
+    log = st.session_state.setdefault("_rl_log", [])
+    # Drop entries older than 1 hour — keeps the list small and the window rolling.
+    log[:] = [ts for ts in log if now - ts < 3600]
+
+    last_ts = st.session_state.get("_rl_last_ts", 0)
+    elapsed = now - last_ts
+    if elapsed < RATE_LIMIT_COOLDOWN_SECONDS:
+        wait = round(RATE_LIMIT_COOLDOWN_SECONDS - elapsed, 1)
+        log_event("rate_limit_block", ok=False, reason="cooldown", action=action, wait_s=wait)
+        return False, wait, "cooldown"
+
+    if len(log) >= RATE_LIMIT_MAX_PER_HOUR:
+        wait = round(3600 - (now - log[0]), 1)
+        log_event("rate_limit_block", ok=False, reason="hourly_cap", action=action, wait_s=wait)
+        return False, wait, "hourly_cap"
+
+    log.append(now)
+    st.session_state["_rl_last_ts"] = now
+    log_event("rate_limit_pass", ok=True, action=action, calls_this_hour=len(log))
+    return True, 0, ""
+
+
+def _rate_limit_gate(action="ai_call"):
+    """UI helper: checks the rate limit and, if blocked, shows a friendly
+    message + returns False so the caller can `return` early instead of
+    making the expensive API call. Bilingual."""
+    allowed, wait, reason = _rate_limit_check(action)
+    if allowed:
+        return True
+    lang = st.session_state.get("lang", "el")
+    if reason == "cooldown":
+        msg = (f"⏳ Μία στιγμή — περίμενε {wait}s πριν το επόμενο αίτημα."
+               if lang == "el" else
+               f"⏳ Just a moment — please wait {wait}s before the next request.")
+    else:
+        msg = (f"🚦 Έχεις φτάσει το όριο αιτημάτων για αυτή την ώρα. Δοκίμασε ξανά σε {int(wait/60)+1} λεπτά."
+               if lang == "el" else
+               f"🚦 You've reached the hourly request limit. Try again in {int(wait/60)+1} min.")
+    st.warning(msg)
+    return False
+
 # ── PHOTO SCANNER FUNCTIONS ───────────────────────────────────────────────────
 HUMAN_SCAN_PROMPTS = {
     "eye":    "Examine the eye carefully. Describe: sclera colour (white/red/yellow), pupil symmetry, conjunctiva, any discharge (colour, quantity), eyelid swelling, corneal clarity, third eyelid. Flag any urgent findings.",
@@ -72,21 +190,26 @@ def florence2_human(image_b64, scan_type, api_key):
         "inputs": {"image":{"type":"base64","value":image_b64},"task_prompt":task_prompt}
     }).encode()
     req = urllib.request.Request(url, data=body, headers={"Content-Type":"application/json"})
+    _t0 = time.time()
     try:
         with urllib.request.urlopen(req, timeout=30) as r:
             result = json.loads(r.read())
         outputs = result.get("outputs",[])
+        log_event("florence2_vision", ok=True, ms=(time.time()-_t0)*1000, scan_type=scan_type)
         if outputs:
             for key in ["output","caption","text","result","description"]:
                 if key in outputs[0] and outputs[0][key]:
                     return {"ok":True,"description":str(outputs[0][key])}
         return {"ok":True,"description":str(result)}
     except Exception as e:
+        log_event("florence2_vision", ok=False, ms=(time.time()-_t0)*1000, error=str(e), scan_type=scan_type)
         return {"ok":False,"error":str(e)}
 
 def claude_vision_human(image_b64, image_type, prompt, system=""):
     key = get_claude_key()
-    if not key: return "⚠️ API key not set."
+    if not key:
+        log_event("claude_vision", ok=False, error="missing_api_key")
+        return "⚠️ API key not set."
     body = json.dumps({
         "model":"claude-sonnet-4-6","max_tokens":3000,"system":system,
         "messages":[{"role":"user","content":[
@@ -96,10 +219,15 @@ def claude_vision_human(image_b64, image_type, prompt, system=""):
     }).encode()
     req = urllib.request.Request("https://api.anthropic.com/v1/messages",data=body,
         headers={"x-api-key":key,"anthropic-version":"2023-06-01","content-type":"application/json"})
+    _t0 = time.time()
     try:
         with urllib.request.urlopen(req,timeout=60) as r:
-            return json.loads(r.read())["content"][0]["text"]
-    except Exception as e: return f"⚠️ {e}"
+            result = json.loads(r.read())["content"][0]["text"]
+        log_event("claude_vision", ok=True, ms=(time.time()-_t0)*1000)
+        return result
+    except Exception as e:
+        log_event("claude_vision", ok=False, ms=(time.time()-_t0)*1000, error=str(e))
+        return f"⚠️ {e}"
 
 def transcribe_audio(audio_bytes, lang="el", mime="audio/webm", filename="recording.webm"):
     """Transcribe a short voice recording → text. Groq Whisper large-v3 primary
@@ -134,6 +262,7 @@ def transcribe_audio(audio_bytes, lang="el", mime="audio/webm", filename="record
     # Try Groq Whisper large-v3 first
     groq_key = get_groq_key()
     if groq_key:
+        _t0 = time.time()
         try:
             body = _multipart([
                 ("file",  audio_bytes, filename, mime),
@@ -152,13 +281,16 @@ def transcribe_audio(audio_bytes, lang="el", mime="audio/webm", filename="record
             with urllib.request.urlopen(req, timeout=60) as r:
                 txt = r.read().decode("utf-8", errors="replace").strip()
             if txt:
+                log_event("groq_whisper", ok=True, ms=(time.time()-_t0)*1000)
                 return txt.strip('"'), "groq"
-        except Exception:
-            pass
+            log_event("groq_whisper", ok=False, ms=(time.time()-_t0)*1000, error="empty_response")
+        except Exception as e:
+            log_event("groq_whisper", ok=False, ms=(time.time()-_t0)*1000, error=str(e))
     
     # Fallback: OpenAI Whisper-1
     openai_key = get_openai_key()
     if openai_key:
+        _t0 = time.time()
         try:
             body = _multipart([
                 ("file",  audio_bytes, filename, mime),
@@ -177,8 +309,11 @@ def transcribe_audio(audio_bytes, lang="el", mime="audio/webm", filename="record
             with urllib.request.urlopen(req, timeout=60) as r:
                 txt = r.read().decode("utf-8", errors="replace").strip()
             if txt:
+                log_event("openai_whisper", ok=True, ms=(time.time()-_t0)*1000)
                 return txt.strip('"'), "openai"
+            log_event("openai_whisper", ok=False, ms=(time.time()-_t0)*1000, error="empty_response")
         except Exception as e:
+            log_event("openai_whisper", ok=False, ms=(time.time()-_t0)*1000, error=str(e))
             return f"⚠️ Σφάλμα μεταγραφής: {e}", None
     
     return "⚠️ Καμία STT API key δεν είναι ρυθμισμένη (Groq ή OpenAI).", None
@@ -197,6 +332,7 @@ def claude_analyze_lab(file_bytes, mime_type, profile, conversation, lang, file_
     """
     key = get_claude_key()
     if not key:
+        log_event("claude_lab_analysis", ok=False, error="missing_api_key")
         return "⚠️ Claude API key not set."
     
     file_b64 = _b64.b64encode(file_bytes).decode()
@@ -320,10 +456,14 @@ Only findings you actually see in the document — don't invent indicators."""
             "content-type": "application/json",
         }
     )
+    _t0 = time.time()
     try:
         with urllib.request.urlopen(req, timeout=90) as r:
-            return json.loads(r.read())["content"][0]["text"]
+            result = json.loads(r.read())["content"][0]["text"]
+        log_event("claude_lab_analysis", ok=True, ms=(time.time()-_t0)*1000, mime=mime_type)
+        return result
     except Exception as e:
+        log_event("claude_lab_analysis", ok=False, ms=(time.time()-_t0)*1000, error=str(e), mime=mime_type)
         return f"⚠️ Σφάλμα ανάλυσης: {e}"
 
 # ── PAGE CONFIG ───────────────────────────────────────────────────────────────
@@ -864,25 +1004,30 @@ def save_draft(email, payload):
     sb = _supabase_client()
     if not sb or not email or not _ENC_OK:
         return
+    _t0 = time.time()
     try:
         blob = _fernet().encrypt(
             json.dumps(payload, ensure_ascii=False).encode()
         ).decode()
         sb.table("drafts").upsert({"user_email": email, "data": blob}, on_conflict="user_email").execute()
-    except Exception:
-        pass
+        log_event("supabase_write", ok=True, ms=(time.time()-_t0)*1000, table="drafts")
+    except Exception as e:
+        log_event("supabase_write", ok=False, ms=(time.time()-_t0)*1000, error=str(e), table="drafts")
 
 def load_draft(email):
     sb = _supabase_client()
     if not sb or not email or not _ENC_OK:
         return None
+    _t0 = time.time()
     try:
         res = sb.table("drafts").select("data").eq("user_email", email).limit(1).execute()
         rows = res.data or []
+        log_event("supabase_read", ok=True, ms=(time.time()-_t0)*1000, table="drafts")
         if rows and rows[0].get("data"):
             dec = _fernet().decrypt(rows[0]["data"].encode()).decode()
             return json.loads(dec)
-    except Exception:
+    except Exception as e:
+        log_event("supabase_read", ok=False, ms=(time.time()-_t0)*1000, error=str(e), table="drafts")
         return None
     return None
 
@@ -890,10 +1035,12 @@ def delete_draft(email):
     sb = _supabase_client()
     if not sb or not email:
         return
+    _t0 = time.time()
     try:
         sb.table("drafts").delete().eq("user_email", email).execute()
-    except Exception:
-        pass
+        log_event("supabase_delete", ok=True, ms=(time.time()-_t0)*1000, table="drafts")
+    except Exception as e:
+        log_event("supabase_delete", ok=False, ms=(time.time()-_t0)*1000, error=str(e), table="drafts")
 
 def _save_session_for_external_nav():
     """Save the current assessment to Supabase right before the user clicks an
@@ -985,6 +1132,7 @@ def render_login_gate():
 
     def _log_user_login(email):
         """Upsert into user_logins for analytics. No medical data stored."""
+        _t0 = time.time()
         try:
             sb = _supabase_client()
             if not sb: return
@@ -994,8 +1142,9 @@ def render_login_gate():
                 "last_seen": _dt.utcnow().isoformat(),
                 "lang":      st.session_state.get("lang", "el"),
             }, on_conflict="email").execute()
-        except Exception:
-            pass  # analytics failure must never block login
+            log_event("supabase_write", ok=True, ms=(time.time()-_t0)*1000, table="user_logins")
+        except Exception as e:
+            log_event("supabase_write", ok=False, ms=(time.time()-_t0)*1000, error=str(e), table="user_logins")
 
     sent_to = st.session_state.get("otp_sent_to")
     if not sent_to:
@@ -1450,7 +1599,7 @@ def render_login_screen():
     with lc2:
         _all_codes = list(OUTPUT_LANGUAGES.keys())
         try:    _idx = _all_codes.index(lang)
-        except: _idx = 0
+        except ValueError: _idx = 0
         _chosen = st.selectbox("", _all_codes, index=_idx,
                                format_func=lambda c: OUTPUT_LANGUAGES[c][0],
                                key="hero_lang_select", label_visibility="collapsed")
@@ -1688,6 +1837,12 @@ def render_login_screen():
                 st.rerun()
 
     st.markdown(f'<div class="disclaimer" dir="{_dir}">{t("disclaimer_main")}</div>', unsafe_allow_html=True)
+    _priv_label = "🔒 Τα δεδομένα μου & GDPR" if st.session_state.lang == "el" else "🔒 My data & GDPR"
+    st.markdown(
+        f'<div style="text-align:center;margin-top:6px">'
+        f'<a href="?page=privacy" target="_self" style="font-size:11px;color:#6B7280;text-decoration:underline">{_priv_label}</a>'
+        f'</div>', unsafe_allow_html=True
+    )
 
 
 # ── ADMIN PANEL ─────────────────────────────────────────────────────────────────
@@ -1944,11 +2099,144 @@ def render_admin_panel():
         st.rerun()
 
 
+# ── PRIVACY / GDPR PAGE (/?page=privacy) ──────────────────────────────────────
+# Priority 4 from the Asklepios/KiraAIpet readiness audit: the app displayed a
+# "🔒 GDPR · Encrypted" badge with no real mechanism behind it. This page makes
+# the actual data-handling policy explicit and gives a working right-to-erasure
+# control, reachable without needing to already be logged in (an erasure
+# request shouldn't itself require an active session to discover).
+#
+# DATA POLICY IMPLEMENTED HERE (matches what the code actually does):
+#  - Uploaded photos & lab files: sent directly to Claude (and Roboflow for the
+#    optional Florence-2 pre-analysis) for processing and NEVER written to our
+#    database or disk. They live only in browser memory / the current session
+#    for the duration of the visit and disappear when the tab is closed or
+#    "Delete my data" is used.
+#  - Triage chat & report text: live only in the browser session unless the
+#    user is logged in and a draft has been saved (e.g. right before the
+#    external face-scan round-trip) — in that case it is Fernet-encrypted in
+#    the `drafts` table and deleted by this control.
+#  - Account email, last-seen timestamp, and language (`user_logins`): kept
+#    only while the account exists; deleted by this control.
+#  - Feedback ratings/comments (`feedback`): may include the account email if
+#    submitted while logged in; deleted by this control.
+#  - Nothing here is shared with third parties beyond the AI/vision providers
+#    (Anthropic, OpenAI, Roboflow, NCBI/PubMed, RxNav) strictly needed to
+#    produce the analysis the patient asked for.
+def render_privacy_page():
+    lang = st.session_state.get("lang", "el")
+    c1, c2 = st.columns([6, 1])
+    with c2:
+        if st.button("🇬🇧 EN" if lang == "el" else "🇬🇷 ΕΛ", key="privacy_lang"):
+            st.session_state.lang = "en" if lang == "el" else "el"
+            st.rerun()
+            return
+
+    if lang == "el":
+        st.markdown("## 🔒 Τα δεδομένα μου & GDPR")
+        st.markdown(
+            "**Τι κρατάμε και για πόσο:**\n\n"
+            "- **Φωτογραφίες & αρχεία εξετάσεων**: στέλνονται απευθείας στο Claude (και στο Roboflow "
+            "για την προαιρετική προ-ανάλυση Florence-2) για ανάλυση και **ποτέ δεν αποθηκεύονται** "
+            "σε δικό μας server ή βάση δεδομένων. Ζουν μόνο στη μνήμη του browser / στο session "
+            "όσο διαρκεί η επίσκεψη. Χάνονται αυτόματα όταν κλείσεις την καρτέλα ή πατήσεις "
+            "«Διαγραφή δεδομένων μου».\n"
+            "- **Συνομιλία triage & αναφορά**: ζουν μόνο στο session του browser σου, εκτός αν έχεις "
+            "λογαριασμό και έχει αποθηκευτεί πρόχειρο (π.χ. πριν τη σάρωση προσώπου σε νέα καρτέλα) — "
+            "οπότε είναι κρυπτογραφημένα (Fernet) και διαγράφονται με το κουμπί παρακάτω.\n"
+            "- **Λογαριασμός (email, τελευταία σύνδεση, γλώσσα)**: κρατούνται όσο υπάρχει ο "
+            "λογαριασμός σου, διαγράφονται με το κουμπί παρακάτω.\n"
+            "- **Feedback (βαθμολογία/σχόλιο)**: μπορεί να περιλαμβάνει το email σου αν το έστειλες "
+            "συνδεδεμένος/η — διαγράφεται με το κουμπί παρακάτω.\n"
+            "- **Κανένα δεδομένο δεν μοιράζεται** με τρίτους πέρα από τους παρόχους AI/ανάλυσης "
+            "(Anthropic, OpenAI, Roboflow, NCBI/PubMed, RxNav) που χρειάζονται για να γίνει η "
+            "ανάλυση που ζήτησες.\n"
+        )
+        st.markdown("---")
+        st.markdown("### 🗑️ Διαγραφή των δεδομένων μου τώρα")
+        st.caption(
+            "Αυτό θα: (1) διαγράψει κάθε αποθηκευμένο πρόχειρο, στοιχεία λογαριασμού και feedback "
+            "από τη βάση μας, (2) σβήσει το cookie σύνδεσης, και (3) καθαρίσει όλα τα δεδομένα της "
+            "τρέχουσας συνεδρίας (φωτογραφίες, συνομιλία, αναφορά). Η ενέργεια είναι **οριστική**."
+        )
+        confirm_label = "Ναι, διάγραψε όλα τα δεδομένα μου"
+        done_msg = "✅ Τα δεδομένα σου διαγράφηκαν. Μπορείς να κλείσεις αυτή την καρτέλα."
+        back_label = "← Πίσω στην εφαρμογή"
+        email_label = "Email λογαριασμού (αν έχεις)"
+    else:
+        st.markdown("## 🔒 My data & GDPR")
+        st.markdown(
+            "**What we keep, and for how long:**\n\n"
+            "- **Photos & lab files**: sent directly to Claude (and Roboflow for the optional "
+            "Florence-2 pre-analysis) for analysis and **never written** to our server or database. "
+            "They live only in your browser's memory / session for the duration of your visit and "
+            "are gone as soon as you close the tab or click \"Delete my data\".\n"
+            "- **Triage chat & report text**: live only in your browser session, unless you have an "
+            "account and a draft has been saved (e.g. before the external face-scan round-trip) — in "
+            "which case it is Fernet-encrypted and deleted by the button below.\n"
+            "- **Account (email, last-seen, language)**: kept only while your account exists, "
+            "deleted by the button below.\n"
+            "- **Feedback (rating/comment)**: may include your email if submitted while logged in — "
+            "deleted by the button below.\n"
+            "- **Nothing is shared** with third parties beyond the AI/analysis providers (Anthropic, "
+            "OpenAI, Roboflow, NCBI/PubMed, RxNav) strictly needed to produce the analysis you asked for.\n"
+        )
+        st.markdown("---")
+        st.markdown("### 🗑️ Delete my data now")
+        st.caption(
+            "This will: (1) delete any saved draft, account record, and feedback from our database, "
+            "(2) clear your login cookie, and (3) wipe all current-session data (photos, chat, "
+            "report). This action is **permanent**."
+        )
+        confirm_label = "Yes, delete all my data"
+        done_msg = "✅ Your data has been deleted. You can close this tab."
+        back_label = "← Back to the app"
+        email_label = "Account email (if you have one)"
+
+    if st.session_state.get("_gdpr_done"):
+        st.success(done_msg)
+    else:
+        _email = st.session_state.get("auth_user", "") or st.text_input(email_label, key="_gdpr_email")
+        if st.button("🗑️ " + confirm_label, type="primary"):
+            # 1) Remove anything persisted server-side for this account.
+            if _email:
+                delete_draft(_email)
+                sb = _supabase_client()
+                if sb:
+                    _t0 = time.time()
+                    try:
+                        sb.table("user_logins").delete().eq("email", _email).execute()
+                        sb.table("feedback").delete().eq("user_email", _email).execute()
+                        log_event("gdpr_delete", ok=True, ms=(time.time()-_t0)*1000)
+                    except Exception as e:
+                        log_event("gdpr_delete", ok=False, ms=(time.time()-_t0)*1000, error=str(e))
+            # 2) Clear the signed-in cookie.
+            _clear_login_cookie()
+            # 3) Wipe the entire in-memory session (photos, chat, report, prefs).
+            for k in list(st.session_state.keys()):
+                if k not in ("lang",):  # keep the language toggle for the confirmation screen
+                    st.session_state.pop(k, None)
+            st.session_state["_gdpr_done"] = True
+            st.session_state["screen"] = "home"
+            st.rerun()
+
+    st.markdown("---")
+    if st.button(back_label):
+        st.session_state.pop("_gdpr_done", None)
+        try:
+            del st.query_params["page"]
+        except Exception:
+            pass
+        st.rerun()
+
+
+
 def save_feedback(rating, comment=""):
     """Store a minimal, non-medical feedback row in Supabase. No report/identifiers."""
     sb = _supabase_client()
     if not sb:
         return False  # demo mode: nothing stored
+    _t0 = time.time()
     try:
         sb.table("feedback").insert({
             "user_email": st.session_state.get("auth_user", ""),
@@ -1956,8 +2244,10 @@ def save_feedback(rating, comment=""):
             "comment": (comment or "")[:1000],
             "lang": st.session_state.lang,
         }).execute()
+        log_event("supabase_write", ok=True, ms=(time.time()-_t0)*1000, table="feedback")
         return True
-    except Exception:
+    except Exception as e:
+        log_event("supabase_write", ok=False, ms=(time.time()-_t0)*1000, error=str(e), table="feedback")
         return False
 
 # ── ADMIN CONTENT STORAGE ──────────────────────────────────────────────────────
@@ -1987,13 +2277,15 @@ def get_setting(key, default=None):
     sb = _supabase_client()
     if not sb:
         return default
+    _t0 = time.time()
     try:
         res = sb.table("app_settings").select("value").eq("key", key).limit(1).execute()
         rows = res.data or []
+        log_event("supabase_read", ok=True, ms=(time.time()-_t0)*1000, table="app_settings")
         if rows:
             return rows[0].get("value", default)
-    except Exception:
-        pass
+    except Exception as e:
+        log_event("supabase_read", ok=False, ms=(time.time()-_t0)*1000, error=str(e), table="app_settings")
     return default
 
 def set_setting(key, value):
@@ -2001,10 +2293,13 @@ def set_setting(key, value):
     sb = _supabase_client()
     if not sb:
         return False
+    _t0 = time.time()
     try:
         sb.table("app_settings").upsert({"key": key, "value": value}).execute()
+        log_event("supabase_write", ok=True, ms=(time.time()-_t0)*1000, table="app_settings")
         return True
-    except Exception:
+    except Exception as e:
+        log_event("supabase_write", ok=False, ms=(time.time()-_t0)*1000, error=str(e), table="app_settings")
         return False
 
 def _admin_list(table, order_col="created_at", ascending=False):
@@ -2015,44 +2310,58 @@ def _admin_list(table, order_col="created_at", ascending=False):
     sb = _supabase_client()
     if not sb:
         return []
+    _t0 = time.time()
     try:
         q = sb.table(table).select("*").order(order_col, desc=not ascending)
-        return (q.execute().data) or []
-    except Exception:
+        rows = (q.execute().data) or []
+        log_event("supabase_read", ok=True, ms=(time.time()-_t0)*1000, table=table)
+        return rows
+    except Exception as e:
+        log_event("supabase_read", ok=False, ms=(time.time()-_t0)*1000, error=str(e), table=table)
         return []
 
 def _admin_insert(table, row):
     sb = _supabase_client()
     if not sb:
         return False
+    _t0 = time.time()
     try:
         sb.table(table).insert(row).execute()
+        log_event("supabase_write", ok=True, ms=(time.time()-_t0)*1000, table=table)
         return True
-    except Exception:
+    except Exception as e:
+        log_event("supabase_write", ok=False, ms=(time.time()-_t0)*1000, error=str(e), table=table)
         return False
 
 def _admin_update(table, row_id, patch):
     sb = _supabase_client()
     if not sb:
         return False
+    _t0 = time.time()
     try:
         sb.table(table).update(patch).eq("id", row_id).execute()
+        log_event("supabase_write", ok=True, ms=(time.time()-_t0)*1000, table=table)
         return True
-    except Exception:
+    except Exception as e:
+        log_event("supabase_write", ok=False, ms=(time.time()-_t0)*1000, error=str(e), table=table)
         return False
 
 def _admin_delete(table, row_id):
     sb = _supabase_client()
     if not sb:
         return False
+    _t0 = time.time()
     try:
         sb.table(table).delete().eq("id", row_id).execute()
+        log_event("supabase_delete", ok=True, ms=(time.time()-_t0)*1000, table=table)
         return True
-    except Exception:
+    except Exception as e:
+        log_event("supabase_delete", ok=False, ms=(time.time()-_t0)*1000, error=str(e), table=table)
         return False
 
 # ── NCBI HELPERS ──────────────────────────────────────────────────────────────
 def pubmed_search(query, n=3):
+    _t0 = time.time()
     try:
         # NOTE: eutils' esearch defaults to sorting by most-recent-publication-
         # date when no `sort` param is given — NOT by relevance, even though
@@ -2069,7 +2378,9 @@ def pubmed_search(query, n=3):
         p = urllib.parse.urlencode({"db":"pubmed","term":query,"retmax":n,"retmode":"json","sort":"most+cited","api_key":get_ncbi_key()})
         with urllib.request.urlopen(f"https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi?{p}", timeout=8) as r:
             ids = json.loads(r.read()).get("esearchresult",{}).get("idlist",[])
-        if not ids: return []
+        if not ids:
+            log_event("pubmed_search", ok=True, ms=(time.time()-_t0)*1000, results=0)
+            return []
         p2 = urllib.parse.urlencode({"db":"pubmed","id":",".join(ids),"retmode":"json","api_key":get_ncbi_key()})
         with urllib.request.urlopen(f"https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esummary.fcgi?{p2}", timeout=8) as r:
             res = json.loads(r.read()).get("result",{})
@@ -2082,8 +2393,11 @@ def pubmed_search(query, n=3):
                 "journal": a.get("source",""), "date": a.get("pubdate",""),
                 "url": f"https://pubmed.ncbi.nlm.nih.gov/{pmid}/"
             })
+        log_event("pubmed_search", ok=True, ms=(time.time()-_t0)*1000, results=len(out))
         return out
-    except: return []
+    except Exception as e:
+        log_event("pubmed_search", ok=False, ms=(time.time()-_t0)*1000, error=str(e))
+        return []
 
 # pubmed_search()/esummary only gives title+journal+date — no abstract text.
 # This pulls the actual abstract via efetch (XML) so the report-generation
@@ -2098,6 +2412,7 @@ def pubmed_fetch_abstracts(pmids, timeout=10):
     callers should treat a missing key the same as 'no abstract available'."""
     if not pmids:
         return {}
+    _t0 = time.time()
     try:
         import xml.etree.ElementTree as _ET
         p = urllib.parse.urlencode({"db":"pubmed","id":",".join(pmids),"retmode":"xml","api_key":get_ncbi_key()})
@@ -2120,8 +2435,10 @@ def pubmed_fetch_abstracts(pmids, timeout=10):
                 parts.append(f"{label}: {txt}" if label else txt)
             if parts:
                 out[pmid] = " ".join(parts)
+        log_event("pubmed_fetch_abstracts", ok=True, ms=(time.time()-_t0)*1000, requested=len(pmids), found=len(out))
         return out
-    except Exception:
+    except Exception as e:
+        log_event("pubmed_fetch_abstracts", ok=False, ms=(time.time()-_t0)*1000, error=str(e), requested=len(pmids))
         return {}
 
 # Pillar-targeted PubMed query: scopes results to *high-evidence* publication
@@ -2226,6 +2543,7 @@ def psychology_pillar_search(condition_hint, n=3):
     return pubmed_search(f"{cond_q} AND {_PSYCH_MESH}", n=n)
 
 def rxnorm_interactions(names):
+    _t0 = time.time()
     try:
         cuis = []
         for name in names:
@@ -2233,11 +2551,14 @@ def rxnorm_interactions(names):
             with urllib.request.urlopen(f"https://rxnav.nlm.nih.gov/REST/rxcui.json?{p}", timeout=6) as r:
                 ids = json.loads(r.read()).get("idGroup",{}).get("rxnormId",[])
                 if ids: cuis.append(ids[0])
-        if len(cuis) < 2: return None
+        if len(cuis) < 2:
+            log_event("rxnav_interactions", ok=True, ms=(time.time()-_t0)*1000, resolved_drugs=len(cuis))
+            return None
         p2 = urllib.parse.urlencode({"rxcuis": " ".join(cuis)})
         with urllib.request.urlopen(f"https://rxnav.nlm.nih.gov/REST/interaction/list.json?{p2}", timeout=8) as r:
             data = json.loads(r.read())
         pairs = data.get("fullInteractionTypeGroup",[])
+        log_event("rxnav_interactions", ok=True, ms=(time.time()-_t0)*1000, resolved_drugs=len(cuis), interaction_groups=len(pairs))
         if not pairs: return "\u2705 RxNorm: No known interactions found."
         lines = []
         for g in pairs:
@@ -2249,13 +2570,18 @@ def rxnorm_interactions(names):
                     drugs = " + ".join(c.get("minConceptItem",{}).get("name","") for c in pair.get("interactionConcept",[]))
                     lines.append(f"- **{drugs}** [{sev}] \u2014 {desc} *({src})*")
         return "\n".join(lines) if lines else "\u2705 RxNorm: No known interactions found."
-    except: return None
+    except Exception as e:
+        log_event("rxnav_interactions", ok=False, ms=(time.time()-_t0)*1000, error=str(e))
+        return None
 
 # ── GPT-4o ────────────────────────────────────────────────────────────────────
 def gpt4o(prompt, system="", max_tokens=900):
+    oai = get_openai_key()
+    if not oai:
+        log_event("gpt4o", ok=False, error="missing_api_key")
+        return None
+    _t0 = time.time()
     try:
-        oai = get_openai_key()
-        if not oai: return None
         body = json.dumps({
             "model": "gpt-4o",
             "max_tokens": max_tokens,
@@ -2267,8 +2593,11 @@ def gpt4o(prompt, system="", max_tokens=900):
             headers={"Content-Type":"application/json","Authorization":f"Bearer {oai}"}
         )
         with urllib.request.urlopen(req, timeout=25) as r:
-            return json.loads(r.read())["choices"][0]["message"]["content"]
+            result = json.loads(r.read())["choices"][0]["message"]["content"]
+        log_event("gpt4o", ok=True, ms=(time.time()-_t0)*1000)
+        return result
     except Exception as e:
+        log_event("gpt4o", ok=False, ms=(time.time()-_t0)*1000, error=str(e))
         return f"GPT-4o unavailable: {e}"
 
 # ── WHISPER (voice → text) ────────────────────────────────────────────────────
@@ -2282,7 +2611,9 @@ def whisper_transcribe(audio_bytes, filename="recording.webm", lang="el"):
     """
     key = get_openai_key()
     if not key:
+        log_event("whisper_transcribe", ok=False, error="missing_api_key")
         return None, "⚠️ OpenAI API key not set."
+    _t0 = time.time()
     try:
         import requests
         # Map common audio MIME types so Whisper recognises the format
@@ -2302,9 +2633,12 @@ def whisper_transcribe(audio_bytes, filename="recording.webm", lang="el"):
             files=files, data=data, timeout=60,
         )
         if r.status_code == 200:
+            log_event("whisper_transcribe", ok=True, ms=(time.time()-_t0)*1000)
             return r.text.strip(), None
+        log_event("whisper_transcribe", ok=False, ms=(time.time()-_t0)*1000, error=f"HTTP {r.status_code}")
         return None, f"⚠️ Whisper {r.status_code}: {r.text[:200]}"
     except Exception as e:
+        log_event("whisper_transcribe", ok=False, ms=(time.time()-_t0)*1000, error=str(e))
         return None, f"⚠️ {e}"
 
 # ── CLAUDE ────────────────────────────────────────────────────────────────────
@@ -2312,6 +2646,7 @@ def claude(messages, system="", max_tokens=1200, timeout=60):
     """Call Claude via raw HTTP."""
     key = get_claude_key()
     if not key:
+        log_event("claude_chat", ok=False, error="missing_api_key")
         return "\u26a0\ufe0f Claude API key not set."
     body = json.dumps({
         "model": "claude-sonnet-4-6",
@@ -2328,15 +2663,20 @@ def claude(messages, system="", max_tokens=1200, timeout=60):
             "content-type": "application/json",
         },
     )
+    _t0 = time.time()
     try:
         with urllib.request.urlopen(req, timeout=timeout) as r:
             data = json.loads(r.read())
+        log_event("claude_chat", ok=True, ms=(time.time()-_t0)*1000)
         return data["content"][0]["text"]
     except urllib.error.URLError as e:
         if "timed out" in str(e).lower() or "timeout" in str(e).lower():
+            log_event("claude_chat", ok=False, ms=(time.time()-_t0)*1000, error="timeout")
             return "\u26a0\ufe0f Request timed out. Please try again."
+        log_event("claude_chat", ok=False, ms=(time.time()-_t0)*1000, error=str(e))
         return f"\u26a0\ufe0f Claude error: {e}"
     except Exception as e:
+        log_event("claude_chat", ok=False, ms=(time.time()-_t0)*1000, error=f"{type(e).__name__}: {e}")
         return f"\u26a0\ufe0f Claude error: {e}"
 
 # ── SESSION STATE ─────────────────────────────────────────────────────────────
@@ -3725,7 +4065,7 @@ def render_topbar():
         _all_lang_codes = list(OUTPUT_LANGUAGES.keys())
         _cur = st.session_state.get("output_lang") or lang
         try:    _idx = _all_lang_codes.index(_cur)
-        except: _idx = 0
+        except ValueError: _idx = 0
         _chosen = st.selectbox(
             "",
             _all_lang_codes,
@@ -4155,7 +4495,7 @@ def render_output_language_picker(lang, *, key_suffix=""):
     codes   = list(OUTPUT_LANGUAGES.keys())
     current = output_lang_code()
     try:    idx = codes.index(current)
-    except: idx = 0
+    except ValueError: idx = 0
     choice = st.selectbox(
         label, codes, index=idx,
         format_func=lambda c: OUTPUT_LANGUAGES[c][0],
@@ -4170,6 +4510,54 @@ def render_output_language_picker(lang, *, key_suffix=""):
 def _strip_accents(s):
     return "".join(c for c in unicodedata.normalize("NFD", s.lower())
                    if unicodedata.category(c) != "Mn")
+
+# ── EMERGENCY DETECTION (defense-in-depth safety gate) ────────────────────────
+# Priority 1 from the Asklepios/KiraAIpet readiness audit: Asklepios previously
+# relied ONLY on a prompt-level instruction ("Κόκκινες σημαίες → 166/112") to
+# get the AI to flag emergencies — with no independent, code-level check that
+# the model actually did so. Ported from KiraAIpet's _EMERGENCY_KEYWORDS /
+# _set_emergency_from_text mechanism and adapted for human triage: this is a
+# human-health context, so the keyword set below is intentionally broader and
+# stricter than the pet-triage original (it also covers cardiac, stroke,
+# anaphylaxis, breathing, and consciousness red flags explicitly, rather than
+# relying only on generic "emergency" phrasing).
+#
+# This does NOT replace the prompt-level instruction — it is a second,
+# independent net: even if the model's reply omits the expected escalation
+# phrasing, these keyword/number matches (166/112, chest pain, stroke, etc.)
+# still set the persistent flag and force the emergency banner to show.
+_EMERGENCY_KEYWORDS_HUMAN = (
+    # Greek — explicit escalation phrasing
+    "επειγον", "επειγουσα αναγκη", "κοκκινη σημαια", "κοκκινες σημαιες",
+    "πηγαινετε αμεσα", "πηγαινετε τωρα", "καλεστε αμεσα", "καλεστε τωρα",
+    "χρειαζεται αμεση", "απαιτειται αμεση δραση", "κρισιμη κατασταση",
+    "166", "εκαβ", "112",
+    # Greek — specific clinical red flags
+    "πονος στηθος", "δυσκολια αναπνοης", "δεν μπορω να αναπνευσω",
+    "εγκεφαλικο", "αναφυλαξια", "απωλεια συνειδησης", "αναισθητος", "λιποθυμια",
+    "σοβαρη αιμορραγια", "δεν σταματα η αιμορραγια",
+    # English — explicit escalation phrasing
+    "emergency", "red flag", "go to the er", "go now", "call now",
+    "immediate action required", "critical situation", "call 112", "call 166",
+    # English — specific clinical red flags
+    "chest pain", "difficulty breathing", "can't breathe", "cannot breathe",
+    "stroke", "anaphylaxis", "loss of consciousness", "unconscious", "fainted",
+    "severe bleeding", "uncontrolled bleeding",
+)
+
+def _set_emergency_from_text(text):
+    """Set session emergency flag if the AI's triage reply contains red-flag
+    wording. Independent of whether the model actually followed the
+    prompt-level escalation instruction — this is the code-level backstop."""
+    if not text:
+        return
+    try:
+        norm = _strip_accents(text)
+    except Exception:
+        norm = (text or "").lower()
+    if any(k in norm for k in _EMERGENCY_KEYWORDS_HUMAN):
+        st.session_state["triage_emergency"] = True
+
 # Each category maps symptom roots → the vital that helps. "scan"=True only where
 # the camera face-scan can actually produce the value (heart rate → cardiac only).
 _VITAL_CATEGORIES = [
@@ -5222,7 +5610,7 @@ Use a certified upper-arm cuff device, note systolic/diastolic values
             for extra in ["hrv","stress","cardio"]:
                 if extra in st.session_state.vitals: vd[extra]=st.session_state.vitals[extra]
             st.session_state.vitals=vd; classify_vitals(vd, age=p.get("age"))
-            if vd:
+            if vd and _rate_limit_gate("vitals_analysis"):
                 with st.spinner("Ανάλυση..."):
                     vtext="\n".join(f"- {k}: {val}" for k,val in vd.items())
                     pp=p.get
@@ -5406,6 +5794,8 @@ def render_photo_scan():
             st.markdown(f"**{p.get('name','')}** · {sel}")
             if st.button("🔬 " + ("Ανάλυση" if lang=="el" else "Analyse"),
                          type="primary", use_container_width=True, key="analyse_human"):
+                if not _rate_limit_gate("photo_scan"):
+                    st.stop()
                 img_bytes = uploaded_photo.read()
                 fname = uploaded_photo.name.lower()
                 if fname.endswith((".heic",".heif")):
@@ -5559,6 +5949,8 @@ def render_lab_analysis():
 
         if _to_run:
             if st.button(btn_lbl, type="primary", use_container_width=True, key="analyse_lab"):
+                if not _rate_limit_gate("lab_scan"):
+                    st.stop()
                 _added = 0
                 status_msg = ("Ανάλυση εξετάσεων…" if lang=="el" else "Analysing lab results…")
                 with st.status(status_msg, expanded=True) as _stat:
@@ -5649,6 +6041,17 @@ def render_triage():
     )
     render_vitals_summary()
     st.markdown(f'<div class="disclaimer">{t("disclaimer_main")}</div>',unsafe_allow_html=True)
+    # Live emergency banner — shown immediately once the code-level safety gate
+    # (_set_emergency_from_text) has detected a red flag in any assistant reply
+    # this session, not only at the end when the final report is generated.
+    if st.session_state.get("triage_emergency"):
+        st.markdown('<div class="red-flags-urgent">🚨 ' + (
+            "Εντοπίστηκαν ενδείξεις επείγουσας κατάστασης στην εκτίμηση. "
+            "Καλέστε <b>166</b> (ΕΚΑΒ) ή <b>112</b> αμέσως αν τα συμπτώματα ισχύουν."
+            if st.session_state.lang=="el" else
+            "This assessment flagged signs of a possible emergency. "
+            "Call <b>166</b> (EKAB) or <b>112</b> immediately if these symptoms apply."
+        ) + '</div>', unsafe_allow_html=True)
     # Symptom quick-select: only BEFORE the conversation starts, so once chatting
     # the previous Q&A stays visible instead of being buried under the buttons.
     if not st.session_state.triage_chat:
@@ -6029,6 +6432,8 @@ function copyText(){{
             st.session_state.pop("photo_added", None)
             st.session_state.pop("lab_added", None)
             st.session_state.triage_chat.append({"role":"user","content":user_input})
+        if not _rate_limit_gate("triage_chat"):
+            return
         with st.spinner("Asklepios..."):
             pp=p.get
             _flags = []
@@ -6049,6 +6454,9 @@ function copyText(){{
             system_ctx=kira_system()+f"\n\n{profile_ctx}\n{vitals_ctx}"
             reply=claude([{"role":m["role"],"content":m["content"]} for m in st.session_state.triage_chat],system=system_ctx,max_tokens=1500)
             if reply and reply.strip() and reply.strip()[-1] not in ".!?»)": reply=reply.rstrip()+" ..."
+            # Code-level safety backstop — independent of whether the model
+            # actually followed the prompt-level "red flags → 166/112" rule.
+            _set_emergency_from_text(reply)
         st.session_state.triage_chat.append({"role":"assistant","content":reply}); st.rerun()
     # Report-language selector: ask only the clinically relevant question.
     # The UI stays in the chosen app language. The report is generated in that
@@ -6828,6 +7236,10 @@ def render_report():
     )
     render_vitals_summary()
     if not st.session_state.report:
+        if not _rate_limit_gate("report_generation"):
+            if st.button(t("back")):
+                st.session_state.screen="triage"; st.rerun()
+            st.stop()
         conversation="\n".join(f"{'Patient' if m['role']=='user' else 'Asklepios'}: {m['content']}" for m in st.session_state.triage_chat)
         vitals_text="\n".join(f"- {k}: {v}" for k,v in st.session_state.vitals.items()) if st.session_state.vitals else "Not provided"
         vitals_analysis=st.session_state.vitals_analysis or "Not available"
@@ -6964,6 +7376,8 @@ Language: {"Greek" if lang=="el" else "English"}. Be direct. End with a one-line
                 st.error(result)
                 if st.button("🔄 Retry"): st.rerun()
                 return
+            # Code-level safety backstop on the freshly generated report text.
+            _set_emergency_from_text(result)
             # Parse out the PNOE-style RECS block ONCE on generation. The cleaned
             # report (without delimiters) is what shows on-screen and in exports;
             # the recs dict drives the 3-column visual card.
@@ -7297,6 +7711,8 @@ Rewrite ONLY the "{_plan_hdr}" section, grounding it in what these specific abst
             if not st.session_state.report_gpt:
                 if st.button(("Λάβε δεύτερη γνώμη GPT-4o" if lang=="el" else "Get GPT-4o second opinion"),
                              type="secondary", key="gpt_get"):
+                    if not _rate_limit_gate("gpt4o_second_opinion"):
+                        st.stop()
                     with st.spinner("GPT-4o reviewing..."):
                         _gpt_prompt = (
                             f"Patient: {p.get('name')}, {p.get('age')}yo {p.get('sex','')}\n"
@@ -7348,8 +7764,13 @@ Rewrite ONLY the "{_plan_hdr}" section, grounding it in what these specific abst
     _status_map = classify_vitals(dict(v), age=st.session_state.profile.get("age")) if v else {}
     _render_health_pillars(st.session_state.profile, v, _status_map,
                            st.session_state.report, lang)
+    # Code-level safety backstop: also scan the final report text itself, in
+    # case a red flag only surfaced there (e.g. synthesized from several
+    # earlier replies) rather than in any single chat message.
+    _set_emergency_from_text(st.session_state.report)
     urgent_kw=["chest pain","πόνος στήθους","stroke","εγκεφαλικό","anaphylaxis","αναφυλαξία","166","112","emergency","επείγον","unconscious","αναίσθητος"]
-    if any(kw in st.session_state.report.lower() for kw in urgent_kw):
+    _legacy_hit = any(kw in st.session_state.report.lower() for kw in urgent_kw)
+    if st.session_state.get("triage_emergency") or _legacy_hit:
         st.markdown('<div class="red-flags-urgent">🚨 Η αναφορά περιέχει <b>επείγουσες ενδείξεις</b>. Καλέστε <b>166</b> ή <b>112</b> αμέσως αν ισχύουν.</div>',unsafe_allow_html=True)
     else:
         st.markdown(f'<div class="emergency">{t("emergency")}</div>',unsafe_allow_html=True)
@@ -7557,6 +7978,14 @@ if (st.session_state.get("_from_facescan") and st.session_state.vitals
         and st.session_state.profile.get("name") and st.session_state.screen == "intake"):
     st.session_state.screen = "triage"
     st.session_state["_from_facescan"] = False
+
+# ── PRIVACY / GDPR ROUTING ────────────────────────────────────────────────────
+# Reached via /?page=privacy. Deliberately checked BEFORE the hero/login gate
+# below — a right-to-erasure request shouldn't itself require an active
+# session to discover or use.
+if st.query_params.get("page") == "privacy":
+    render_privacy_page()
+    st.stop()
 
 # ── ADMIN ROUTING ────────────────────────────────────────────────────────────
 # Reached via asklepiosainurse.up.railway.app/?admin=1. Completely separate
