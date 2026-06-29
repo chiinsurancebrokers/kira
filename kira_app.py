@@ -1639,9 +1639,12 @@ def render_login_screen():
   padding:2px 8px;border-radius:999px;flex-shrink:0;white-space:nowrap;}}
 .ask-hr-fc-badge.ok{{background:#ECFDF5;color:#059669;}}
 .ask-hr-power{{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:13px;}}
+@media (max-width: 480px) {{
+  .ask-hr-power{{grid-template-columns:1fr;}}
+}}
 .ask-hr-pow{{background:white;border:1.5px solid #2D3FE7;border-radius:12px;
   padding:10px 11px;display:flex;align-items:flex-start;gap:8px;text-align:{"right" if rtl else "left"};
-  flex-direction:{"row-reverse" if rtl else "row"};}}
+  flex-direction:{"row-reverse" if rtl else "row"};overflow-wrap:normal;word-break:keep-all;}}
 .ask-hr-pow.gov{{border-color:#059669;}}
 .ask-hr-pow.lang{{border-color:#7C3AED;}}
 .ask-hr-pow-ic{{font-size:16px;flex-shrink:0;margin-top:1px;}}
@@ -1839,7 +1842,7 @@ def render_login_screen():
     st.markdown(f'<div class="disclaimer" dir="{_dir}">{t("disclaimer_main")}</div>', unsafe_allow_html=True)
     _priv_label = "🔒 Τα δεδομένα μου & GDPR" if st.session_state.lang == "el" else "🔒 My data & GDPR"
     st.markdown(
-        f'<div style="text-align:center;margin-top:6px">'
+        f'<div dir="{_dir}" style="margin-top:6px;padding:0 16px">'
         f'<a href="?page=privacy" target="_self" style="font-size:11px;color:#6B7280;text-decoration:underline">{_priv_label}</a>'
         f'</div>', unsafe_allow_html=True
     )
@@ -2543,23 +2546,37 @@ def psychology_pillar_search(condition_hint, n=3):
     return pubmed_search(f"{cond_q} AND {_PSYCH_MESH}", n=n)
 
 def rxnorm_interactions(names):
+    """Returns a dict: {"ok": bool, "message": str, "unresolved": [names]}.
+    RxNav only recognises US/English drug nomenclature — Greek brand names
+    (e.g. "Depon", "Ασπιρίνη Προτεκτ") frequently will NOT resolve, which is
+    why this used to silently return None and show nothing. Now every
+    outcome (network error / nothing resolved / no interactions found /
+    interactions found) produces a visible message."""
     _t0 = time.time()
     try:
         cuis = []
+        unresolved = []
         for name in names:
-            p = urllib.parse.urlencode({"name": name.split()[0]})
+            key = (name or "").strip()
+            if not key:
+                continue
+            p = urllib.parse.urlencode({"name": key.split()[0]})
             with urllib.request.urlopen(f"https://rxnav.nlm.nih.gov/REST/rxcui.json?{p}", timeout=6) as r:
                 ids = json.loads(r.read()).get("idGroup",{}).get("rxnormId",[])
-                if ids: cuis.append(ids[0])
+            if ids:
+                cuis.append(ids[0])
+            else:
+                unresolved.append(key)
         if len(cuis) < 2:
             log_event("rxnav_interactions", ok=True, ms=(time.time()-_t0)*1000, resolved_drugs=len(cuis))
-            return None
+            return {"ok": False, "message": None, "unresolved": unresolved}
         p2 = urllib.parse.urlencode({"rxcuis": " ".join(cuis)})
         with urllib.request.urlopen(f"https://rxnav.nlm.nih.gov/REST/interaction/list.json?{p2}", timeout=8) as r:
             data = json.loads(r.read())
         pairs = data.get("fullInteractionTypeGroup",[])
         log_event("rxnav_interactions", ok=True, ms=(time.time()-_t0)*1000, resolved_drugs=len(cuis), interaction_groups=len(pairs))
-        if not pairs: return "\u2705 RxNorm: No known interactions found."
+        if not pairs:
+            return {"ok": True, "message": "\u2705 RxNorm: No known interactions found.", "unresolved": unresolved}
         lines = []
         for g in pairs:
             src = g.get("sourceName","")
@@ -2569,10 +2586,11 @@ def rxnorm_interactions(names):
                     desc = pair.get("description","")
                     drugs = " + ".join(c.get("minConceptItem",{}).get("name","") for c in pair.get("interactionConcept",[]))
                     lines.append(f"- **{drugs}** [{sev}] \u2014 {desc} *({src})*")
-        return "\n".join(lines) if lines else "\u2705 RxNorm: No known interactions found."
+        msg = "\n".join(lines) if lines else "\u2705 RxNorm: No known interactions found."
+        return {"ok": True, "message": msg, "unresolved": unresolved}
     except Exception as e:
         log_event("rxnav_interactions", ok=False, ms=(time.time()-_t0)*1000, error=str(e))
-        return None
+        return {"ok": False, "message": None, "unresolved": [], "error": str(e)}
 
 # ── GPT-4o ────────────────────────────────────────────────────────────────────
 def gpt4o(prompt, system="", max_tokens=900):
@@ -2642,12 +2660,19 @@ def whisper_transcribe(audio_bytes, filename="recording.webm", lang="el"):
         return None, f"⚠️ {e}"
 
 # ── CLAUDE ────────────────────────────────────────────────────────────────────
-def claude(messages, system="", max_tokens=1200, timeout=60):
-    """Call Claude via raw HTTP."""
+def claude(messages, system="", max_tokens=1200, timeout=60, return_meta=False):
+    """Call Claude via raw HTTP.
+    If return_meta=True, returns (text, truncated_bool) instead of just text —
+    truncated=True means the API stopped because max_tokens was hit
+    (stop_reason == "max_tokens"), i.e. the reply was cut off mid-thought
+    rather than finishing naturally. Callers that need a complete document
+    (e.g. the clinical report) should check this rather than silently
+    showing a clipped response."""
     key = get_claude_key()
     if not key:
         log_event("claude_chat", ok=False, error="missing_api_key")
-        return "\u26a0\ufe0f Claude API key not set."
+        msg = "\u26a0\ufe0f Claude API key not set."
+        return (msg, False) if return_meta else msg
     body = json.dumps({
         "model": "claude-sonnet-4-6",
         "max_tokens": max_tokens,
@@ -2667,17 +2692,23 @@ def claude(messages, system="", max_tokens=1200, timeout=60):
     try:
         with urllib.request.urlopen(req, timeout=timeout) as r:
             data = json.loads(r.read())
-        log_event("claude_chat", ok=True, ms=(time.time()-_t0)*1000)
-        return data["content"][0]["text"]
+        stop_reason = data.get("stop_reason")
+        truncated = (stop_reason == "max_tokens")
+        log_event("claude_chat", ok=True, ms=(time.time()-_t0)*1000, truncated=truncated)
+        text = data["content"][0]["text"]
+        return (text, truncated) if return_meta else text
     except urllib.error.URLError as e:
         if "timed out" in str(e).lower() or "timeout" in str(e).lower():
             log_event("claude_chat", ok=False, ms=(time.time()-_t0)*1000, error="timeout")
-            return "\u26a0\ufe0f Request timed out. Please try again."
+            msg = "\u26a0\ufe0f Request timed out. Please try again."
+            return (msg, False) if return_meta else msg
         log_event("claude_chat", ok=False, ms=(time.time()-_t0)*1000, error=str(e))
-        return f"\u26a0\ufe0f Claude error: {e}"
+        msg = f"\u26a0\ufe0f Claude error: {e}"
+        return (msg, False) if return_meta else msg
     except Exception as e:
         log_event("claude_chat", ok=False, ms=(time.time()-_t0)*1000, error=f"{type(e).__name__}: {e}")
-        return f"\u26a0\ufe0f Claude error: {e}"
+        msg = f"\u26a0\ufe0f Claude error: {e}"
+        return (msg, False) if return_meta else msg
 
 # ── SESSION STATE ─────────────────────────────────────────────────────────────
 defaults = {
@@ -5922,12 +5953,23 @@ def render_lab_analysis():
                 if lang=="el" else
                 "Upload PDF or photo of blood, hormonal, biochemistry, or urinalysis results."))
     st.markdown(f'<div class="disclaimer">{"⚠️ Εκπαιδευτικό εργαλείο, δεν αντικαθιστά ιατρό. Τα αρχεία δεν αποθηκεύονται στους server μας." if lang=="el" else "⚠️ Educational tool, does not replace a doctor. Files are not stored on our servers."}</div>', unsafe_allow_html=True)
+    _render_lab_upload_widget(p, lang)
 
+def _render_lab_upload_widget(p, lang, key_prefix=""):
+    """Lab/photo file uploader + analysis flow. Shared between render_triage()
+    (the main upload point) and render_report() (a last-chance upload right
+    before the final report is generated, for anything the patient forgot
+    earlier). Whatever gets added here lands in the same `lab_findings` list
+    and gets injected into `triage_chat` — both of which the report_prompt
+    already reads from — so a file added here is taken into account exactly
+    like one added during triage.
+    key_prefix keeps Streamlit widget keys unique when this is rendered in
+    more than one place in the same run (triage screen + report screen)."""
     lab_files = st.file_uploader(
         ("Εξετάσεις (PDF, JPG, PNG — πολλαπλά αρχεία)" if lang=="el"
          else "Lab tests (PDF, JPG, PNG — multiple files)"),
         type=["pdf","jpg","jpeg","png","webp","heic","heif"],
-        key="lab_upload",
+        key=key_prefix+"lab_upload",
         accept_multiple_files=True,
         help=("Μπορείς να ανεβάσεις πολλαπλά αρχεία ταυτόχρονα — π.χ. αιμοδιάγραμμα + βιοχημικό + ορμόνες."
               if lang=="el" else
@@ -5948,7 +5990,7 @@ def render_lab_analysis():
                    else "🔬 Analyse lab result")
 
         if _to_run:
-            if st.button(btn_lbl, type="primary", use_container_width=True, key="analyse_lab"):
+            if st.button(btn_lbl, type="primary", use_container_width=True, key=key_prefix+"analyse_lab"):
                 if not _rate_limit_gate("lab_scan"):
                     st.stop()
                 _added = 0
@@ -7240,6 +7282,33 @@ def render_report():
             if st.button(t("back")):
                 st.session_state.screen="triage"; st.rerun()
             st.stop()
+        # ── Last-chance upload before the final report is generated ──────────
+        # Anything added here goes through the SAME claude_analyze_lab() →
+        # lab_findings → triage_chat pipeline as the triage-screen uploader,
+        # so the report_prompt built below already reflects it. Shown once,
+        # gated behind its own explicit confirm button so the report doesn't
+        # start generating the instant this screen loads.
+        if not st.session_state.get("_report_gen_confirmed"):
+            st.markdown(
+                ("#### 📎 Ξέχασες κάποια εξέταση ή φωτογραφία;" if lang=="el"
+                 else "#### 📎 Forgot to upload a test or photo?")
+            )
+            st.caption(
+                "Τελευταία ευκαιρία να την προσθέσεις πριν δημιουργηθεί η τελική αναφορά — "
+                "θα ληφθεί υπόψη μαζί με όλα τα υπόλοιπα."
+                if lang=="el" else
+                "Last chance to add it before the final report is generated — "
+                "it will be taken into account along with everything else."
+            )
+            _render_lab_upload_widget(p, lang, key_prefix="finalstep_")
+            st.markdown("---")
+            if st.button(
+                "✅ " + ("Δημιουργία Τελικής Αναφοράς" if lang=="el" else "Generate Final Report"),
+                type="primary", use_container_width=True, key="confirm_report_gen",
+            ):
+                st.session_state["_report_gen_confirmed"] = True
+                st.rerun()
+            st.stop()
         conversation="\n".join(f"{'Patient' if m['role']=='user' else 'Asklepios'}: {m['content']}" for m in st.session_state.triage_chat)
         vitals_text="\n".join(f"- {k}: {v}" for k,v in st.session_state.vitals.items()) if st.session_state.vitals else "Not provided"
         vitals_analysis=st.session_state.vitals_analysis or "Not available"
@@ -7370,12 +7439,82 @@ RECS>>>
 
 Language: {"Greek" if lang=="el" else "English"}. Be direct. End with a one-line AI disclaimer.{output_language_directive()}"""
         with st.spinner("Δημιουργία αναφοράς..." if lang=="el" else "Generating report..."):
-            result=claude([{"role":"user","content":report_prompt}],system=kira_system(),max_tokens=4000,timeout=120)
+            # Reports with many integrated lab/photo findings push the INPUT
+            # prompt itself to tens of thousands of tokens (each lab analysis
+            # folded into the triage conversation is several hundred words).
+            # Scale the output budget with how much context there is, rather
+            # than using one fixed ceiling for every case — a patient who
+            # uploaded 10+ lab results needs a longer synthesis than a simple
+            # single-complaint case.
+            _prompt_len = len(report_prompt)
+            _report_max_tokens = 8000 if _prompt_len < 20000 else 12000
+            result, _truncated = claude(
+                [{"role":"user","content":report_prompt}],
+                system=kira_system(), max_tokens=_report_max_tokens, timeout=180, return_meta=True,
+            )
             if result.startswith("⚠️"):
                 _overlay.empty()
                 st.error(result)
                 if st.button("🔄 Retry"): st.rerun()
                 return
+            # The report has several mandatory sections + a markdown table +
+            # a delimited RECS block — on long/complex cases (lots of history,
+            # a long triage conversation, multilingual content) even a high
+            # max_tokens can still run out mid-section. Rather than silently
+            # showing a clipped report, ask Claude to continue exactly where
+            # it stopped and stitch the continuation on. Bounded to 3 extra
+            # rounds so a pathological case can't loop forever.
+            _continue_rounds = 0
+            while _truncated and _continue_rounds < 3:
+                _continue_rounds += 1
+                log_event("claude_report_truncated", ok=False, round=_continue_rounds, prompt_len=_prompt_len)
+                # Cut the tail at the last full sentence/line break rather than
+                # a hard character count — feeding the model a mid-word
+                # fragment as "here's where you stopped" context can make it
+                # awkwardly try to complete that exact word instead of
+                # naturally resuming the section.
+                _tail = result[-800:]
+                _last_break = max(_tail.rfind("\n"), _tail.rfind(". "), _tail.rfind("· "))
+                if _last_break > 0:
+                    _tail = _tail[:_last_break+1]
+                _cont_prompt = (
+                    f"Η προηγούμενη απάντησή σου έκοψε ξαφνικά εδώ (το τελευταίο πλήρες κομμάτι ήταν):\n\n---\n{_tail}\n---\n\n"
+                    "Συνέχισε ΑΚΡΙΒΩΣ από εκεί που σταμάτησε, χωρίς να επαναλάβεις κείμενο που "
+                    "ήδη γράφτηκε. Συμπλήρωσε ό,τι λείπει από τις ενότητες 1-5 και το <<<RECS...RECS>>> "
+                    "block, αν δεν έχει ήδη κλείσει."
+                    if lang=="el" else
+                    "Your previous answer was cut off abruptly here (the last complete part was):\n\n---\n"
+                    f"{_tail}\n---\n\nContinue EXACTLY from where it stopped, without "
+                    "repeating text already written. Finish any remaining content from sections "
+                    "1-5 and the <<<RECS...RECS>>> block if it hasn't already closed."
+                )
+                _more, _truncated = claude(
+                    [{"role":"user","content":report_prompt},
+                     {"role":"assistant","content":result},
+                     {"role":"user","content":_cont_prompt}],
+                    system=kira_system(), max_tokens=4000, timeout=120, return_meta=True,
+                )
+                if _more and not _more.startswith("⚠️"):
+                    result = result + ("\n" if not result.endswith("\n") else "") + _more
+                else:
+                    break  # continuation call itself failed — stop trying, use what we have
+            # Final safety net: if every continuation attempt is exhausted (or
+            # failed) and the text STILL looks cut off — no RECS block was
+            # ever found AND it doesn't end with normal closing punctuation —
+            # warn visibly rather than silently exporting an incomplete report.
+            # The RECS block is the very last thing the prompt asks for, so its
+            # absence plus a non-terminal ending is a reliable truncation signal.
+            _looks_incomplete = (
+                "<<<RECS" not in result
+                and result.strip()
+                and result.strip()[-1] not in ".!?»)\""
+            )
+            if _truncated or _looks_incomplete:
+                st.session_state["_report_possibly_incomplete"] = True
+                log_event("claude_report_truncated", ok=False, round=_continue_rounds,
+                          prompt_len=_prompt_len, final_attempt_exhausted=True)
+            else:
+                st.session_state.pop("_report_possibly_incomplete", None)
             # Code-level safety backstop on the freshly generated report text.
             _set_emergency_from_text(result)
             # Parse out the PNOE-style RECS block ONCE on generation. The cleaned
@@ -7615,6 +7754,22 @@ Rewrite ONLY the "{_plan_hdr}" section, grounding it in what these specific abst
 </div>
 """, unsafe_allow_html=True)
     st.markdown(st.session_state.report)
+    if st.session_state.get("_report_possibly_incomplete"):
+        st.warning(
+            "⚠️ Η αναφορά μπορεί να έχει κοπεί πρόωρα (π.χ. λόγω μεγάλου όγκου εξετάσεων) και "
+            "ορισμένες ενότητες — όπως οι Συστάσεις ή η Βιβλιογραφία — ίσως λείπουν. "
+            "Πάτησε «Δημιουργία ξανά» για μια πλήρη έκδοση."
+            if lang=="el" else
+            "⚠️ This report may have been cut short (e.g. due to a large number of uploaded "
+            "lab results) and some sections — such as Recommendations or References — may be "
+            "missing. Click \"Regenerate\" for a complete version."
+        )
+        if st.button("🔄 " + ("Δημιουργία ξανά" if lang=="el" else "Regenerate"), key="regen_incomplete"):
+            st.session_state.report = ""
+            st.session_state.report_recs = None
+            st.session_state.report_pubmed = []
+            st.session_state.pop("_report_possibly_incomplete", None)
+            st.rerun()
     # Photo findings card — if the user uploaded any photos during triage, the
     # AI vision analyses become visible evidence in the final report. Each card
     # shows scan type + Claude's interpretation. (Florence-2 description is
@@ -7755,8 +7910,31 @@ Rewrite ONLY the "{_plan_hdr}" section, grounding it in what these specific abst
                                 "and in every export (PDF/TXT/WhatsApp)."))
     if len(st.session_state.medications)>=2:
         with st.expander("💊 RxNorm" + (" — Έλεγχος Αλληλεπιδράσεων" if lang=="el" else " — Interactions")):
-            with st.spinner("RxNorm..."): rxr=rxnorm_interactions([m["name"] for m in st.session_state.medications])
-            if rxr: st.markdown(rxr)
+            with st.spinner("RxNorm..."):
+                rxr = rxnorm_interactions([m["name"] for m in st.session_state.medications])
+            if rxr.get("message"):
+                st.markdown(rxr["message"])
+            elif rxr.get("error"):
+                st.warning(
+                    "⚠️ Το RxNorm δεν ανταποκρίθηκε αυτή τη στιγμή. Δοκίμασε ξανά σε λίγο."
+                    if lang=="el" else
+                    "⚠️ RxNorm didn't respond right now. Please try again shortly."
+                )
+            else:
+                st.info(
+                    "ℹ️ Το RxNorm δεν μπόρεσε να αναγνωρίσει αρκετά από τα φάρμακα για έλεγχο "
+                    "αλληλεπιδράσεων — η βάση του είναι κυρίως στα Αγγλικά/Αμερικάνικα ονόματα. "
+                    "Δοκίμασε τη διεθνή/δραστική ονομασία (π.χ. \"paracetamol\" αντί \"Depon\")."
+                    if lang=="el" else
+                    "ℹ️ RxNorm couldn't recognise enough of these medications to check for "
+                    "interactions — its database is mostly English/US drug names. Try the "
+                    "international/generic name instead of a local brand name."
+                )
+            if rxr.get("unresolved"):
+                st.caption(
+                    ("Δεν αναγνωρίστηκαν: " if lang=="el" else "Not recognised: ")
+                    + ", ".join(rxr["unresolved"])
+                )
     # ── 4-Pillar Health Profile (replaces the old placeholder wellness score).
     # Honest, factor-explained — Cardiovascular / Respiratory / Metabolic /
     # Symptom burden — each backed by the vitals + history items that drove it.
@@ -7807,7 +7985,8 @@ Rewrite ONLY the "{_plan_hdr}" section, grounding it in what these specific abst
             for k,vv in defaults.items(): st.session_state[k]=vv
             for fbk in ("fb_comment","fb_rating","fb_sent","photo_added","photo_findings",
                         "_draft_hash","_from_facescan","_scan_injected","_vitals_nudge_off",
-                        "_gpt_integrated","_photo_preview",
+                        "_gpt_integrated","_photo_preview","_report_gen_confirmed",
+                        "_report_possibly_incomplete",
                         "lab_added","lab_findings","_lab_preview"): st.session_state.pop(fbk, None)
             st.rerun()
     with c2:
