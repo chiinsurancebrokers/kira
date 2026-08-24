@@ -33,6 +33,16 @@ try:
 except ImportError:
     HEIC_OK = False
 
+# Plain PIL, independent of the HEIC gate above — used to downscale photos
+# before they're sent to the vision APIs (see _downscale_for_vision below).
+try:
+    from PIL import Image as _PILImage
+    _PIL_OK = True
+except ImportError:
+    _PIL_OK = False
+
+import concurrent.futures as _cf
+
 # ── SAFE SECRETS / ENV ACCESS ─────────────────────────────────────────────────
 def _secret(name, default=""):
     """Read a config value from st.secrets, falling back to os.environ, then default.
@@ -179,6 +189,34 @@ def convert_heic_human(img_bytes):
     buf = _io.BytesIO()
     img.convert("RGB").save(buf, format="JPEG", quality=92)
     return buf.getvalue(), "image/jpeg"
+
+def _downscale_for_vision(img_bytes, img_type, max_dim=1568, quality=85):
+    """Resize a phone photo before it's sent to Florence-2 / Claude Vision.
+
+    Phone cameras routinely produce 3000x4000px / multi-MB JPEGs. Claude's
+    vision API already downsamples anything with a long edge over ~1568px
+    internally, so sending the raw file wastes upload time and processing
+    time for zero quality gain — and that wasted time is exactly what lets
+    a mobile browser suspend the tab mid-analysis (killing the Streamlit
+    session and bouncing the user back to the home screen). Shrinking here
+    typically cuts payload size 5-10x with no visible loss of analysis
+    quality. Falls back to the original bytes if PIL is unavailable or the
+    image can't be parsed (e.g. already small, or an unexpected format).
+    """
+    if not _PIL_OK:
+        return img_bytes, img_type
+    try:
+        img = _PILImage.open(_io.BytesIO(img_bytes))
+        img = img.convert("RGB")
+        w, h = img.size
+        if max(w, h) > max_dim:
+            scale = max_dim / float(max(w, h))
+            img = img.resize((max(1, int(w * scale)), max(1, int(h * scale))), _PILImage.LANCZOS)
+        buf = _io.BytesIO()
+        img.save(buf, format="JPEG", quality=quality, optimize=True)
+        return buf.getvalue(), "image/jpeg"
+    except Exception:
+        return img_bytes, img_type
 
 def florence2_human(image_b64, scan_type, api_key):
     workspace = _secret("ROBOFLOW_WORKSPACE","chriss-workspace-zk0ng")
@@ -5823,6 +5861,8 @@ def render_photo_scan():
         with c_img: st.image(uploaded_photo, use_container_width=True)
         with c_info:
             st.markdown(f"**{p.get('name','')}** · {sel}")
+            st.caption("📵 " + ("Μην κλειδώσετε την οθόνη ή αλλάξετε εφαρμογή κατά την ανάλυση." if lang=="el"
+                                else "Don't lock your screen or switch apps while analysing."))
             if st.button("🔬 " + ("Ανάλυση" if lang=="el" else "Analyse"),
                          type="primary", use_container_width=True, key="analyse_human"):
                 if not _rate_limit_gate("photo_scan"):
@@ -5840,14 +5880,29 @@ def render_photo_scan():
                     if fname.endswith(".png"):  img_type = "image/png"
                     if fname.endswith(".webp"): img_type = "image/webp"
 
+                # Shrink the photo BEFORE encoding/sending — the single biggest
+                # lever on wall-clock time (see _downscale_for_vision docstring).
+                img_bytes, img_type = _downscale_for_vision(img_bytes, img_type)
                 img_b64 = _b64.b64encode(img_bytes).decode()
 
-                with st.spinner("Ο Asklepios αναλύει τη φωτογραφία..." if lang=="el" else "Asklepios is analysing the photo..."):
-                    f2_desc = ""
-                    if rf_key:
-                        f2 = florence2_human(img_b64, scan_k, rf_key)
-                        if f2.get("ok"): f2_desc = f2.get("description","")
+                # Safety net: persist the in-progress assessment to Supabase and
+                # drop a marker in the URL *before* the slow network calls start.
+                # If the mobile browser suspends the tab mid-analysis and the
+                # Streamlit session is lost, the reload will still carry this
+                # marker, and the restore block near the bottom of the file
+                # picks it up and offers the user their assessment back instead
+                # of silently dumping them on the home screen.
+                if auth_enabled() and is_logged_in() and st.session_state.profile.get("name"):
+                    save_draft(st.session_state.get("auth_user", ""), {
+                        "profile":         st.session_state.profile,
+                        "lang":            st.session_state.lang,
+                        "triage_chat":     st.session_state.triage_chat,
+                        "medications":     st.session_state.medications,
+                        "vitals_analysis": st.session_state.vitals_analysis,
+                    })
+                    st.query_params["resume"] = "1"
 
+                with st.spinner("Ο Asklepios αναλύει τη φωτογραφία..." if lang=="el" else "Asklepios is analysing the photo..."):
                     # Clinical context from the ongoing assessment so the photo is read
                     # WITHIN the reported complaint — not as an isolated, context-free image.
                     conv = st.session_state.triage_chat
@@ -5872,13 +5927,34 @@ def render_photo_scan():
                     clin_ctx = (ctx_el if lang=="el" else ctx_en)
 
                     base_prompt = HUMAN_SCAN_PROMPTS.get(scan_k, HUMAN_SCAN_PROMPTS["skin"])
-                    rf_context  = f"\n\nFLORENCE-2 DESCRIPTION: {f2_desc}" if f2_desc else ""
                     suffix_el   = "\n\nΔώσε ΣΥΜΠΛΗΡΩΜΑΤΙΚΑ ΟΠΤΙΚΑ ΕΥΡΗΜΑΤΑ (όχι ξεχωριστή διάγνωση): **ΟΡΑΤΑ ΕΥΡΗΜΑΤΑ** (μόνο ό,τι φαίνεται) | **ΣΥΜΒΑΤΟΤΗΤΑ με το παράπονο** (στηρίζει/δεν στηρίζει την τρέχουσα εκτίμηση) | **ΣΗΜΕΙΑ ΠΡΟΣΟΧΗΣ** (μόνο αν φαίνονται καθαρά στην εικόνα). Σύντομα και συνεπή με την τρέχουσα εκτίμηση."
                     suffix_en   = "\n\nGive SUPPLEMENTARY VISUAL FINDINGS (not a separate diagnosis): **VISIBLE FINDINGS** (only what is visible) | **CONSISTENCY with the complaint** (supports/does not support the current assessment) | **WARNING SIGNS** (only if clearly visible in the image). Brief and consistent with the current assessment."
-                    full_prompt = clin_ctx + "\n\n" + base_prompt + rf_context + (suffix_el if lang=="el" else suffix_en)
+                    full_prompt = clin_ctx + "\n\n" + base_prompt + (suffix_el if lang=="el" else suffix_en)
                     sys_prompt  = ("Είσαι ο βοηθός οπτικής εξέτασης του Asklepios AI. Συμπληρώνεις μια εκτίμηση που ήδη εξελίσσεται — ΔΕΝ ξεκινάς νέα. Μένεις πιστός στο παράπονο και στην ανατομική περιοχή που έχει δηλωθεί, είσαι ακριβής, προσεκτικός και δεν δραματοποιείς." if lang=="el"
                                    else "You are Asklepios AI's visual-exam assistant. You SUPPLEMENT an assessment already in progress — you do NOT start a new one. Stay faithful to the stated complaint and anatomical region, be accurate, cautious, and do not dramatise.")
-                    analysis = claude_vision_human(img_b64, img_type, full_prompt, sys_prompt)
+
+                    # Florence-2 and Claude Vision no longer depend on each other's
+                    # output (Florence-2's description used to be embedded into
+                    # Claude's prompt, which forced them to run strictly back-to-back
+                    # — up to ~90s combined). Running them in parallel caps the wait
+                    # at whichever one is slower (~60s), and Florence-2's note is
+                    # now shown as a separate supplementary line instead of being
+                    # blended into Claude's own reasoning.
+                    with _cf.ThreadPoolExecutor(max_workers=2) as ex:
+                        claude_future = ex.submit(claude_vision_human, img_b64, img_type, full_prompt, sys_prompt)
+                        f2_future = ex.submit(florence2_human, img_b64, scan_k, rf_key) if rf_key else None
+                        analysis = claude_future.result()
+                        f2_desc = ""
+                        if f2_future is not None:
+                            try:
+                                f2 = f2_future.result()
+                                if f2.get("ok"): f2_desc = f2.get("description","")
+                            except Exception:
+                                f2_desc = ""
+
+                # Analysis finished normally — no need to resume via the marker.
+                if "resume" in st.query_params:
+                    del st.query_params["resume"]
 
                 # Persist the preview so the next rerun renders Stage 2 at top
                 # level — NOT nested inside this button block (which would die
@@ -7278,10 +7354,6 @@ def render_report():
     )
     render_vitals_summary()
     if not st.session_state.report:
-        if not _rate_limit_gate("report_generation"):
-            if st.button(t("back")):
-                st.session_state.screen="triage"; st.rerun()
-            st.stop()
         # ── Last-chance upload before the final report is generated ──────────
         # Anything added here goes through the SAME claude_analyze_lab() →
         # lab_findings → triage_chat pipeline as the triage-screen uploader,
@@ -7306,6 +7378,15 @@ def render_report():
                 "✅ " + ("Δημιουργία Τελικής Αναφοράς" if lang=="el" else "Generate Final Report"),
                 type="primary", use_container_width=True, key="confirm_report_gen",
             ):
+                # Gate the ACTUAL expensive call here, on the click — not on
+                # merely rendering this screen. The old check ran on every
+                # rerun of this branch (landing on the tab, interacting with
+                # the upload widget above, a browser reconnect, etc.), so it
+                # could burn the 8s cooldown before the user ever pressed this
+                # button, leaving them stuck on a "wait Xs" screen with no
+                # button to retry — nothing to actually wait out.
+                if not _rate_limit_gate("report_generation"):
+                    st.stop()
                 st.session_state["_report_gen_confirmed"] = True
                 st.rerun()
             st.stop()
@@ -8075,6 +8156,34 @@ if auth_enabled() and not is_logged_in():
         # Cookie restore = returning user; skip the hero landing for this session.
         st.session_state.setdefault("_hero_seen", True)
 
+# Restore after an interrupted photo analysis. If a mobile browser suspends the
+# tab mid-analysis (screen lock / app switch during the ~seconds-long spinner),
+# the Streamlit session can be lost and the page reloads into a fresh session —
+# normally landing the user back on the home screen with everything gone. The
+# ?resume=1 marker (set in the analyse button handler, right before the slow
+# network calls, and cleared as soon as they finish) survives that reload in
+# the URL, so we can offer the draft back instead of silently losing it.
+if (auth_enabled() and is_logged_in()
+        and st.query_params.get("resume") == "1"
+        and not st.session_state.profile.get("name")
+        and not st.session_state.get("_resume_loaded")):
+    st.session_state["_resume_loaded"] = True
+    _rd = load_draft(st.session_state.get("auth_user", ""))
+    if _rd and (_rd.get("profile") or {}).get("name"):
+        st.session_state.profile = _rd["profile"]
+        if _rd.get("lang"):
+            st.session_state.lang = _rd["lang"]
+        if _rd.get("triage_chat"):
+            st.session_state.triage_chat = _rd["triage_chat"]
+        if _rd.get("vitals_analysis"):
+            st.session_state.vitals_analysis = _rd["vitals_analysis"]
+        if _rd.get("medications"):
+            st.session_state.medications = _rd["medications"]
+        st.session_state["screen"] = "triage"
+        st.session_state["_resume_restored"] = True
+        delete_draft(st.session_state.get("auth_user", ""))
+    del st.query_params["resume"]
+
 # Restore the in-progress assessment from the ENCRYPTED server-side draft ONLY
 # when returning from the face scan (which sets _from_facescan on the very first
 # run of the new tab). General re-opens of the app stay clean — the user does NOT
@@ -8226,6 +8335,11 @@ if st.session_state.pop("_fs_banner", False):
     msg = (f"✅ Σάρωση φορτώθηκε! {metrics_str}" if lang=="el"
            else f"✅ Face scan loaded! {metrics_str}")
     st.success(msg)
+if st.session_state.pop("_resume_restored", False):
+    lang = st.session_state.lang
+    st.info(("↩️ Η σύνδεση διακόπηκε κατά την ανάλυση φωτογραφίας — επαναφέραμε την εκτίμησή σας ακριβώς εκεί που την αφήσατε."
+             if lang=="el" else
+             "↩️ The connection dropped during photo analysis — your assessment has been restored right where you left off."))
 if   screen=="home":   render_home()
 elif screen=="intake": render_intake()
 elif screen=="vitals": render_vitals()
