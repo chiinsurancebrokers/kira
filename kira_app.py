@@ -4897,6 +4897,67 @@ def _symptom_chips(profile, lang):
         g = "adult"
     return _CHIP_SETS[g]["el" if lang == "el" else "en"]
 
+
+def render_symptom_quick_select(key_prefix="symptoms"):
+    """Render the symptom quick-select in any location of the triage screen.
+
+    The control is intentionally available only before the first triage message,
+    matching the existing Asklepios flow. ``key_prefix`` must be unique for each
+    rendering on the same Streamlit page (e.g. ``symptoms_top`` and
+    ``symptoms_bottom``) so the duplicated buttons never collide. Both renderings
+    share ``st.session_state.symptom_chips``, so selections stay synchronized.
+    """
+    if st.session_state.triage_chat:
+        return
+
+    chips, chips_label = _symptom_chips(
+        st.session_state.profile,
+        st.session_state.lang,
+    )
+
+    cap = t("triage_quick_select")
+    if chips_label:
+        cap += f" ({chips_label})"
+
+    with st.popover("📎 " + cap, use_container_width=False):
+        per_row = 4
+        for row_start in range(0, len(chips), per_row):
+            row = chips[row_start:row_start + per_row]
+            cols = st.columns(per_row)
+
+            for j, chip in enumerate(row):
+                i = row_start + j
+                with cols[j]:
+                    selected = chip in st.session_state.symptom_chips
+                    if st.button(
+                        ("✓ " if selected else "") + chip,
+                        key=f"{key_prefix}_chip_{i}",
+                        use_container_width=True,
+                    ):
+                        if chip in st.session_state.symptom_chips:
+                            st.session_state.symptom_chips.remove(chip)
+                        else:
+                            st.session_state.symptom_chips.append(chip)
+                        st.rerun()
+
+        if st.session_state.symptom_chips:
+            if st.button(
+                "➤ " + t("triage_send_selected"),
+                type="primary",
+                key=f"{key_prefix}_send",
+                use_container_width=True,
+            ):
+                msg = (
+                    t("triage_main_symptoms")
+                    + ", ".join(st.session_state.symptom_chips)
+                )
+                st.session_state.triage_chat.append({
+                    "role": "user",
+                    "content": msg,
+                })
+                st.session_state.symptom_chips = []
+                st.rerun()
+
 def generate_html_report(profile, vitals, report_text, pubmed_refs, lang="el", recs=None, photo_findings=None, lab_findings=None):
     import re as _re, html as _html
     name=_html.escape(str(profile.get("name","—"))); age=str(profile.get("age","—"))
@@ -6362,32 +6423,9 @@ def render_triage():
             "If you're on a computer: call 112 from a nearby phone, or copy the message and send it yourself:"
         )
         st.code(_sms_body, language=None)
-    # Symptom quick-select: only BEFORE the conversation starts, tucked behind
-    # a small attachment-style trigger (📎) instead of a permanent open grid —
-    # same "hidden until needed" idea as the photo/lab/voice expanders below.
-    if not st.session_state.triage_chat:
-        chips, _chips_label = _symptom_chips(st.session_state.profile, st.session_state.lang)
-        _cap = t("triage_quick_select")
-        if _chips_label:
-            _cap += f" ({_chips_label})"
-        with st.popover("📎 " + _cap, use_container_width=False):
-            # Chips in rows of 4 — aligned and wrapped
-            _PER_ROW = 4
-            for _rs in range(0, len(chips), _PER_ROW):
-                _row = chips[_rs:_rs+_PER_ROW]
-                _cc = st.columns(_PER_ROW)
-                for _j, chip in enumerate(_row):
-                    _i = _rs + _j
-                    with _cc[_j]:
-                        sel = chip in st.session_state.symptom_chips
-                        if st.button(("✓ " if sel else "")+chip, key=f"chip_{_i}", use_container_width=True):
-                            if chip in st.session_state.symptom_chips: st.session_state.symptom_chips.remove(chip)
-                            else: st.session_state.symptom_chips.append(chip)
-                            st.rerun()
-            if st.session_state.symptom_chips:
-                if st.button("➤ " + t("triage_send_selected"), type="primary"):
-                    msg = t("triage_main_symptoms") + ", ".join(st.session_state.symptom_chips)
-                    st.session_state.triage_chat.append({"role":"user","content":msg}); st.session_state.symptom_chips=[]; st.rerun()
+    # Symptom quick-select — reusable renderer. This first copy stays near the
+    # beginning of the triage area for discoverability.
+    render_symptom_quick_select("symptoms_top")
     st.divider()
     for msg in st.session_state.triage_chat:
         with st.chat_message(msg["role"], avatar="🩺" if msg["role"]=="assistant" else None):
@@ -6783,6 +6821,12 @@ function copyText(){{
 }
 </style>
 """, unsafe_allow_html=True)
+
+    # Second quick-select copy: deliberately placed immediately above the chat
+    # input, where the user's attention naturally is while preparing a message.
+    # It shares the same selected-chip state as the top copy but uses independent
+    # Streamlit widget keys via its own prefix.
+    render_symptom_quick_select("symptoms_bottom")
 
     user_input=st.chat_input(t("triage_placeholder"),key="triage_input")
     _auto_reply = st.session_state.pop("_scan_reply_pending", False)
