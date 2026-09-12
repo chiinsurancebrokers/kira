@@ -5390,6 +5390,23 @@ div[data-testid="stVerticalBlock"]:has(> div[data-testid="stElementContainer"] .
   background: transparent !important; border: none !important; box-shadow: none !important;
   color: #1A1A2E !important; font-weight: 700 !important; font-size: 14.5px !important;
   padding: 4px 0 0 !important; line-height: 1.3 !important;
+  transition: background 0.12s ease !important;
+}
+div[data-testid="stVerticalBlock"]:has(> div[data-testid="stElementContainer"] .home-action-marker) button:hover {
+  background: #F2F4FF !important; border-radius: 8px !important;
+}
+/* The button itself only covers the text label — give the WHOLE card
+   (icon + label) visible feedback too, since that's what looks clickable. */
+div[data-testid="stVerticalBlockBorderWrapper"]:has(.home-action-marker) {
+  transition: border-color 0.15s ease, transform 0.1s ease, box-shadow 0.15s ease;
+}
+div[data-testid="stVerticalBlockBorderWrapper"]:has(.home-action-marker):hover {
+  border-color: #2D3FE7 !important;
+  box-shadow: 0 4px 14px rgba(45,63,231,0.12);
+  transform: translateY(-1px);
+}
+div[data-testid="stVerticalBlockBorderWrapper"]:has(.home-action-marker):active {
+  transform: translateY(0);
 }
 </style>
 """, unsafe_allow_html=True)
@@ -6261,7 +6278,18 @@ def render_triage():
             sub_en=(f"chat with {nm}" if nm else "Tell me what's bothering you — one question at a time"),
         )
     render_vitals_summary()
-    st.markdown(f'<div class="disclaimer">{t("disclaimer_main")}</div>',unsafe_allow_html=True)
+    # ── Compact info popover (was: two permanent text blocks) ─────────────────
+    # The disclaimer and the "how this screen works" explainer were both
+    # always-open blocks taking vertical space above the chat on EVERY visit —
+    # "banner fatigue" that makes the screen feel like a form, not a chat.
+    # Collapsed into one small ℹ️ trigger; content is one click away instead
+    # of permanently in the way. The emergency banner is deliberately NOT
+    # touched — it stays unconditionally visible, since hiding a safety-
+    # critical warning behind a click is not an acceptable trade for tidiness.
+    with st.popover("ℹ️", use_container_width=False):
+        st.markdown(f'<div class="disclaimer">{t("disclaimer_main")}</div>',unsafe_allow_html=True)
+        if not st.session_state.triage_chat:
+            st.caption(t("triage_explainer"))
     # Live emergency banner — shown immediately once the code-level safety gate
     # (_set_emergency_from_text) has detected a red flag in any assistant reply
     # this session, not only at the end when the final report is generated.
@@ -6273,32 +6301,32 @@ def render_triage():
             "This assessment flagged signs of a possible emergency. "
             "Call <b>166</b> (EKAB) or <b>112</b> immediately if these symptoms apply."
         ) + '</div>', unsafe_allow_html=True)
-    # Symptom quick-select: only BEFORE the conversation starts, so once chatting
-    # the previous Q&A stays visible instead of being buried under the buttons.
+    # Symptom quick-select: only BEFORE the conversation starts, tucked behind
+    # a small attachment-style trigger (📎) instead of a permanent open grid —
+    # same "hidden until needed" idea as the photo/lab/voice expanders below.
     if not st.session_state.triage_chat:
-        st.info(t("triage_explainer"))
         chips, _chips_label = _symptom_chips(st.session_state.profile, st.session_state.lang)
         _cap = t("triage_quick_select")
         if _chips_label:
             _cap += f" ({_chips_label})"
-        st.caption(_cap + ":")
-        # Chips in rows of 4 — aligned and wrapped
-        _PER_ROW = 4
-        for _rs in range(0, len(chips), _PER_ROW):
-            _row = chips[_rs:_rs+_PER_ROW]
-            _cc = st.columns(_PER_ROW)
-            for _j, chip in enumerate(_row):
-                _i = _rs + _j
-                with _cc[_j]:
-                    sel = chip in st.session_state.symptom_chips
-                    if st.button(("✓ " if sel else "")+chip, key=f"chip_{_i}", use_container_width=True):
-                        if chip in st.session_state.symptom_chips: st.session_state.symptom_chips.remove(chip)
-                        else: st.session_state.symptom_chips.append(chip)
-                        st.rerun()
-        if st.session_state.symptom_chips:
-            if st.button("➤ " + t("triage_send_selected"), type="primary"):
-                msg = t("triage_main_symptoms") + ", ".join(st.session_state.symptom_chips)
-                st.session_state.triage_chat.append({"role":"user","content":msg}); st.session_state.symptom_chips=[]; st.rerun()
+        with st.popover("📎 " + _cap, use_container_width=False):
+            # Chips in rows of 4 — aligned and wrapped
+            _PER_ROW = 4
+            for _rs in range(0, len(chips), _PER_ROW):
+                _row = chips[_rs:_rs+_PER_ROW]
+                _cc = st.columns(_PER_ROW)
+                for _j, chip in enumerate(_row):
+                    _i = _rs + _j
+                    with _cc[_j]:
+                        sel = chip in st.session_state.symptom_chips
+                        if st.button(("✓ " if sel else "")+chip, key=f"chip_{_i}", use_container_width=True):
+                            if chip in st.session_state.symptom_chips: st.session_state.symptom_chips.remove(chip)
+                            else: st.session_state.symptom_chips.append(chip)
+                            st.rerun()
+            if st.session_state.symptom_chips:
+                if st.button("➤ " + t("triage_send_selected"), type="primary"):
+                    msg = t("triage_main_symptoms") + ", ".join(st.session_state.symptom_chips)
+                    st.session_state.triage_chat.append({"role":"user","content":msg}); st.session_state.symptom_chips=[]; st.rerun()
     st.divider()
     for msg in st.session_state.triage_chat:
         with st.chat_message(msg["role"], avatar="🩺" if msg["role"]=="assistant" else None):
@@ -6325,6 +6353,15 @@ def render_triage():
             and not st.session_state.get("triage_emergency")
         )
         if _show_qr:
+            # Pulls this row visually up against the chat bubble right above it
+            # (Streamlit renders every st.* call as a sibling block, so this
+            # marker + adjacent-sibling CSS is the reliable way to close that
+            # gap without needing to nest widgets inside the bubble itself).
+            st.markdown(
+                '<div class="qr-marker"></div>'
+                '<style>.qr-marker + div[data-testid="stHorizontalBlock"]{margin-top:-14px}</style>',
+                unsafe_allow_html=True,
+            )
             _lang = st.session_state.lang
             _yes    = "Ναι" if _lang=="el" else "Yes"
             _no     = "Όχι" if _lang=="el" else "No"
@@ -6389,7 +6426,7 @@ def render_triage():
                       ("📷 Upload another photo (if needed)"
                        if _has_photo else
                        "📷 Photo analysis (optional)"))
-        with st.expander(_exp_label, expanded=not _has_photo):
+        with st.expander(_exp_label, expanded=False):
             if _has_photo:
                 st.caption("💡 " + (f"Έχουν προστεθεί {len(_pf_list)} φωτογραφία/ες. "
                                     "Ανέβασε νέα μόνο αν ο Asklepios το ζητήσει "
