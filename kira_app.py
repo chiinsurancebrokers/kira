@@ -2698,6 +2698,62 @@ def whisper_transcribe(audio_bytes, filename="recording.webm", lang="el"):
         return None, f"⚠️ {e}"
 
 # ── CLAUDE ────────────────────────────────────────────────────────────────────
+def claude_stream(messages, system="", max_tokens=1200, timeout=60):
+    """Generator variant of claude() for st.write_stream(): yields text chunks
+    as they arrive from the Anthropic streaming API instead of blocking until
+    the whole reply is generated. Same raw-HTTP approach as claude() (no new
+    dependency) — just 'stream': true plus manual SSE line parsing. On error,
+    yields one message chunk and stops; st.write_stream() still returns the
+    full concatenated text either way, so callers don't need special-casing."""
+    key = get_claude_key()
+    if not key:
+        log_event("claude_chat", ok=False, error="missing_api_key")
+        yield "\u26a0\ufe0f Claude API key not set."
+        return
+    body = json.dumps({
+        "model": "claude-sonnet-4-6",
+        "max_tokens": max_tokens,
+        "system": system,
+        "messages": messages,
+        "stream": True,
+    }).encode()
+    req = urllib.request.Request(
+        "https://api.anthropic.com/v1/messages",
+        data=body,
+        headers={
+            "x-api-key": key,
+            "anthropic-version": "2023-06-01",
+            "content-type": "application/json",
+        },
+    )
+    _t0 = time.time()
+    try:
+        with urllib.request.urlopen(req, timeout=timeout) as r:
+            for raw_line in r:
+                line = raw_line.decode("utf-8", errors="ignore").strip()
+                if not line.startswith("data:"):
+                    continue
+                payload = line[len("data:"):].strip()
+                if not payload or payload == "[DONE]":
+                    continue
+                try:
+                    evt = json.loads(payload)
+                except json.JSONDecodeError:
+                    continue
+                if evt.get("type") == "content_block_delta":
+                    delta = evt.get("delta", {})
+                    if delta.get("type") == "text_delta":
+                        yield delta.get("text", "")
+        log_event("claude_chat", ok=True, ms=(time.time()-_t0)*1000, streamed=True)
+    except urllib.error.URLError as e:
+        if "timed out" in str(e).lower() or "timeout" in str(e).lower():
+            log_event("claude_chat", ok=False, ms=(time.time()-_t0)*1000, error="timeout")
+            yield "\u26a0\ufe0f Request timed out. Please try again."
+            return
+        log_event("claude_chat", ok=False, ms=(time.time()-_t0)*1000, error=str(e))
+        yield f"\u26a0\ufe0f Claude error: {e}"
+
+
 def claude(messages, system="", max_tokens=1200, timeout=60, return_meta=False):
     """Call Claude via raw HTTP.
     If return_meta=True, returns (text, truncated_bool) instead of just text —
@@ -6641,29 +6697,40 @@ function copyText(){{
             st.session_state.triage_chat.append({"role":"user","content":user_input})
         if not _rate_limit_gate("triage_chat"):
             return
-        with st.spinner("Asklepios..."):
-            pp=p.get
-            _flags = []
-            if pp("pregnancy"):
-                _flags.append("ΕΓΚΥΟΣ — πρόσεξε αντενδείξεις φαρμάκων/εξετάσεων κατηγορίας D/X" if st.session_state.lang=="el"
-                              else "PREGNANT — flag drug/test contraindications (Category D/X)")
-            if pp("for_whom") == "other":
-                _flags.append("Αξιολόγηση από φροντιστή για άλλο άτομο" if st.session_state.lang=="el"
-                              else "Caregiver-mode: user is asking on behalf of another person")
-            _age_v = pp("age", 0) or 0
-            if _age_v < 18:
-                _flags.append(f"ΠΑΙΔΙΑΤΡΙΚΟΣ ΑΣΘΕΝΗΣ (ηλικία {_age_v}) — χρησιμοποίησε παιδιατρικές δόσεις/όρια"
-                              if st.session_state.lang=="el" else
-                              f"PEDIATRIC PATIENT (age {_age_v}) — use pediatric dosing/ranges")
-            _flags_str = (" | ".join(_flags) + " | ") if _flags else ""
-            profile_ctx=f"Patient: {pp('name')}, {pp('age')}yo {pp('sex')}, {_flags_str}Hx: {pp('history','none')}, Allergies: {pp('allergies','none')}, Meds: {pp('meds_raw','none')}"
-            vitals_ctx="Vitals: "+", ".join(f"{k}={val}" for k,val in st.session_state.vitals.items()) if st.session_state.vitals else "Vitals: not provided"
-            system_ctx=kira_system()+f"\n\n{profile_ctx}\n{vitals_ctx}"
-            reply=claude([{"role":m["role"],"content":m["content"]} for m in st.session_state.triage_chat],system=system_ctx,max_tokens=1500)
-            if reply and reply.strip() and reply.strip()[-1] not in ".!?»)": reply=reply.rstrip()+" ..."
-            # Code-level safety backstop — independent of whether the model
-            # actually followed the prompt-level "red flags → 166/112" rule.
-            _set_emergency_from_text(reply)
+        pp=p.get
+        _flags = []
+        if pp("pregnancy"):
+            _flags.append("ΕΓΚΥΟΣ — πρόσεξε αντενδείξεις φαρμάκων/εξετάσεων κατηγορίας D/X" if st.session_state.lang=="el"
+                          else "PREGNANT — flag drug/test contraindications (Category D/X)")
+        if pp("for_whom") == "other":
+            _flags.append("Αξιολόγηση από φροντιστή για άλλο άτομο" if st.session_state.lang=="el"
+                          else "Caregiver-mode: user is asking on behalf of another person")
+        _age_v = pp("age", 0) or 0
+        if _age_v < 18:
+            _flags.append(f"ΠΑΙΔΙΑΤΡΙΚΟΣ ΑΣΘΕΝΗΣ (ηλικία {_age_v}) — χρησιμοποίησε παιδιατρικές δόσεις/όρια"
+                          if st.session_state.lang=="el" else
+                          f"PEDIATRIC PATIENT (age {_age_v}) — use pediatric dosing/ranges")
+        _flags_str = (" | ".join(_flags) + " | ") if _flags else ""
+        profile_ctx=f"Patient: {pp('name')}, {pp('age')}yo {pp('sex')}, {_flags_str}Hx: {pp('history','none')}, Allergies: {pp('allergies','none')}, Meds: {pp('meds_raw','none')}"
+        vitals_ctx="Vitals: "+", ".join(f"{k}={val}" for k,val in st.session_state.vitals.items()) if st.session_state.vitals else "Vitals: not provided"
+        system_ctx=kira_system()+f"\n\n{profile_ctx}\n{vitals_ctx}"
+        # ── Live streaming reply ──────────────────────────────────────────────
+        # Was: blocking st.spinner + single claude() call — the whole reply
+        # popped in at once after however many seconds generation took. This
+        # is the single biggest perceived-speed/UX win available inside
+        # Streamlit: render a real assistant bubble and stream tokens into it
+        # as they arrive, same feel as a native chat app. st.write_stream
+        # consumes the generator and returns the full concatenated text once
+        # it finishes, so everything below (punctuation fix, emergency check,
+        # append+rerun) stays unchanged.
+        with st.chat_message("assistant", avatar="🩺"):
+            reply = st.write_stream(claude_stream(
+                [{"role":m["role"],"content":m["content"]} for m in st.session_state.triage_chat],
+                system=system_ctx, max_tokens=1500))
+        if reply and reply.strip() and reply.strip()[-1] not in ".!?»)": reply=reply.rstrip()+" ..."
+        # Code-level safety backstop — independent of whether the model
+        # actually followed the prompt-level "red flags → 166/112" rule.
+        _set_emergency_from_text(reply)
         st.session_state.triage_chat.append({"role":"assistant","content":reply}); st.rerun()
     # Report-language selector: ask only the clinically relevant question.
     # The UI stays in the chosen app language. The report is generated in that
