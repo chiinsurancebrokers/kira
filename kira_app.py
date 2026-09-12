@@ -5386,14 +5386,14 @@ def render_home():
     # per-instance attribute we could otherwise select on.
     st.markdown("""
 <style>
-div[data-testid="stVerticalBlock"]:has(div[data-testid="stElementContainer"] .home-action-marker) button {
+div[data-testid="stVerticalBlock"]:has(div[data-testid="stElementContainer"] .home-action-marker):not(:has(div[data-testid="stColumn"])) button {
   background: transparent !important; border: none !important; box-shadow: none !important;
   color: #1A1A2E !important; font-weight: 700 !important; font-size: 14.5px !important;
   padding: 4px 0 0 !important; line-height: 1.3 !important;
   transition: background 0.12s ease !important;
 }
-div[data-testid="stVerticalBlock"]:has(div[data-testid="stElementContainer"] .home-action-marker) button:hover {
-  background: #F2F4FF !important; border-radius: 8px !important;
+div[data-testid="stVerticalBlock"]:has(div[data-testid="stElementContainer"] .home-action-marker):not(:has(div[data-testid="stColumn"])) button:hover {
+  background: #DCE3FF !important; border-radius: 8px !important;
 }
 /* Stretch this div to fill the whole visible card and center its content —
    the previous attempt assumed a separate outer "border wrapper" div drew
@@ -5402,7 +5402,7 @@ div[data-testid="stVerticalBlock"]:has(div[data-testid="stElementContainer"] .ho
    never fired. Making THIS div (already confirmed to match — it's what
    strips the button styling above) occupy the full card removes the need
    to guess any other selector. */
-div[data-testid="stVerticalBlock"]:has(div[data-testid="stElementContainer"] .home-action-marker) {
+div[data-testid="stVerticalBlock"]:has(div[data-testid="stElementContainer"] .home-action-marker):not(:has(div[data-testid="stColumn"])) {
   min-height: 150px;
   display: flex !important;
   flex-direction: column;
@@ -5412,9 +5412,9 @@ div[data-testid="stVerticalBlock"]:has(div[data-testid="stElementContainer"] .ho
   border-radius: 12px;
   cursor: pointer;
 }
-div[data-testid="stVerticalBlock"]:has(div[data-testid="stElementContainer"] .home-action-marker):hover {
-  background: #F5F7FF !important;
-  box-shadow: inset 0 0 0 1.5px #2D3FE7;
+div[data-testid="stVerticalBlock"]:has(div[data-testid="stElementContainer"] .home-action-marker):not(:has(div[data-testid="stColumn"])):hover {
+  background: #DCE3FF !important;
+  box-shadow: inset 0 0 0 2px #2D3FE7;
 }
 </style>
 """, unsafe_allow_html=True)
