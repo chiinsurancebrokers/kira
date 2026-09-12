@@ -4548,6 +4548,7 @@ KIRA_SYSTEM_EL = """Είσαι ο Asklepios — AI νοσηλευτής για �
 Ρόλος: Τριάζ συμπτωμάτων (μία ερώτηση κάθε φορά), ερμηνεία ζωτικών, φάρμακα, ελληνικό σύστημα υγείας (ΕΟΠΥΥ, ΕΟΔΥ, ΕΟΦ).
 Φωτογραφία: Αν το σύμπτωμα είναι οπτικό (δέρμα/εξάνθημα, μάτι, τραύμα/πληγή, στόμα/λαιμός, νύχια, ορατή αλλοίωση), αφού κάνεις την αρχική σου εκτίμηση πρότεινε στον χρήστη να ανεβάσει φωτογραφία από την επιλογή «📷 Ανάλυση φωτογραφίας» πιο κάτω, για πιο ακριβή εκτίμηση. Για μη-οπτικά συμπτώματα (π.χ. πονοκέφαλος, ζάλη) ΜΗΝ ζητάς φωτογραφία. Η φωτογραφία είναι ΠΡΟΑΙΡΕΤΙΚΗ: αν ο χρήστης δεν ανεβάσει ή δεν θέλει, ΣΥΝΕΧΙΣΕ κανονικά την εκτίμηση χωρίς να σταματάς, να περιμένεις ή να επιμένεις.
 Κανόνες: Πάντα συστήνεις επαγγελματία. Κόκκινες σημαίες → 166/112. Όταν έχεις αρκετά: "Έχω αρκετά στοιχεία — μπορούμε να δημιουργήσουμε πλήρη αναφορά." Μία ερώτηση κάθε φορά.
+Κόκκινη σημαία — σειρά ενεργειών (ΠΟΤΕ μην τις συνδυάζεις στην ίδια απάντηση): Αν ο χρήστης αναφέρει πιθανή κόκκινη σημαία (π.χ. διπλωπία, αδυναμία άκρου, δυσκολία ομιλίας, έντονη αστάθεια, δυσκολία βαδίσματος, πόνος στήθους, δύσπνοια) και χρειάζεσαι να επιβεβαιώσεις χρόνο έναρξης/οξύτητα για να κρίνεις αν είναι πράγματι επείγον, κάνε ΜΙΑ σύντομη διευκρινιστική ερώτηση ΠΡΩΤΑ (π.χ. "Πότε ακριβώς ξεκίνησε αυτό;") — χωρίς κανένα SOS μήνυμα σε αυτή την απάντηση. Μόλις απαντήσει ο χρήστης, αν επιβεβαιώνεται κόκκινη σημαία, η επόμενη απάντησή σου είναι ΑΠΟΚΛΕΙΣΤΙΚΑ το SOS μήνυμα ("🚨 Χρειάζεσαι άμεση αξιολόγηση στα Επείγοντα σήμερα." + λίστα ενδείξεων + οδηγία για 166/112) και ΣΤΑΜΑΤΑΣ εκεί — καμία άλλη ερώτηση, κανένα follow-up. Αν η κόκκινη σημαία είναι ήδη προφανής χωρίς να χρειάζεται διευκρίνιση (π.χ. ο χρήστης ήδη περιέγραψε αιφνίδια έναρξη), προχώρα κατευθείαν στο SOS μήνυμα και σταμάτα, χωρίς ενδιάμεση ερώτηση.
 Ζωτικά: Αν τα συμπτώματα είναι καρδιακά/αυτόνομα (αίσθημα παλμών, ταχυπαλμία, πόνος/σφίξιμο στο στήθος, δύσπνοια, ζάλη, λιποθυμία, κρύος ιδρώτας/εφίδρωση), πρότεινε ήπια στον χρήστη να μετρήσει ζωτικά (καρδιακός ρυθμός/πίεση) — ΠΡΟΑΙΡΕΤΙΚΟ, συνέχισε κανονικά αν δεν το κάνει.
 Triage — κανόνας NON-EMERGENCY: Σύστηνε επίσκεψη σε γιατρό (όχι self-care) όταν ισχύει ΟΠΟΙΟΔΗΠΟΤΕ από τα παρακάτω:
   • Χρειάζεται συνταγογραφούμενο φάρμακο (αντιβιοτικό, steroid, antifungal κλπ.)
@@ -4560,6 +4561,7 @@ KIRA_SYSTEM_EN = """You are Asklepios — an AI nurse for users in Greece. Clini
 Role: Symptom triage (one question at a time), vitals interpretation, medications, Greek health system (EOPYY, EODY, EOF).
 Photo: If the symptom is visual (skin/rash, eye, wound, mouth/throat, nails, any visible lesion), after giving your initial assessment, invite the user to upload a photo via the "📷 Photo analysis" option below for a more accurate assessment. For non-visual symptoms (e.g. headache, dizziness) do NOT ask for a photo. The photo is OPTIONAL: if the user doesn't upload one or declines, CONTINUE the assessment normally — do not stop, wait, or insist.
 Rules: Always recommend a professional. Red flags → 166/112. When ready: "I have enough information — we can generate a full clinical report." One question at a time.
+Red flag — order of operations (NEVER combine these in the same reply): If the user reports a possible red flag (e.g. double vision, limb weakness, slurred speech, marked unsteadiness, difficulty walking, chest pain, shortness of breath) and you need to confirm onset timing/acuity to judge whether it's genuinely an emergency, ask ONE short clarifying question FIRST (e.g. "When exactly did this start?") — with no SOS message in that same reply. Once the user answers, if a red flag is confirmed, your next reply is EXCLUSIVELY the SOS message ("🚨 You need immediate evaluation at Emergency today." + the list of warning signs + the instruction to call 166/112) and you STOP there — no further question, no follow-up. If the red flag is already unambiguous without needing clarification (e.g. the user already described sudden onset), go straight to the SOS message and stop, with no intermediate question.
 Vitals: If the symptoms are cardiac/autonomic (palpitations, racing heart, chest pain/tightness, shortness of breath, dizziness, fainting, cold sweat/sweating), gently suggest the user measure vitals (heart rate/blood pressure) — OPTIONAL, continue normally if they don't.
 Triage — NON-EMERGENCY rule: Recommend seeing a doctor (not self-care) when ANY of the following apply:
   • A prescription medication is needed (antibiotic, steroid, antifungal, etc.)
@@ -6309,6 +6311,57 @@ def render_triage():
             "This assessment flagged signs of a possible emergency. "
             "Call <b>166</b> (EKAB) or <b>112</b> immediately if these symptoms apply."
         ) + '</div>', unsafe_allow_html=True)
+        # ── One-tap emergency actions ──────────────────────────────────────────
+        # tel:/sms: are plain browser-native URI schemes — no new dependency, no
+        # JS. Greece's 112 officially accepts SMS from the general public (not
+        # just pre-registered users), and Advanced Mobile Location (AML)
+        # auto-sends the sender's GPS on both calls and texts to 112 on Android
+        # 4.1+/iOS 11.3+ — the phone/carrier handles that part automatically,
+        # we don't need to replicate it. All this removes is the friction of
+        # dialling or composing a message while someone is scared, in pain, or
+        # alone: one tap to call, one tap to send a pre-filled SMS instead of
+        # typing it from scratch.
+        _sms_body = (
+            "Χρειάζομαι βοήθεια. Πιθανό επείγον περιστατικό υγείας. Είμαι μόνος/η."
+            if st.session_state.lang == "el" else
+            "I need help. Possible medical emergency. I am alone."
+        )
+        _sms_href = "sms:112?body=" + urllib.parse.quote(_sms_body)
+        _ec1, _ec2 = st.columns(2)
+        with _ec1:
+            st.markdown(
+                '<a href="tel:112" style="display:block;text-align:center;padding:12px;'
+                'border-radius:10px;background:#DC2626;color:white;text-decoration:none;'
+                'font-weight:700;font-size:15px;">📞 ' +
+                ("Κάλεσε 112" if st.session_state.lang=="el" else "Call 112") +
+                '</a>', unsafe_allow_html=True)
+        with _ec2:
+            st.markdown(
+                f'<a href="{_sms_href}" style="display:block;text-align:center;padding:12px;'
+                'border-radius:10px;background:#FFFFFF;color:#DC2626;text-decoration:none;'
+                'font-weight:700;font-size:15px;border:2px solid #DC2626;">✉️ ' +
+                ("SMS στο 112" if st.session_state.lang=="el" else "SMS to 112") +
+                '</a>', unsafe_allow_html=True)
+        st.caption(
+            "Το μήνυμα SMS είναι προσυμπληρωμένο — απλά πάτησε αποστολή. Αν δεν ανοίξει αυτόματα, στείλε SMS στο 112 χειροκίνητα."
+            if st.session_state.lang=="el" else
+            "The SMS is pre-filled — just tap send. If it doesn't open automatically, text 112 manually."
+        )
+        # ── Desktop fallback ─────────────────────────────────────────────────
+        # tel:/sms: links need a SIM card behind them — on a laptop/desktop
+        # they usually do nothing (no default handler), so the two buttons
+        # above are effectively dead there. We can't detect "is this a phone"
+        # reliably from Streamlit, so we always show this too: st.code() gives
+        # a free copy button (no JS/dependency needed) so the person can at
+        # least copy the message and read/send it from any phone nearby.
+        st.caption(
+            "Σε υπολογιστή τα κουμπιά παραπάνω συνήθως δεν κάνουν τίποτα (δεν υπάρχει SIM κάρτα εκεί). "
+            "Αν είσαι σε υπολογιστή: κάλεσε 112 από κοντινό τηλέφωνο, ή αντέγραψε το μήνυμα και στείλ' το εσύ:"
+            if st.session_state.lang=="el" else
+            "On a computer the buttons above usually do nothing (no SIM card there). "
+            "If you're on a computer: call 112 from a nearby phone, or copy the message and send it yourself:"
+        )
+        st.code(_sms_body, language=None)
     # Symptom quick-select: only BEFORE the conversation starts, tucked behind
     # a small attachment-style trigger (📎) instead of a permanent open grid —
     # same "hidden until needed" idea as the photo/lab/voice expanders below.
