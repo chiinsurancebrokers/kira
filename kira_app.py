@@ -6149,14 +6149,61 @@ def _render_lab_upload_widget(p, lang, key_prefix=""):
 
 def render_triage():
     render_stepper("triage")
+    # ── Bigger desktop chat room ──────────────────────────────────────────────
+    # Same fix as PetaiNurse: on wide desktop screens the centered column used
+    # to read as a thin thread floating in empty space. Widen it above a
+    # tablet breakpoint (phones keep their native full-width feel) and give
+    # chat bubbles more room + slightly larger text.
+    st.markdown("""
+<style>
+@media (min-width: 900px) {
+  .main .block-container { max-width: 920px !important; }
+}
+[data-testid="stChatMessage"] {
+  font-size: 15.5px !important;
+  line-height: 1.65 !important;
+  padding: 6px 4px !important;
+}
+</style>
+""", unsafe_allow_html=True)
     p=st.session_state.profile
     nm = p.get("name","")
-    render_doc_header(
-        "Ας μιλήσουμε για τα συμπτώματα", "Let's talk about your symptoms",
-        icon="💬",
-        sub_el=(f"συνομιλία με {nm}" if nm else "Πες τι σε απασχολεί — μία ερώτηση κάθε φορά"),
-        sub_en=(f"chat with {nm}" if nm else "Tell me what's bothering you — one question at a time"),
-    )
+    # ── Hero panel (Ashlar-style split) ────────────────────────────────────────
+    # Instead of just widening the column (previous fix), give the desktop
+    # whitespace an actual purpose: a value-prop panel next to the header,
+    # using the same indigo/purple gradient already used for the face-scan
+    # CTA card, so it reads as "on-brand" rather than a new theme. Streamlit
+    # stacks st.columns to full-width automatically on narrow screens, so on
+    # mobile this just becomes a short card above the header — no separate
+    # mobile-only code path needed.
+    lang = st.session_state.lang
+    _hero_col, _head_col = st.columns([1, 1.7], gap="medium")
+    with _hero_col:
+        st.markdown(f'''
+<div style="background:linear-gradient(135deg,#2D3FE7,#7B2FE0);border-radius:16px;
+            padding:26px 22px;color:white;height:100%;">
+  <div style="font-size:11px;letter-spacing:1.2px;opacity:0.75;font-weight:700;margin-bottom:10px;">
+    ASKLEPIOS · AI ΝΟΣΗΛΕΥΤΗΣ</div>
+  <div style="font-size:23px;font-weight:800;line-height:1.3;margin-bottom:12px;">
+    {"Βρες σαφήνεια<br/>πριν δεις γιατρό." if lang=="el" else "Find clarity<br/>before you see a doctor."}
+  </div>
+  <div style="font-size:13.5px;opacity:0.9;line-height:1.6;margin-bottom:16px;">
+    {"Πες μας τι νιώθεις. Ο Asklepios κάνει μία ερώτηση κάθε φορά και ετοιμάζει μια δομημένη αναφορά για τον γιατρό σου." if lang=="el" else "Tell us what's bothering you. Asklepios asks one question at a time and prepares a structured report for your doctor."}
+  </div>
+  <ul style="list-style:none;padding:0;margin:0;font-size:13px;line-height:2.1;">
+    <li>🔒 {"Ιδιωτικά — δεν πωλούμε δεδομένα" if lang=="el" else "Private — we never sell your data"}</li>
+    <li>📄 {"Δομημένη αναφορά για τον γιατρό σου" if lang=="el" else "Structured report for your doctor"}</li>
+    <li>⚕️ {"Δεν αντικαθιστά ιατρική συμβουλή" if lang=="el" else "Not a substitute for medical advice"}</li>
+  </ul>
+</div>
+''', unsafe_allow_html=True)
+    with _head_col:
+        render_doc_header(
+            "Ας μιλήσουμε για τα συμπτώματα", "Let's talk about your symptoms",
+            icon="💬",
+            sub_el=(f"συνομιλία με {nm}" if nm else "Πες τι σε απασχολεί — μία ερώτηση κάθε φορά"),
+            sub_en=(f"chat with {nm}" if nm else "Tell me what's bothering you — one question at a time"),
+        )
     render_vitals_summary()
     st.markdown(f'<div class="disclaimer">{t("disclaimer_main")}</div>',unsafe_allow_html=True)
     # Live emergency banner — shown immediately once the code-level safety gate
@@ -6200,6 +6247,47 @@ def render_triage():
     for msg in st.session_state.triage_chat:
         with st.chat_message(msg["role"], avatar="🩺" if msg["role"]=="assistant" else None):
             st.markdown(msg["content"])
+
+    # ── Guided quick-reply chips ──────────────────────────────────────────────
+    # Yes / No / Not sure chips under Asklepios' last question — one-tap answer
+    # instead of typing, same idea as a native SOS triage flow. Purely additive:
+    # the chat box below still works for anything else (dates, details, etc.).
+    # Only shown for closed (yes/no-shaped) questions — detected by the ABSENCE
+    # of open "wh"-style words — so we never show meaningless Yes/No chips
+    # under a question like "Πότε ξεκίνησε ο πόνος;".
+    _OPEN_Q_WORDS = ("πότε","πόσο","πού","ποιο","ποια","ποιος","πώς","τι ",
+                     "what","when","how","where","which","why","describe","πες μου")
+    if st.session_state.triage_chat and st.session_state.triage_chat[-1]["role"] == "assistant":
+        _last_txt = st.session_state.triage_chat[-1]["content"].strip()
+        _norm = _strip_accents(_last_txt.lower())
+        _ready = ["εχω αρκετα στοιχεια","μπορουμε να δημιουργησουμε","i have enough information",
+                  "we can generate","medical report","ιατρικη αναφορα"]
+        _show_qr = (
+            _last_txt.endswith("?")
+            and not any(w in _norm for w in [_strip_accents(w) for w in _OPEN_Q_WORDS])
+            and not any(ph in _norm for ph in [_strip_accents(p) for p in _ready])
+            and not st.session_state.get("triage_emergency")
+        )
+        if _show_qr:
+            _lang = st.session_state.lang
+            _yes    = "Ναι" if _lang=="el" else "Yes"
+            _no     = "Όχι" if _lang=="el" else "No"
+            _unsure = "Δεν είμαι σίγουρος/η" if _lang=="el" else "Not sure"
+            _qc1, _qc2, _qc3 = st.columns(3)
+            _n = len(st.session_state.triage_chat)
+            with _qc1:
+                if st.button("✅ " + _yes, key=f"qr_yes_{_n}", use_container_width=True):
+                    st.session_state.triage_chat.append({"role":"user","content":_yes})
+                    st.session_state["_quickreply_pending"] = True; st.rerun()
+            with _qc2:
+                if st.button("❌ " + _no, key=f"qr_no_{_n}", use_container_width=True):
+                    st.session_state.triage_chat.append({"role":"user","content":_no})
+                    st.session_state["_quickreply_pending"] = True; st.rerun()
+            with _qc3:
+                if st.button("❔ " + _unsure, key=f"qr_unsure_{_n}", use_container_width=True):
+                    st.session_state.triage_chat.append({"role":"user","content":_unsure})
+                    st.session_state["_quickreply_pending"] = True; st.rerun()
+
     # Context-aware vitals: suggest the SPECIFIC measurement that fits the symptoms.
     # Scan button appears only for the cardiac category (camera → heart rate only).
     _lang = st.session_state.lang
@@ -6545,7 +6633,8 @@ function copyText(){{
     user_input=st.chat_input(t("triage_placeholder"),key="triage_input")
     _auto_reply = st.session_state.pop("_scan_reply_pending", False)
     _voice_reply = st.session_state.pop("_voice_send_pending", False)
-    if user_input or _auto_reply or _voice_reply:
+    _quickreply_reply = st.session_state.pop("_quickreply_pending", False)
+    if user_input or _auto_reply or _voice_reply or _quickreply_reply:
         if user_input:
             st.session_state.pop("photo_added", None)
             st.session_state.pop("lab_added", None)
