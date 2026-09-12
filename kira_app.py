@@ -5386,27 +5386,35 @@ def render_home():
     # per-instance attribute we could otherwise select on.
     st.markdown("""
 <style>
-div[data-testid="stVerticalBlock"]:has(> div[data-testid="stElementContainer"] .home-action-marker) button {
+div[data-testid="stVerticalBlock"]:has(div[data-testid="stElementContainer"] .home-action-marker) button {
   background: transparent !important; border: none !important; box-shadow: none !important;
   color: #1A1A2E !important; font-weight: 700 !important; font-size: 14.5px !important;
   padding: 4px 0 0 !important; line-height: 1.3 !important;
   transition: background 0.12s ease !important;
 }
-div[data-testid="stVerticalBlock"]:has(> div[data-testid="stElementContainer"] .home-action-marker) button:hover {
+div[data-testid="stVerticalBlock"]:has(div[data-testid="stElementContainer"] .home-action-marker) button:hover {
   background: #F2F4FF !important; border-radius: 8px !important;
 }
-/* The button itself only covers the text label — give the WHOLE card
-   (icon + label) visible feedback too, since that's what looks clickable. */
-div[data-testid="stVerticalBlockBorderWrapper"]:has(.home-action-marker) {
-  transition: border-color 0.15s ease, transform 0.1s ease, box-shadow 0.15s ease;
+/* Stretch this div to fill the whole visible card and center its content —
+   the previous attempt assumed a separate outer "border wrapper" div drew
+   the visible box and only guessed its hover state; if the mouse was over
+   padding that belongs to that outer div rather than this one, the hover
+   never fired. Making THIS div (already confirmed to match — it's what
+   strips the button styling above) occupy the full card removes the need
+   to guess any other selector. */
+div[data-testid="stVerticalBlock"]:has(div[data-testid="stElementContainer"] .home-action-marker) {
+  min-height: 150px;
+  display: flex !important;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.12s ease, box-shadow 0.15s ease;
+  border-radius: 12px;
+  cursor: pointer;
 }
-div[data-testid="stVerticalBlockBorderWrapper"]:has(.home-action-marker):hover {
-  border-color: #2D3FE7 !important;
-  box-shadow: 0 4px 14px rgba(45,63,231,0.12);
-  transform: translateY(-1px);
-}
-div[data-testid="stVerticalBlockBorderWrapper"]:has(.home-action-marker):active {
-  transform: translateY(0);
+div[data-testid="stVerticalBlock"]:has(div[data-testid="stElementContainer"] .home-action-marker):hover {
+  background: #F5F7FF !important;
+  box-shadow: inset 0 0 0 1.5px #2D3FE7;
 }
 </style>
 """, unsafe_allow_html=True)
