@@ -737,7 +737,10 @@ st.markdown("""
   --ask-accent:#4F46E5; --ask-accent-2:#4338CA; --ask-accent-soft:#EEF1FB;
   --ask-gold:#67E8F9; --ask-gold-dark:#4F46E5; --ask-good:#059669;
 }
-[data-testid="stAppViewContainer"]{ background: var(--ask-bg) !important; }
+[data-testid="stAppViewContainer"]{ background: var(--ask-bg) !important; overflow-x: hidden !important; }
+html, body, [data-testid="stApp"], [data-testid="stMain"]{ overflow-x: hidden !important; max-width: 100vw; }
+[data-testid="stChatMessage"]{ box-sizing: border-box; }
+[data-testid="stChatMessageContent"]{ min-width: 0; overflow-wrap: anywhere; }
 [data-testid="stHeader"]{ background: transparent !important; }
 .main .block-container, [data-testid="stMainBlockContainer"]{ max-width: 980px; padding-top: 2.2rem !important; }
 
@@ -7484,6 +7487,13 @@ def render_triage():
 
     _auto_reply = st.session_state.pop("_scan_reply_pending", False)
     _voice_reply = st.session_state.pop("_voice_send_pending", False)
+    # Any message that is still waiting for Asklepios (e.g. sent with the
+    # quick-select symptom buttons, or a reply lost when the phone slept)
+    # gets answered now instead of leaving the conversation stuck.
+    if (not user_input and not _auto_reply and not _voice_reply
+            and st.session_state.triage_chat
+            and st.session_state.triage_chat[-1].get("role") == "user"):
+        _auto_reply = True
     if user_input or _auto_reply or _voice_reply:
         if user_input:
             st.session_state.pop("photo_added", None)
