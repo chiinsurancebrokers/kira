@@ -525,7 +525,7 @@ st.markdown("""
 [data-testid="stSidebar"] { display: none; }
 
 .kira-hero {
-    background: linear-gradient(135deg, #2D3FE7 0%, #7B2FE0 100%);
+    background: linear-gradient(135deg, #0F766E 0%, #0C1727 100%);
     border-radius: 20px;
     padding: 48px 40px;
     color: white;
@@ -541,14 +541,14 @@ st.markdown("""
     border-radius: 16px;
     padding: 24px 28px;
     margin-bottom: 20px;
-    box-shadow: 0 2px 12px rgba(45,63,231,0.07);
-    border: 1px solid rgba(45,63,231,0.08);
+    box-shadow: 0 2px 12px rgba(15,118,110,0.07);
+    border: 1px solid rgba(15,118,110,0.08);
 }
-.card h3 { font-size: 16px; font-weight: 600; margin: 0 0 16px; color: #1A1A2E; }
+.card h3 { font-size: 16px; font-weight: 600; margin: 0 0 16px; color: #172333; }
 
 .vital-badge {
-    background: #F4F6FF;
-    border: 1px solid #E0E5FF;
+    background: #F5F7F9;
+    border: 1px solid #E7EBEF;
     border-radius: 12px;
     padding: 14px 18px;
     min-width: 120px;
@@ -558,7 +558,7 @@ st.markdown("""
 .vital-badge.green { background: #EDFBF0; border-color: #A3E6B5; }
 .vital-badge.yellow { background: #FFFBEB; border-color: #FCD34D; }
 .vital-badge.red { background: #FEF2F2; border-color: #FCA5A5; }
-.vital-badge .vb-value { font-size: 22px; font-weight: 700; color: #1A1A2E; }
+.vital-badge .vb-value { font-size: 22px; font-weight: 700; color: #172333; }
 .vital-badge .vb-label { font-size: 11px; color: #6B7280; margin-top: 2px; }
 .vital-badge .vb-unit  { font-size: 10px; color: #9CA3AF; }
 
@@ -604,30 +604,30 @@ st.markdown("""
 .kira-step-circle {
     width: 32px; height: 32px; border-radius: 50%;
     display: flex; align-items: center; justify-content: center;
-    font-size: 13px; font-weight: 700; border: 2px solid #E0E5FF;
+    font-size: 13px; font-weight: 700; border: 2px solid #E7EBEF;
     background: white; color: #CBD5E1; position: relative; z-index: 1;
 }
-.kira-step.done   .kira-step-circle { background: #7B2FE0; border-color: #7B2FE0; color: white; }
-.kira-step.active .kira-step-circle { background: #2D3FE7; border-color: #2D3FE7; color: white; box-shadow: 0 0 0 4px rgba(45,63,231,.15); }
+.kira-step.done   .kira-step-circle { background: #0C1727; border-color: #0C1727; color: white; }
+.kira-step.active .kira-step-circle { background: #0F766E; border-color: #0F766E; color: white; box-shadow: 0 0 0 4px rgba(15,118,110,.15); }
 .kira-step-label { font-size: 10px; color: #94A3B8; text-align: center; letter-spacing: .02em; word-break: break-word; overflow-wrap: break-word; }
-.kira-step.done   .kira-step-label  { color: #7B2FE0; }
-.kira-step.active .kira-step-label  { color: #2D3FE7; font-weight: 600; }
+.kira-step.done   .kira-step-label  { color: #0C1727; }
+.kira-step.active .kira-step-label  { color: #0F766E; font-weight: 600; }
 .kira-step-line {
-    flex: 1; height: 2px; background: #E0E5FF; margin-bottom: 18px;
+    flex: 1; height: 2px; background: #E7EBEF; margin-bottom: 18px;
 }
-.kira-step-line.done { background: #7B2FE0; }
+.kira-step-line.done { background: #0C1727; }
 
 .chip-row { display: flex; flex-wrap: wrap; gap: 8px; margin: 10px 0 16px; }
 .chip {
     padding: 6px 14px; border-radius: 20px; font-size: 13px; cursor: pointer;
-    border: 1.5px solid #C4B5FD; color: #5B21B6; background: #F5F3FF;
+    border: 1.5px solid #BFE3DC; color: #0F766E; background: #EEF7F5;
     transition: all .15s; user-select: none;
 }
-.chip.selected { background: #7B2FE0; border-color: #7B2FE0; color: white; }
+.chip.selected { background: #0C1727; border-color: #0C1727; color: white; }
 
 .wellness-wrap {
     display: flex; align-items: center; gap: 20px;
-    background: linear-gradient(135deg,#2D3FE7,#7B2FE0);
+    background: linear-gradient(135deg,#0F766E,#0C1727);
     border-radius: 16px; padding: 20px 24px; margin-bottom: 20px; color: white;
 }
 .wellness-score { font-size: 48px; font-weight: 800; letter-spacing: -2px; }
@@ -660,10 +660,10 @@ st.markdown("""
     width: 100%; border-collapse: collapse;
     font-size: 12.5px; margin: 12px 0;
 }
-[data-testid="stMarkdownContainer"] thead th { background: #F4F6FF; font-weight: 600; }
+[data-testid="stMarkdownContainer"] thead th { background: #F5F7F9; font-weight: 600; }
 [data-testid="stMarkdownContainer"] th,
 [data-testid="stMarkdownContainer"] td {
-    border: 1px solid #E0E5FF; padding: 7px 9px;
+    border: 1px solid #E7EBEF; padding: 7px 9px;
     text-align: left; vertical-align: top;
     word-break: normal !important; overflow-wrap: break-word !important; hyphens: none;
 }
@@ -681,11 +681,11 @@ st.markdown("""
 }
 .stButton button:active { transform: scale(0.98); }
 .stButton button[kind="primary"] {
-    box-shadow: 0 4px 14px rgba(45,63,231,0.22) !important;
+    box-shadow: 0 4px 14px rgba(15,118,110,0.22) !important;
     border: none !important;
 }
 .stButton button[kind="secondary"] {
-    border: 1.5px solid #E0E5FF !important;
+    border: 1.5px solid #E7EBEF !important;
     box-shadow: 0 1px 4px rgba(15,23,42,0.04) !important;
 }
 div[data-baseweb="input"], div[data-baseweb="textarea"], div[data-baseweb="select"] {
@@ -697,8 +697,8 @@ div[data-baseweb="input"], div[data-baseweb="textarea"], div[data-baseweb="selec
     border: 1.5px solid transparent !important;
 }
 .stTextInput input:focus, .stNumberInput input:focus, .stTextArea textarea:focus {
-    border-color: #2D3FE7 !important;
-    box-shadow: 0 0 0 3px rgba(45,63,231,0.12) !important;
+    border-color: #0F766E !important;
+    box-shadow: 0 0 0 3px rgba(15,118,110,0.12) !important;
 }
 [data-testid="stExpander"] {
     border-radius: 16px !important;
@@ -711,8 +711,150 @@ div[data-baseweb="input"], div[data-baseweb="textarea"], div[data-baseweb="selec
 }
 /* Radio / checkbox accent — keep the same blue instead of Streamlit's default */
 .stRadio [data-baseweb="radio"] div:first-child, .stCheckbox [data-baseweb="checkbox"] div:first-child {
-    border-color: #2D3FE7 !important;
+    border-color: #0F766E !important;
 }
+</style>
+""", unsafe_allow_html=True)
+
+# ── HAL 3 DESIGN LAYER ────────────────────────────────────────────────────────
+# Brings Asklepios in line with the Ashlar HAL 3 production look: navy + gold
+# brand frame, flat light-grey canvas, white bordered cards, navy primary
+# buttons, HAL-style chat bubbles and underline progress bar. Asklepios keeps
+# its own accent (clinical teal) so the two products read as one family but
+# are distinguishable at a glance. Pure CSS — no widget or logic changes.
+st.markdown("""
+<style>
+:root{
+  --ask-navy:#0C1727; --ask-navy-2:#172333; --ask-bg:#F5F7F9; --ask-white:#FFFFFF;
+  --ask-border:#E7EBEF; --ask-text:#172333; --ask-muted:#687586;
+  --ask-accent:#0F766E; --ask-accent-2:#0B5F58; --ask-accent-soft:#E6F4F1;
+  --ask-gold:#C99A4A; --ask-gold-dark:#A9762E; --ask-good:#1A7A4C;
+}
+[data-testid="stAppViewContainer"]{ background: var(--ask-bg) !important; }
+[data-testid="stHeader"]{ background: transparent !important; }
+.main .block-container, [data-testid="stMainBlockContainer"]{ max-width: 980px; padding-top: 2.2rem !important; }
+
+/* Buttons — navy primary, quiet bordered secondary (HAL .btn-primary/.btn-secondary) */
+.stButton button[kind="primary"], .stFormSubmitButton button[kind="primary"],
+.stDownloadButton button[kind="primary"], .stLinkButton a[kind="primary"]{
+  background: var(--ask-navy) !important; color: #fff !important;
+  border: none !important; border-radius: 10px !important;
+  box-shadow: 0 6px 16px rgba(12,23,39,.16) !important;
+}
+.stButton button[kind="primary"]:hover, .stFormSubmitButton button[kind="primary"]:hover{
+  background: var(--ask-navy-2) !important;
+}
+.stButton button[kind="primary"]:disabled{ background:#AEB6C1 !important; box-shadow:none !important; }
+.stButton button[kind="secondary"], .stDownloadButton button[kind="secondary"],
+.stFormSubmitButton button[kind="secondary"]{
+  background: var(--ask-white) !important; color: var(--ask-text) !important;
+  border: 1px solid var(--ask-border) !important; border-radius: 10px !important;
+  box-shadow: none !important;
+}
+.stButton button[kind="secondary"]:hover{
+  border-color: var(--ask-accent) !important; color: var(--ask-accent) !important;
+  background: var(--ask-accent-soft) !important;
+}
+
+/* Inputs */
+.stTextInput input, .stNumberInput input, .stTextArea textarea{
+  border-radius: 10px !important; background: var(--ask-white) !important;
+  border: 1px solid var(--ask-border) !important;
+}
+div[data-baseweb="input"], div[data-baseweb="textarea"], div[data-baseweb="select"]{ border-radius: 10px !important; }
+.stTextInput input:focus, .stNumberInput input:focus, .stTextArea textarea:focus{
+  border-color: var(--ask-accent) !important; box-shadow: 0 0 0 3px rgba(15,118,110,.12) !important;
+}
+
+/* Cards: bordered containers that carry a marker become white HAL cards */
+div[data-testid="stVerticalBlock"]:has(> div[data-testid="stElementContainer"] .ask-card-marker),
+div[data-testid="stVerticalBlock"]:has(> div[data-testid="stElementContainer"] .home-action-marker){
+  background: var(--ask-white) !important; border-color: var(--ask-border) !important;
+  border-radius: 14px !important;
+}
+div[data-testid="stElementContainer"]:has(.ask-card-marker){ display:none !important; }
+/* Cards: bordered containers + expanders */
+[data-testid="stVerticalBlockBorderWrapper"]{
+  border-color: var(--ask-border) !important; border-radius: 14px !important;
+  background: var(--ask-white);
+}
+[data-testid="stExpander"]{
+  border: 1px solid var(--ask-border) !important; border-radius: 12px !important;
+  background: var(--ask-white); box-shadow: none !important;
+}
+
+/* Chat — HAL bubbles: user = navy right, Asklepios = white bordered left */
+[data-testid="stChatMessage"]{
+  border-radius: 14px; padding: 12px 14px; margin: 8px 0; max-width: 88%;
+  background: var(--ask-white); border: 1px solid var(--ask-border);
+  border-bottom-left-radius: 4px; margin-right: auto;
+}
+[data-testid="stChatMessage"]:has([data-testid="stChatMessageAvatarUser"]){
+  background: var(--ask-navy); border-color: var(--ask-navy);
+  border-bottom-left-radius: 14px; border-bottom-right-radius: 4px;
+  margin-left: auto; margin-right: 0; flex-direction: row-reverse;
+}
+[data-testid="stChatMessage"]:has([data-testid="stChatMessageAvatarUser"]) [data-testid="stMarkdownContainer"],
+[data-testid="stChatMessage"]:has([data-testid="stChatMessageAvatarUser"]) [data-testid="stMarkdownContainer"] *{
+  color: #fff !important;
+}
+[data-testid="stChatMessageAvatarUser"]{ background: var(--ask-gold) !important; }
+[data-testid="stChatInput"] > div{
+  border-radius: 999px !important; border: 1px solid var(--ask-border) !important;
+  background: var(--ask-white) !important;
+}
+[data-testid="stChatInputSubmitButton"]{ background: var(--ask-navy) !important; color:#fff !important; border-radius: 999px !important; }
+
+/* Disclaimer — HAL's calm amber note instead of a loud warning box */
+.disclaimer{
+  background:#FDF3E5 !important; border:1px solid #F1DFC2 !important;
+  color:#7A4A00 !important; border-radius:10px !important;
+}
+
+/* Stepper → HAL 3 underline progress bar */
+.kira-stepper{
+  display:flex; gap:6px; align-items:stretch; justify-content:space-between;
+  background:var(--ask-white); border:1px solid var(--ask-border); border-radius:12px;
+  padding:10px 14px 0; margin:0 0 18px;
+}
+.kira-step{
+  flex:1; max-width:none; flex-direction:row; justify-content:center; align-items:center;
+  gap:5px; padding-bottom:8px; border-bottom:3px solid var(--ask-border);
+}
+.kira-step-circle, .kira-step.done .kira-step-circle, .kira-step.active .kira-step-circle{
+  width:auto; height:auto; border:none !important; background:none !important;
+  box-shadow:none !important; font-size:11px; color:var(--ask-muted);
+}
+.kira-step-label{ font-size:11px; color:var(--ask-muted); letter-spacing:0; }
+.kira-step.active{ border-bottom-color:var(--ask-accent); }
+.kira-step.active .kira-step-circle, .kira-step.active .kira-step-label{ color:var(--ask-navy) !important; font-weight:700; }
+.kira-step.done{ border-bottom-color:var(--ask-good); }
+.kira-step.done .kira-step-circle, .kira-step.done .kira-step-label{ color:var(--ask-good) !important; }
+.kira-step-line{ display:none; }
+
+/* Shared HAL building blocks used by the landing, home and triage screens */
+.ask-eyebrow{ color:var(--ask-gold); font-weight:700; font-size:11px; letter-spacing:.12em; text-transform:uppercase; }
+.ask-brand-row{ font-weight:700; letter-spacing:.08em; font-size:12px; color:#9AA7BD; }
+.ask-trust{ list-style:none; padding:0; margin:0; display:flex; flex-direction:column; gap:10px; }
+.ask-trust li{ font-size:13px; color:#DFE4EE; display:flex; align-items:center; gap:10px; margin:0; }
+.ask-dot{ width:6px; height:6px; border-radius:50%; background:var(--ask-gold); display:inline-block; flex-shrink:0; }
+.ask-avatar-dot{
+  width:34px; height:34px; border-radius:50%; flex-shrink:0;
+  background:radial-gradient(circle at 35% 30%, #1F6F68, var(--ask-navy));
+  display:flex; align-items:center; justify-content:center; font-size:15px;
+}
+.ask-online{ color:var(--ask-good); font-weight:400; font-size:11px; margin-left:4px; }
+.ask-needs{
+  background:var(--ask-white); border:1px solid var(--ask-border); border-radius:12px;
+  padding:12px 16px; display:flex; justify-content:space-between; align-items:flex-start; gap:10px;
+}
+.ask-needs-title{ font-weight:700; font-size:13px; color:var(--ask-text); }
+.ask-needs-empty{ color:var(--ask-muted); font-size:13px; }
+.ask-chips{ display:flex; flex-wrap:wrap; gap:6px; margin-top:6px; }
+.ask-chip{ background:var(--ask-bg); border:1px solid var(--ask-border); border-radius:999px; padding:4px 10px; font-size:12px; color:var(--ask-text); }
+.ask-chip.flag{ background:var(--ask-accent-soft); border-color:var(--ask-accent); color:var(--ask-accent); }
+.ask-footer{ text-align:center; font-size:11px; color:var(--ask-muted); padding:18px 12px 8px; line-height:1.55; max-width:760px; margin:0 auto; }
+.ask-footer a{ color:var(--ask-muted); }
 </style>
 """, unsafe_allow_html=True)
 
@@ -874,10 +1016,10 @@ def render_psychology_card(lang="el", refs_override=None):
                          f'padding:5px 14px;border-radius:8px;font-size:13px;font-weight:700;'
                          f'text-decoration:none;margin-top:6px">📞 {num}</a>')
         else:
-            link_html = (f'<a href="{url}" target="_blank" style="display:inline-block;background:#EEF2FF;'
+            link_html = (f'<a href="{url}" target="_blank" style="display:inline-block;background:#EEF7F5;'
                          f'color:#4338CA;padding:5px 14px;border-radius:8px;font-size:12px;font-weight:700;'
                          f'text-decoration:none;margin-top:6px">↗ Άνοιγμα</a>' if lang == "el" else
-                         f'<a href="{url}" target="_blank" style="display:inline-block;background:#EEF2FF;'
+                         f'<a href="{url}" target="_blank" style="display:inline-block;background:#EEF7F5;'
                          f'color:#4338CA;padding:5px 14px;border-radius:8px;font-size:12px;font-weight:700;'
                          f'text-decoration:none;margin-top:6px">↗ Open</a>')
         cards_html += (
@@ -916,7 +1058,7 @@ def render_psychology_card(lang="el", refs_override=None):
     st.markdown(f"""
 <style>
 .psych-card {{
-  background: white; border: 1px solid #C7D2FE; border-radius: 22px;
+  background: white; border: 1px solid #BFE3DC; border-radius: 22px;
   padding: 20px 22px; margin: 16px 0;
   font-family: 'Inter', system-ui, sans-serif;
   box-shadow: 0 2px 8px rgba(99,102,241,0.07);
@@ -938,7 +1080,7 @@ def render_psychology_card(lang="el", refs_override=None):
   color: #6B7280; margin-bottom: 10px;
 }}
 .psych-ref {{
-  border: 1px solid #EEF2FF; border-radius: 10px; padding: 11px 13px;
+  border: 1px solid #EEF7F5; border-radius: 10px; padding: 11px 13px;
   margin-bottom: 8px; background: #F5F7FF;
 }}
 .psych-ref-title {{
@@ -1159,9 +1301,9 @@ def render_login_gate():
     if is_logged_in():
         return True
 
-    st.markdown(f'''<div style="background:rgba(45,63,231,0.06);border:1px solid rgba(45,63,231,0.15);border-radius:14px;padding:20px 22px;text-align:center;margin:10px 0">
+    st.markdown(f'''<div style="background:rgba(15,118,110,0.06);border:1px solid rgba(15,118,110,0.15);border-radius:14px;padding:20px 22px;text-align:center;margin:10px 0">
         <div style="font-size:34px;margin-bottom:6px">🔒</div>
-        <div style="font-size:16px;font-weight:700;color:#1A1A2E">{"Σύνδεση" if lang=="el" else "Sign in"}</div>
+        <div style="font-size:16px;font-weight:700;color:#172333">{"Σύνδεση" if lang=="el" else "Sign in"}</div>
         <div style="font-size:13px;color:#6B7280;margin-top:4px">{"Email + κωδικός μίας χρήσης. Χωρίς password." if lang=="el" else "Email + one-time code. No password."}</div>
     </div>''', unsafe_allow_html=True)
 
@@ -1310,28 +1452,28 @@ def render_ad_banner(lang):
     css = """
 <style>
 .ad-hero {
-  background: #F4F6FF;
+  background: #F5F7F9;
   border-radius: 28px; padding: 44px 32px 32px;
   margin: 12px 0 28px; text-align: center;
   font-family: 'Inter', system-ui, sans-serif;
-  border: 1px solid #E0E5FF;
+  border: 1px solid #E7EBEF;
 }
 .ad-pill {
   display: inline-flex; align-items: center; gap: 12px;
-  background: white; border: 1px solid #E0E5FF;
+  background: white; border: 1px solid #E7EBEF;
   border-radius: 999px; padding: 8px 18px;
   font-size: 11.5px; font-weight: 700; letter-spacing: 0.08em;
-  color: #2D3FE7; margin-bottom: 20px;
-  box-shadow: 0 1px 3px rgba(45,63,231,0.06);
+  color: #0F766E; margin-bottom: 20px;
+  box-shadow: 0 1px 3px rgba(15,118,110,0.06);
 }
 .ad-pill .sep { color: #D1D5DB; font-weight: 400; }
 .ad-pill .gdpr { color: #10B981; letter-spacing: 0.04em; }
 .ad-title {
   font-size: 42px; font-weight: 800; line-height: 1.12;
-  letter-spacing: -1px; color: #1A1A2E; margin: 0 0 4px;
+  letter-spacing: -1px; color: #172333; margin: 0 0 4px;
 }
 .ad-title .word { display: inline-block; }
-.ad-title .accent { color: #2D3FE7; }
+.ad-title .accent { color: #0F766E; }
 .ad-sub {
   font-size: 16px; color: #4B5563;
   max-width: 540px; margin: 16px auto 32px;
@@ -1344,16 +1486,16 @@ def render_ad_banner(lang):
   gap: 16px; margin: 32px 0 32px; flex-wrap: wrap;
 }
 .ad-card {
-  background: white; border: 1px solid #E0E5FF;
+  background: white; border: 1px solid #E7EBEF;
   border-radius: 22px; padding: 22px 18px;
   width: 200px; max-width: 230px; min-height: 150px;
-  box-shadow: 0 2px 10px rgba(45,63,231,0.05);
+  box-shadow: 0 2px 10px rgba(15,118,110,0.05);
   display: flex; flex-direction: column; align-items: flex-start;
   text-align: left;
 }
 .ad-card-icon {
   width: 42px; height: 42px; border-radius: 50%;
-  background: #E8ECFE; display: flex; align-items: center;
+  background: #E6F4F1; display: flex; align-items: center;
   justify-content: center; font-size: 19px; margin-bottom: 12px;
 }
 .ad-card-label {
@@ -1363,9 +1505,9 @@ def render_ad_banner(lang):
 
 /* Card 1: Chat bubble */
 .ad-bubble {
-  background: #F4F6FF; border-radius: 12px 12px 12px 4px;
+  background: #F5F7F9; border-radius: 12px 12px 12px 4px;
   padding: 11px 13px; font-size: 13px;
-  color: #1A1A2E; line-height: 1.45; font-style: italic;
+  color: #172333; line-height: 1.45; font-style: italic;
   font-weight: 500; width: 100%;
 }
 /* Card 2: Vitals readout */
@@ -1376,12 +1518,12 @@ def render_ad_banner(lang):
   padding: 8px 11px; font-size: 12.5px;
 }
 .ad-vital-row .lbl { color: #6B7280; font-weight: 600; letter-spacing: 0.02em; }
-.ad-vital-row .val { color: #1A1A2E; font-weight: 700; font-variant-numeric: tabular-nums; }
+.ad-vital-row .val { color: #172333; font-weight: 700; font-variant-numeric: tabular-nums; }
 /* Card 3: Report checklist */
 .ad-report { display: flex; flex-direction: column; gap: 7px; width: 100%; }
 .ad-report-line {
   display: flex; align-items: center; gap: 9px;
-  font-size: 13px; color: #1A1A2E; font-weight: 500;
+  font-size: 13px; color: #172333; font-weight: 500;
 }
 .ad-report-line .check {
   width: 18px; height: 18px; border-radius: 50%;
@@ -1391,7 +1533,7 @@ def render_ad_banner(lang):
 }
 .ad-arrow {
   display: flex; align-items: center;
-  font-size: 20px; color: #2D3FE7; font-weight: 700; opacity: 0.4;
+  font-size: 20px; color: #0F766E; font-weight: 700; opacity: 0.4;
 }
 
 /* Trust badges — inline with dot separators */
@@ -1399,7 +1541,7 @@ def render_ad_banner(lang):
   display: flex; justify-content: center; align-items: center;
   gap: 10px; flex-wrap: wrap; font-size: 12.5px;
   color: #6B7280; font-weight: 500;
-  padding-top: 14px; border-top: 1px solid #E0E5FF;
+  padding-top: 14px; border-top: 1px solid #E7EBEF;
   margin-top: 16px;
 }
 .ad-trust .item { white-space: nowrap; }
@@ -1546,7 +1688,7 @@ def render_explainer_video(lang):
   font-family: 'Inter', system-ui, sans-serif;
 }}
 .exp-header .ttl {{
-  font-size: 18px; font-weight: 700; color: #1A1A2E;
+  font-size: 18px; font-weight: 700; color: #172333;
   letter-spacing: -0.01em;
 }}
 .exp-header .hint {{
@@ -1588,7 +1730,7 @@ def render_explainer_video(lang):
   color: #9CA3AF; text-transform: uppercase; margin-bottom: 6px;
 }}
 .exp-title {{
-  font-size: 15px; font-weight: 700; color: #1A1A2E;
+  font-size: 15px; font-weight: 700; color: #172333;
   line-height: 1.35; margin-bottom: 8px;
 }}
 .exp-sub {{
@@ -1627,8 +1769,8 @@ def render_login_screen():
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
 .ask-hero-nav{display:flex;align-items:center;justify-content:space-between;
   padding:10px 2px 14px;font-family:'Inter',system-ui,sans-serif;}
-.ask-hero-logo{font-size:17px;font-weight:800;color:#1A1A2E;}
-.ask-hero-logo span{color:#2D3FE7;}
+.ask-hero-logo{font-size:17px;font-weight:800;color:#172333;}
+.ask-hero-logo span{color:#0F766E;}
 </style>
 """, unsafe_allow_html=True)
     lc1, lc2 = st.columns([5, 2])
@@ -1650,111 +1792,117 @@ def render_login_screen():
     _rtl_open  = f'<div dir="{_dir}" style="text-align:{_ta};">' if rtl else ""
     _rtl_close = "</div>" if rtl else ""
 
-    # ── HERO CARD ─────────────────────────────────────────────────────────────
+    # ── HAL 3-STYLE SPLIT HERO ────────────────────────────────────────────────
+    # Left: navy brand panel (eyebrow, headline, lead, modes, trust bullets,
+    # "Your case" panel). Right: white chat card that holds the sign-in / CTA,
+    # mirroring HAL 3's split-shell → chat-card layout.
+    def _tx(new_key, legacy_key=None):
+        # el/en have the new HAL-style copy; other languages keep their
+        # existing translated hero copy where an equivalent exists.
+        if legacy_key and lang not in ("el", "en") and legacy_key in T.get(lang, {}):
+            return T[lang][legacy_key]
+        return t(new_key)
+    _al = "right" if rtl else "left"
     st.markdown(f"""
 <style>
-.ask-hr-hero{{background:#F4F6FF;border:1px solid #E0E5FF;border-radius:24px;
-  padding:30px 22px 22px;margin:0 0 16px;text-align:{_ta};
-  font-family:'Inter',system-ui,sans-serif;direction:{_dir};}}
-.ask-hr-kicker{{font-size:10px;font-weight:700;letter-spacing:0.14em;color:#2D3FE7;
-  margin-bottom:12px;text-transform:uppercase;}}
-.ask-hr-h1{{font-size:28px;font-weight:800;line-height:1.18;color:#1A1A2E;
-  letter-spacing:-0.5px;margin-bottom:12px;}}
-.ask-hr-sub{{font-size:14px;color:#4B5563;line-height:1.6;max-width:400px;
-  margin:0 auto 20px;}}
-.ask-hr-fcards{{display:flex;flex-direction:column;gap:8px;text-align:{"right" if rtl else "left"};margin-bottom:14px;}}
-.ask-hr-fc{{background:white;border:1px solid #E0E5FF;border-radius:12px;
-  padding:10px 13px;display:flex;align-items:center;gap:10px;flex-direction:{"row-reverse" if rtl else "row"};}}
-.ask-hr-fc-ic{{width:30px;height:30px;border-radius:50%;display:flex;
-  align-items:center;justify-content:center;font-size:14px;flex-shrink:0;}}
-.ask-hr-fc-ic.blue{{background:#E8ECFE;}}
-.ask-hr-fc-ic.red{{background:#FEE2E2;}}
-.ask-hr-fc-ic.grn{{background:#ECFDF5;}}
-.ask-hr-fc-ic.pur{{background:#EDE9FE;}}
-.ask-hr-fc-txt{{font-size:12.5px;font-weight:600;color:#1A1A2E;flex:1;min-width:0;line-height:1.3;text-align:{"right" if rtl else "left"};word-break:break-word;}}
-.ask-hr-fc-txt small{{font-weight:400;color:#6B7280;display:block;font-size:11px;}}
-.ask-hr-fc-badge{{background:#E8ECFE;color:#2D3FE7;font-size:10.5px;font-weight:700;
-  padding:2px 8px;border-radius:999px;flex-shrink:0;white-space:nowrap;}}
-.ask-hr-fc-badge.ok{{background:#ECFDF5;color:#059669;}}
-.ask-hr-power{{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:13px;}}
-@media (max-width: 480px) {{
-  .ask-hr-power{{grid-template-columns:1fr;}}
+div[data-testid="stHorizontalBlock"]:has(.ask-split-left){{
+  gap:0 !important; border-radius:20px; overflow:hidden; align-items:stretch;
+  box-shadow:0 20px 50px rgba(12,23,39,.18); margin:4px 0 24px;
 }}
-.ask-hr-pow{{background:white;border:1.5px solid #2D3FE7;border-radius:12px;
-  padding:10px 11px;display:flex;align-items:flex-start;gap:8px;text-align:{"right" if rtl else "left"};
-  flex-direction:{"row-reverse" if rtl else "row"};overflow-wrap:normal;word-break:keep-all;}}
-.ask-hr-pow.gov{{border-color:#059669;}}
-.ask-hr-pow.lang{{border-color:#7C3AED;}}
-.ask-hr-pow-ic{{font-size:16px;flex-shrink:0;margin-top:1px;}}
-.ask-hr-pow-t{{font-size:11px;font-weight:700;color:#1A1A2E;margin-bottom:2px;}}
-.ask-hr-pow-s{{font-size:10px;color:#6B7280;line-height:1.4;}}
-.ask-hr-pow-tag{{display:inline-block;background:#E8ECFE;color:#2D3FE7;
-  font-size:10px;font-weight:700;padding:2px 6px;border-radius:999px;margin-top:3px;}}
-.ask-hr-pow.gov .ask-hr-pow-tag{{background:#ECFDF5;color:#059669;}}
-.ask-hr-pow.lang .ask-hr-pow-tag{{background:#EDE9FE;color:#7C3AED;}}
-.ask-hr-disc{{background:white;border:1px solid #E5E7EB;border-radius:10px;
-  padding:9px 12px;font-size:11px;color:#6B7280;line-height:1.5;
-  display:flex;gap:8px;align-items:flex-start;text-align:{"right" if rtl else "left"};
-  flex-direction:{"row-reverse" if rtl else "row"};}}
+div[data-testid="stHorizontalBlock"]:has(.ask-split-left) > div[data-testid="stColumn"]:first-child{{
+  background:#0C1727; padding:44px 40px 36px !important;
+}}
+div[data-testid="stHorizontalBlock"]:has(.ask-split-left) > div[data-testid="stColumn"]:last-child{{
+  background:#FFFFFF; padding:22px 24px 24px !important;
+}}
+.ask-split-left{{ direction:{_dir}; text-align:{_al}; font-family:'Inter',system-ui,sans-serif; }}
+.ask-split-h1{{ font-size:34px; line-height:1.1; font-weight:800; color:#FFFFFF;
+  letter-spacing:-.01em; margin:14px 0 18px; }}
+.ask-split-h1 span{{ color:#C99A4A !important; }}
+.ask-split-lead{{ font-size:14px; line-height:1.6; color:#C3CBDB; max-width:440px; margin:0 0 22px; }}
+.ask-split-lead strong{{ color:#FFFFFF; }}
+.ask-modes{{ display:flex; flex-wrap:wrap; gap:8px; margin:0 0 24px; }}
+.ask-mode{{ padding:9px 15px; border-radius:999px; font-size:13px; font-weight:600; color:#FFFFFF;
+  background:rgba(255,255,255,.06); border:1px solid rgba(255,255,255,.14); }}
+.ask-mode.on{{ background:#0F766E; border-color:#0F766E; }}
+.ask-split-left .ask-trust{{ margin:0 0 26px; }}
+.ask-split-left .ask-needs{{ background:rgba(255,255,255,.05); border-color:rgba(255,255,255,.12); }}
+.ask-split-left .ask-needs-title{{ color:#FFFFFF; }}
+.ask-split-left .ask-needs-empty{{ color:#9AA7BD; }}
+.ask-card-head{{ display:flex; align-items:center; gap:10px; padding:0 0 14px;
+  border-bottom:1px solid #E7EBEF; direction:{_dir}; }}
+.ask-card-name{{ font-weight:700; font-size:14px; color:#172333; }}
+.ask-prog{{ display:flex; gap:6px; padding:10px 0 0; font-size:11px; color:#687586; margin-bottom:16px; }}
+.ask-prog div{{ flex:1; text-align:center; padding-bottom:6px; border-bottom:3px solid #E7EBEF; }}
+.ask-prog div.on{{ color:#0C1727; font-weight:700; border-color:#0F766E; }}
+.ask-bubble{{ max-width:92%; padding:12px 14px; border-radius:14px; border-bottom-left-radius:4px;
+  background:#FFFFFF; border:1px solid #E7EBEF; font-size:14px; line-height:1.5; color:#172333;
+  margin:0 0 14px; direction:{_dir}; text-align:{_al}; }}
+@media (max-width: 640px){{
+  div[data-testid="stHorizontalBlock"]:has(.ask-split-left) > div[data-testid="stColumn"]:first-child{{ padding:30px 22px 26px !important; }}
+  div[data-testid="stHorizontalBlock"]:has(.ask-split-left) > div[data-testid="stColumn"]:last-child{{ padding:20px 18px !important; }}
+  .ask-split-h1{{ font-size:30px; }}
+  .ask-split-left .ask-needs{{ display:none; }}
+}}
 </style>
-<div class="ask-hr-hero">
-  <div class="ask-hr-kicker">ASKLEPIOS · {"AI ΝΟΣΗΛΕΥΤΗΣ" if lang=="el" else "AI NURSE"}</div>
-  <div class="ask-hr-h1">{t("hero_h1")}</div>
-  <div class="ask-hr-sub">{t("hero_sub")}</div>
-  <div class="ask-hr-fcards">
-    <div class="ask-hr-fc">
-      <div class="ask-hr-fc-ic blue">💬</div>
-      <div class="ask-hr-fc-txt">{t("hero_f1t")}<small>{t("hero_f1s")}</small></div>
-      <div class="ask-hr-fc-badge">{"Βήμα" if lang=="el" else "Step"} 1</div>
-    </div>
-    <div class="ask-hr-fc">
-      <div class="ask-hr-fc-ic red">❤️</div>
-      <div class="ask-hr-fc-txt">{t("hero_f2t")}<small>{t("hero_f2s")}</small></div>
-      <div class="ask-hr-fc-badge">{"Βήμα" if lang=="el" else "Step"} 2</div>
-    </div>
-    <div class="ask-hr-fc">
-      <div class="ask-hr-fc-ic pur">🧬</div>
-      <div class="ask-hr-fc-txt">{t("hero_f3t")}<small>{t("hero_f3s")}</small></div>
-      <div class="ask-hr-fc-badge">{"Βήμα" if lang=="el" else "Step"} 3</div>
-    </div>
-    <div class="ask-hr-fc">
-      <div class="ask-hr-fc-ic grn">📋</div>
-      <div class="ask-hr-fc-txt">{t("hero_f4t")}<small>{t("hero_f4s")}</small></div>
-      <div class="ask-hr-fc-badge ok">✓ {"Αναφορά" if lang=="el" else "Report"}</div>
-    </div>
+""", unsafe_allow_html=True)
+
+    _left, _right = st.columns([1.08, 1], gap="small")
+    with _left:
+        st.markdown(f"""
+<div class="ask-split-left">
+  <div class="ask-brand-row">{t("hal_brand")}</div>
+  <div class="ask-eyebrow" style="margin-top:20px;">{t("hal_eyebrow")}</div>
+  <div class="ask-split-h1">{_tx("hal_h1", "hero_h1")}</div>
+  <div class="ask-split-lead">{_tx("hal_lead", "hero_sub")}</div>
+  <div class="ask-modes">
+    <span class="ask-mode on">{t("hal_mode_sym")}</span>
+    <span class="ask-mode">{t("hal_mode_photo")}</span>
+    <span class="ask-mode">{t("hal_mode_lab")}</span>
   </div>
-  <div class="ask-hr-power">
-    <div class="ask-hr-pow">
-      <div class="ask-hr-pow-ic">🤖</div>
-      <div>
-        <div class="ask-hr-pow-t">{t("hero_p1t")}</div>
-        <div class="ask-hr-pow-s">{t("hero_p1s")}</div>
-        <div class="ask-hr-pow-tag">{t("hero_p1b")}</div>
-      </div>
+  <ul class="ask-trust">
+    <li><i class="ask-dot"></i>{t("hal_t1")}</li>
+    <li><i class="ask-dot"></i>{t("hal_t2")}</li>
+    <li><i class="ask-dot"></i>{t("hal_t3")}</li>
+  </ul>
+  <div class="ask-needs">
+    <div>
+      <div class="ask-needs-title">{t("hal_case_title")}</div>
+      <div class="ask-needs-empty">{t("hal_case_empty")}</div>
     </div>
-    <div class="ask-hr-pow gov">
-      <div class="ask-hr-pow-ic">🇬🇷</div>
-      <div>
-        <div class="ask-hr-pow-t">{t("hero_p2t")}</div>
-        <div class="ask-hr-pow-s">{t("hero_p2s")}</div>
-        <div class="ask-hr-pow-tag">{t("hero_p2b")}</div>
-      </div>
-    </div>
-    <div class="ask-hr-pow lang">
-      <div class="ask-hr-pow-ic">🌍</div>
-      <div>
-        <div class="ask-hr-pow-t">{t("hero_p3t")}</div>
-        <div class="ask-hr-pow-s">{t("hero_p3s")}</div>
-        <div class="ask-hr-pow-tag">{t("hero_p3b")}</div>
-      </div>
-    </div>
-  </div>
-  <div class="ask-hr-disc">
-    <span style="font-size:14px;flex-shrink:0">ℹ️</span>
-    <span>{t("hero_disc")}</span>
   </div>
 </div>
 """, unsafe_allow_html=True)
+
+    with _right:
+        _greet = t("hal_greet") if (auth_enabled() and not is_logged_in()) else t("hal_greet_in")
+        st.markdown(f"""
+<div class="ask-card-head">
+  <div class="ask-avatar-dot">🩺</div>
+  <div class="ask-card-name">Asklepios <span class="ask-online">{t("hal_online")}</span></div>
+</div>
+<div class="ask-prog">
+  <div class="on">{t("hal_prog1")}</div>
+  <div>{t("hal_prog2")}</div>
+  <div>{t("hal_prog3")}</div>
+</div>
+<div class="ask-bubble">{_greet}</div>
+""", unsafe_allow_html=True)
+        if is_logged_in():
+            # Already authenticated — show CTA to proceed to home
+            if st.button(t("hero_cta"), type="primary", use_container_width=True, key="hero_cta_loggedin"):
+                st.session_state["_hero_seen"] = True
+                st.rerun()
+        elif auth_enabled():
+            # Supabase is configured — require OTP login.
+            # render_login_gate calls st.rerun() on success, which will
+            # hit is_logged_in() above on the next render.
+            render_login_gate()
+        else:
+            # No Supabase (local dev) — CTA proceeds directly
+            if st.button(t("hero_cta"), type="primary", use_container_width=True, key="hero_cta_noauth"):
+                st.session_state["_hero_seen"] = True
+                st.rerun()
 
     # ── gov.gr QUICK ACCESS ───────────────────────────────────────────────────
     _gov_links = [
@@ -1801,34 +1949,34 @@ def render_login_screen():
         ("5","🧠", "Triage AI", "Claude + GPT-4o"),
         ("6","📄", t("stepper_report").split(" ",1)[1] if " " in t("stepper_report") else "Report", "PubMed"),
     ]
-    _arrow = f'<div style="flex:0 0 auto;align-self:flex-start;padding-top:14px;font-size:11px;color:#C7D2FE;">{"‹" if rtl else "›"}</div>'
+    _arrow = f'<div style="flex:0 0 auto;align-self:flex-start;padding-top:14px;font-size:11px;color:#BFE3DC;">{"‹" if rtl else "›"}</div>'
     _steps_html = _arrow.join(f"""<div style="flex:1 1 0;min-width:0;text-align:{_ta};padding:0 2px;">
-  <div style="width:28px;height:28px;border-radius:50%;background:#2D3FE7;color:white;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:12px;margin:0 auto 8px;">{n}</div>
+  <div style="width:28px;height:28px;border-radius:50%;background:#0F766E;color:white;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:12px;margin:0 auto 8px;">{n}</div>
   <div style="font-size:20px;margin-bottom:5px;">{ic}</div>
-  <div style="font-size:12px;font-weight:700;color:#1A1A2E;margin-bottom:2px;line-height:1.25;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;word-break:break-word;">{tt}</div>
+  <div style="font-size:12px;font-weight:700;color:#172333;margin-bottom:2px;line-height:1.25;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;word-break:break-word;">{tt}</div>
   <div style="font-size:10px;color:#6B7280;line-height:1.35;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;word-break:break-word;">{ss}</div>
 </div>""" for n, ic, tt, ss in _steps_data)
     st.markdown(f"""
 <div style="font-family:'Inter',system-ui,sans-serif;margin:0 0 20px;direction:{_dir};">
-  <div style="font-size:18px;font-weight:800;color:#1A1A2E;text-align:{_ta};margin-bottom:16px;">{t("hero_how")}</div>
+  <div style="font-size:18px;font-weight:800;color:#172333;text-align:{_ta};margin-bottom:16px;">{t("hero_how")}</div>
   <div style="display:flex;align-items:flex-start;gap:0;width:100%;flex-direction:{"row-reverse" if rtl else "row"};">{_steps_html}</div>
 </div>
 """, unsafe_allow_html=True)
 
     # ── STATS BAND ────────────────────────────────────────────────────────────
     st.markdown(f"""
-<div style="display:flex;border:1px solid #E0E5FF;border-radius:14px;overflow:hidden;
+<div style="display:flex;border:1px solid #E7EBEF;border-radius:14px;overflow:hidden;
   background:white;margin:0 0 20px;font-family:'Inter',system-ui,sans-serif;direction:{_dir};">
-  <div style="flex:1;text-align:{_ta};padding:13px 6px;border-{"left" if rtl else "right"}:1px solid #E0E5FF;">
-    <div style="font-size:19px;font-weight:800;color:#2D3FE7;">88.9%</div>
+  <div style="flex:1;text-align:{_ta};padding:13px 6px;border-{"left" if rtl else "right"}:1px solid #E7EBEF;">
+    <div style="font-size:19px;font-weight:800;color:#0F766E;">88.9%</div>
     <div style="font-size:10.5px;color:#6B7280;margin-top:3px;line-height:1.3;">{t("hero_s1l")}</div>
   </div>
-  <div style="flex:1;text-align:{_ta};padding:13px 6px;border-{"left" if rtl else "right"}:1px solid #E0E5FF;">
-    <div style="font-size:19px;font-weight:800;color:#2D3FE7;">0%</div>
+  <div style="flex:1;text-align:{_ta};padding:13px 6px;border-{"left" if rtl else "right"}:1px solid #E7EBEF;">
+    <div style="font-size:19px;font-weight:800;color:#0F766E;">0%</div>
     <div style="font-size:10.5px;color:#6B7280;margin-top:3px;line-height:1.3;">{t("hero_s2l")}</div>
   </div>
   <div style="flex:1;text-align:{_ta};padding:13px 6px;">
-    <div style="font-size:19px;font-weight:800;color:#2D3FE7;">2 AI</div>
+    <div style="font-size:19px;font-weight:800;color:#0F766E;">2 AI</div>
     <div style="font-size:10.5px;color:#6B7280;margin-top:3px;line-height:1.3;">{t("hero_s3l")}</div>
   </div>
 </div>
@@ -1836,53 +1984,29 @@ def render_login_screen():
 
     # ── FOR WHOM ─────────────────────────────────────────────────────────────
     _aud = [
-        ("👨\u200d👩\u200d👧","#E8ECFE","#2D3FE7", t("hero_aud1t"), t("hero_aud1d"), t("hero_aud1b")),
+        ("👨\u200d👩\u200d👧","#E6F4F1","#0F766E", t("hero_aud1t"), t("hero_aud1d"), t("hero_aud1b")),
         ("🤝","#FFFBEB","#92400E", t("hero_aud2t"), t("hero_aud2d"), t("hero_aud2b")),
         ("👨\u200d⚕️","#ECFDF5","#065F46", t("hero_aud3t"), t("hero_aud3d"), t("hero_aud3b")),
     ]
-    _aud_cards = "".join(f"""<div style="flex:1 1 160px;background:white;border:1px solid #E0E5FF;border-radius:14px;padding:14px 14px 12px;direction:{_dir};text-align:{"right" if rtl else "left"};">
+    _aud_cards = "".join(f"""<div style="flex:1 1 160px;background:white;border:1px solid #E7EBEF;border-radius:14px;padding:14px 14px 12px;direction:{_dir};text-align:{"right" if rtl else "left"};">
   <div style="width:32px;height:32px;border-radius:50%;background:{bg};display:flex;align-items:center;justify-content:center;font-size:16px;margin-bottom:9px;{"margin-right:0;margin-left:auto;" if rtl else ""}">{ic}</div>
-  <div style="font-size:13px;font-weight:800;color:#1A1A2E;margin-bottom:4px;">{tt}</div>
+  <div style="font-size:13px;font-weight:800;color:#172333;margin-bottom:4px;">{tt}</div>
   <div style="font-size:11.5px;color:#4B5563;line-height:1.5;margin-bottom:7px;">{dd}</div>
   <div style="display:inline-block;background:{bg};color:{tc};font-size:10px;font-weight:700;padding:2px 9px;border-radius:999px;">{badge}</div>
 </div>""" for ic, bg, tc, tt, dd, badge in _aud)
     st.markdown(f"""
 <div style="font-family:'Inter',system-ui,sans-serif;margin:0 0 22px;">
-  <div style="font-size:18px;font-weight:800;color:#1A1A2E;text-align:{_ta};margin-bottom:16px;">{t("hero_for_whom")}</div>
+  <div style="font-size:18px;font-weight:800;color:#172333;text-align:{_ta};margin-bottom:16px;">{t("hero_for_whom")}</div>
   <div style="display:flex;gap:10px;flex-wrap:wrap;flex-direction:{"row-reverse" if rtl else "row"};">{_aud_cards}</div>
 </div>
 """, unsafe_allow_html=True)
 
-    # ── LOGIN FORM / CONTINUE ─────────────────────────────────────────────────
-    st.markdown(f"""
-<div style="font-size:16px;font-weight:800;color:#1A1A2E;text-align:{_ta};
-  margin:4px 0 12px;font-family:'Inter',system-ui,sans-serif;direction:{_dir};">{t("hero_login_title")}</div>
-""", unsafe_allow_html=True)
-
-    col1, col2, col3 = st.columns([1, 2, 1])
-    with col2:
-        if is_logged_in():
-            # Already authenticated — show CTA to proceed to home
-            if st.button(t("hero_cta"), type="primary", use_container_width=True, key="hero_cta_loggedin"):
-                st.session_state["_hero_seen"] = True
-                st.rerun()
-        elif auth_enabled():
-            # Supabase is configured — require OTP login
-            render_login_gate()
-            # render_login_gate calls st.rerun() on success, which will
-            # hit is_logged_in() above on the next render.
-        else:
-            # No Supabase (local dev) — CTA proceeds directly
-            if st.button(t("hero_cta"), type="primary", use_container_width=True, key="hero_cta_noauth"):
-                st.session_state["_hero_seen"] = True
-                st.rerun()
-
-    st.markdown(f'<div class="disclaimer" dir="{_dir}">{t("disclaimer_main")}</div>', unsafe_allow_html=True)
+    # ── HAL-style footer disclaimer + GDPR link ──────────────────────────────
     _priv_label = "🔒 Τα δεδομένα μου & GDPR" if st.session_state.lang == "el" else "🔒 My data & GDPR"
     st.markdown(
-        f'<div dir="{_dir}" style="margin-top:6px;padding:0 16px">'
-        f'<a href="?page=privacy" target="_self" style="font-size:11px;color:#6B7280;text-decoration:underline">{_priv_label}</a>'
-        f'</div>', unsafe_allow_html=True
+        f'<div class="ask-footer" dir="{_dir}">{t("hal_footer")}<br>'
+        f'<a href="?page=privacy" target="_self">{_priv_label}</a></div>',
+        unsafe_allow_html=True,
     )
 
 
@@ -1905,7 +2029,7 @@ def render_admin_gate():
     st.markdown("""
 <div style="max-width:380px;margin:60px auto 0;text-align:center">
   <div style="font-size:34px;margin-bottom:8px">🔐</div>
-  <div style="font-size:18px;font-weight:800;color:#1A1A2E">Admin Panel</div>
+  <div style="font-size:18px;font-weight:800;color:#172333">Admin Panel</div>
   <div style="font-size:13px;color:#6B7280;margin-top:4px">Asklepios · Internal</div>
 </div>
 """, unsafe_allow_html=True)
@@ -2121,7 +2245,7 @@ def render_admin_panel():
     campaigns. Reached via ?admin=1, gated by render_admin_gate()."""
     st.markdown("""
 <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px">
-  <div style="font-size:22px;font-weight:800;color:#1A1A2E">🔐 Asklepios Admin</div>
+  <div style="font-size:22px;font-weight:800;color:#172333">🔐 Asklepios Admin</div>
 </div>
 """, unsafe_allow_html=True)
     if not _supabase_client():
@@ -2783,6 +2907,29 @@ for k, v in defaults.items():
 T = {
     "el": {
         "title": "Asklepios",
+        # ── HAL 3-style layout strings ──
+        "hal_brand": "ASKLEPIOS · AI ΝΟΣΗΛΕΥΤΗΣ",
+        "hal_eyebrow": "ΚΑΘΟΔΗΓΗΣΗ ΥΓΕΙΑΣ, ΜΕ ΤΕΚΜΗΡΙΑ",
+        "hal_h1": "Γνώρισε τον Asklepios.<br>Κατάλαβε τα συμπτώματά σου<br>πριν αποφασίσεις.",
+        "hal_lead": "Πες στον Asklepios, τον AI νοσηλευτή σου, τι σε απασχολεί. Οργανώνει τα συμπτώματά σου, τα ελέγχει με το PubMed και βάσεις φαρμάκων και ετοιμάζει μια αναφορά για τον γιατρό σου — χωρίς να αφήνει την AI να κάνει διάγνωση.",
+        "hal_mode_sym": "🩺 Συμπτώματα", "hal_mode_photo": "📷 Φωτογραφία", "hal_mode_lab": "🧪 Εξετάσεις",
+        "hal_t1": "Καθοδήγηση με αναφορές PubMed",
+        "hal_t2": "Έλεγχος επείγοντος πάντα ενεργός",
+        "hal_t3": "Τα δεδομένα σου διαγράφονται όποτε θέλεις",
+        "hal_case_title": "Η περίπτωσή σου",
+        "hal_case_empty": "Πες στον Asklepios τι σε απασχολεί.",
+        "hal_edit": "Επεξεργασία",
+        "hal_online": "● Σε σύνδεση",
+        "hal_start_again": "↺ Νέα αρχή",
+        "hal_start_again_confirm": "Νέα συζήτηση; Θα διαγραφούν οι απαντήσεις, οι φωτογραφίες και οι εξετάσεις αυτής της εκτίμησης. Το προφίλ σου μένει.",
+        "hal_yes_clear": "Ναι, νέα αρχή", "hal_cancel": "Άκυρο",
+        "hal_prog1": "1 Συμπτώματα", "hal_prog2": "2 Φωτογραφίες & εξετάσεις", "hal_prog3": "3 Αναφορά",
+        "hal_greet": "Γεια σου, είμαι ο Asklepios, ο AI νοσηλευτής σου. Συνδέσου για να ξεκινήσουμε — θα σου κάνω μία ερώτηση κάθε φορά.",
+        "hal_greet_in": "Γεια σου, είμαι ο Asklepios. Πάτα το κουμπί για να ξεκινήσουμε — θα σου κάνω μία ερώτηση κάθε φορά.",
+        "hal_footer": "Ο Asklepios είναι εργαλείο υποστήριξης αποφάσεων για ενημερωτικούς σκοπούς. Δεν κάνει διάγνωση και δεν αντικαθιστά τον γιατρό σου. Σε επείγουσα ανάγκη καλέστε <b>166</b> (ΕΚΑΒ) ή <b>112</b>.",
+        "hal_home_h1": "Πώς νιώθεις σήμερα;",
+        "hal_home_lead": "Ο Asklepios οργανώνει τα συμπτώματα και τα ζωτικά σου και ετοιμάζει μια τεκμηριωμένη αναφορά για τον γιατρό σου.",
+        "hal_meds": "Φάρμακα", "hal_allergy": "Αλλεργία", "hal_pregnant": "Εγκυμοσύνη", "hal_caregiver": "Για άλλο άτομο",
         "subtitle": "Ο AI Νοσηλευτής σου",
         "tagline": "Έγκυρη ιατρική πληροφόρηση · Πάντα δίπλα σου",
         "start": "Ξεκίνα Εκτίμηση",
@@ -2845,7 +2992,7 @@ T = {
         "nav_vitals": 'Ζωτικά',
         "nav_symptoms": 'Συμπτώματα',
         "nav_history": 'Ιστορικό',
-        "hero_h1": "Περίγραψε τι νιώθεις.<br><span style='color:#2D3FE7'>Λάβε κλινική εκτίμηση.</span>",
+        "hero_h1": "Περίγραψε τι νιώθεις.<br><span style='color:#0F766E'>Λάβε κλινική εκτίμηση.</span>",
         "hero_sub": 'Τεκμηριωμένη αξιολόγηση με αναφορές PubMed + δεύτερη γνώμη GPT-4o. Για τον <strong>ιατρό</strong> σου.',
         "hero_f1t": 'Περιγραφή συμπτωμάτων',
         "hero_f1s": 'Μιλάς φυσικά — το AI ρωτά & οργανώνει',
@@ -2885,6 +3032,29 @@ T = {
         "hero_gov_note": 'Ανοίγουν σε νέα καρτέλα στο gov.gr — δεν αποθηκεύουμε δεδομένα.',
     },
     "en": {
+        # ── HAL 3-style layout strings ──
+        "hal_brand": "ASKLEPIOS · AI NURSE",
+        "hal_eyebrow": "HEALTH GUIDANCE, WITH EVIDENCE",
+        "hal_h1": "Meet Asklepios.<br>Understand your symptoms<br>before you act.",
+        "hal_lead": "Tell Asklepios, your AI nurse, what's bothering you. It organises your symptoms, checks them against PubMed and drug databases, and prepares a report for your doctor — without letting AI make the diagnosis.",
+        "hal_mode_sym": "🩺 Symptoms", "hal_mode_photo": "📷 Photo", "hal_mode_lab": "🧪 Lab results",
+        "hal_t1": "PubMed-cited guidance",
+        "hal_t2": "Emergency check always on",
+        "hal_t3": "Your data, deletable anytime",
+        "hal_case_title": "Your case",
+        "hal_case_empty": "Tell Asklepios what's bothering you.",
+        "hal_edit": "Edit",
+        "hal_online": "● Online",
+        "hal_start_again": "↺ Start again",
+        "hal_start_again_confirm": "Start a new conversation? This clears the answers, photos and lab results of this assessment. Your profile is kept.",
+        "hal_yes_clear": "Yes, start again", "hal_cancel": "Cancel",
+        "hal_prog1": "1 Describe symptoms", "hal_prog2": "2 Add photos & labs", "hal_prog3": "3 Get report",
+        "hal_greet": "Hi, I'm Asklepios, your AI nurse. Sign in to begin — I'll ask you one question at a time.",
+        "hal_greet_in": "Hi, I'm Asklepios. Press the button to begin — I'll ask you one question at a time.",
+        "hal_footer": "Asklepios is a decision-support tool for information purposes only. It does not diagnose and does not replace your doctor. In an emergency call <b>166</b> (EKAB) or <b>112</b>.",
+        "hal_home_h1": "How are you feeling today?",
+        "hal_home_lead": "Asklepios organises your symptoms and vitals and prepares an evidence-based report for your doctor.",
+        "hal_meds": "Meds", "hal_allergy": "Allergy", "hal_pregnant": "Pregnant", "hal_caregiver": "For someone else",
         "title": "Asklepios",
         "subtitle": "Your AI Nurse",
         "tagline": "Evidence-based health guidance · Always by your side",
@@ -2948,7 +3118,7 @@ T = {
         "nav_vitals": 'Vitals',
         "nav_symptoms": 'Symptoms',
         "nav_history": 'History',
-        "hero_h1": "Describe what you feel.<br><span style='color:#2D3FE7'>Get a clinical assessment.</span>",
+        "hero_h1": "Describe what you feel.<br><span style='color:#0F766E'>Get a clinical assessment.</span>",
         "hero_sub": 'Evidence-based assessment with PubMed references + GPT-4o second opinion. For your <strong>doctor</strong>.',
         "hero_f1t": 'Symptom description',
         "hero_f1s": 'Speak naturally — AI asks & organises',
@@ -3051,7 +3221,7 @@ T = {
         "nav_vitals": 'संकेत',
         "nav_symptoms": 'लक्षण',
         "nav_history": 'इतिहास',
-        "hero_h1": "बताएं आप क्या महसूस कर रहे हैं।<br><span style='color:#2D3FE7'>पाएं नैदानिक मूल्यांकन।</span>",
+        "hero_h1": "बताएं आप क्या महसूस कर रहे हैं।<br><span style='color:#0F766E'>पाएं नैदानिक मूल्यांकन।</span>",
         "hero_sub": 'PubMed संदर्भों के साथ + GPT-4o दूसरी राय। आपके <strong>डॉक्टर</strong> के लिए।',
         "hero_f1t": 'लक्षणों का विवरण',
         "hero_f1s": 'स्वाभाविक रूप से बोलें — AI पूछता और व्यवस्थित करता है',
@@ -3154,7 +3324,7 @@ T = {
         "nav_vitals": 'علامات',
         "nav_symptoms": 'علامات',
         "nav_history": 'تاریخ',
-        "hero_h1": "بتائیں آپ کیا محسوس کر رہے ہیں۔<br><span style='color:#2D3FE7'>طبی تشخیص حاصل کریں۔</span>",
+        "hero_h1": "بتائیں آپ کیا محسوس کر رہے ہیں۔<br><span style='color:#0F766E'>طبی تشخیص حاصل کریں۔</span>",
         "hero_sub": 'PubMed + GPT-4o دوسری رائے۔ آپ کے <strong>ڈاکٹر</strong> کے لیے۔',
         "hero_f1t": 'علامات کی وضاحت',
         "hero_f1s": 'قدرتی طریقے سے بولیں — AI پوچھتا اور منظم کرتا ہے',
@@ -3257,7 +3427,7 @@ T = {
         "nav_vitals": 'الحيوية',
         "nav_symptoms": 'الأعراض',
         "nav_history": 'التاريخ',
-        "hero_h1": "صف ما تشعر به.<br><span style='color:#2D3FE7'>احصل على تقييم طبي.</span>",
+        "hero_h1": "صف ما تشعر به.<br><span style='color:#0F766E'>احصل على تقييم طبي.</span>",
         "hero_sub": 'تقييم مبني على الأدلة + رأي ثانٍ من GPT-4o. لـ<strong>طبيبك</strong>.',
         "hero_f1t": 'وصف الأعراض',
         "hero_f1s": 'تكلم بشكل طبيعي — AI يسأل وينظّم',
@@ -3360,7 +3530,7 @@ T = {
         "nav_vitals": 'লক্ষণ',
         "nav_symptoms": 'উপসর্গ',
         "nav_history": 'ইতিহাস',
-        "hero_h1": "বলুন আপনি কী অনুভব করছেন।<br><span style='color:#2D3FE7'>ক্লিনিক্যাল মূল্যায়ন পান।</span>",
+        "hero_h1": "বলুন আপনি কী অনুভব করছেন।<br><span style='color:#0F766E'>ক্লিনিক্যাল মূল্যায়ন পান।</span>",
         "hero_sub": 'PubMed রেফারেন্স + GPT-4o দ্বিতীয় মতামত সহ প্রমাণ-ভিত্তিক মূল্যায়ন। আপনার <strong>ডাক্তারের</strong> জন্য।',
         "hero_f1t": 'লক্ষণের বিবরণ',
         "hero_f1s": 'স্বাভাবিকভাবে বলুন — AI জিজ্ঞেস করে ও সাজায়',
@@ -3450,7 +3620,7 @@ T = {
         "nav_vitals": 'Показатели',
         "nav_symptoms": 'Симптоми',
         "nav_history": 'История',
-        "hero_h1": "Опишете какво чувствате.<br><span style='color:#2D3FE7'>Получете клинична оценка.</span>",
+        "hero_h1": "Опишете какво чувствате.<br><span style='color:#0F766E'>Получете клинична оценка.</span>",
         "hero_sub": 'Оценка, основана на доказателства с PubMed референции + второ мнение от GPT-4o. За вашия <strong>лекар</strong>.',
         "hero_f1t": 'Описание на симптомите',
         "hero_f1s": 'Говорете естествено — AI пита и организира',
@@ -3540,7 +3710,7 @@ T = {
         "nav_vitals": 'Vitale',
         "nav_symptoms": 'Simptome',
         "nav_history": 'Istoric',
-        "hero_h1": "Descrieți ce simțiți.<br><span style='color:#2D3FE7'>Obțineți o evaluare clinică.</span>",
+        "hero_h1": "Descrieți ce simțiți.<br><span style='color:#0F766E'>Obțineți o evaluare clinică.</span>",
         "hero_sub": 'Evaluare bazată pe dovezi cu referințe PubMed + a doua opinie GPT-4o. Pentru <strong>medicul</strong> dumneavoastră.',
         "hero_f1t": 'Descrierea simptomelor',
         "hero_f1s": 'Vorbiți natural — AI întreabă și organizează',
@@ -3630,7 +3800,7 @@ T = {
         "nav_vitals": 'Vitale',
         "nav_symptoms": 'Simptoma',
         "nav_history": 'Historia',
-        "hero_h1": "Përshkruani çfarë ndiheni.<br><span style='color:#2D3FE7'>Merrni një vlerësim klinik.</span>",
+        "hero_h1": "Përshkruani çfarë ndiheni.<br><span style='color:#0F766E'>Merrni një vlerësim klinik.</span>",
         "hero_sub": 'Vlerësim i bazuar në dëshmi me referenca PubMed + mendim i dytë GPT-4o. Për <strong>mjekun</strong> tuaj.',
         "hero_f1t": 'Përshkrimi i simptomave',
         "hero_f1s": 'Flisni natyrshëm — AI pyet dhe organizon',
@@ -3720,7 +3890,7 @@ T = {
         "nav_vitals": 'Показатели',
         "nav_symptoms": 'Симптомы',
         "nav_history": 'История',
-        "hero_h1": "Опишите, что вы чувствуете.<br><span style='color:#2D3FE7'>Получите клиническую оценку.</span>",
+        "hero_h1": "Опишите, что вы чувствуете.<br><span style='color:#0F766E'>Получите клиническую оценку.</span>",
         "hero_sub": 'Оценка на основе доказательств с PubMed + второе мнение GPT-4o. Для вашего <strong>врача</strong>.',
         "hero_f1t": 'Описание симптомов',
         "hero_f1s": 'Говорите естественно — AI спрашивает и организует',
@@ -3810,7 +3980,7 @@ T = {
         "nav_vitals": '体征',
         "nav_symptoms": '症状',
         "nav_history": '历史',
-        "hero_h1": "描述您的感受。<br><span style='color:#2D3FE7'>获取临床评估。</span>",
+        "hero_h1": "描述您的感受。<br><span style='color:#0F766E'>获取临床评估。</span>",
         "hero_sub": '基于证据的评估，含PubMed参考文献 + GPT-4o第二意见。为您的<strong>医生</strong>。',
         "hero_f1t": '症状描述',
         "hero_f1s": '自然说话 — AI询问并整理',
@@ -3900,7 +4070,7 @@ T = {
         "nav_vitals": 'الحيوية',
         "nav_symptoms": 'الأعراض',
         "nav_history": 'التاريخ',
-        "hero_h1": "قول شو حاسس فيه.<br><span style='color:#2D3FE7'>احصل على تقييم طبي.</span>",
+        "hero_h1": "قول شو حاسس فيه.<br><span style='color:#0F766E'>احصل على تقييم طبي.</span>",
         "hero_sub": 'تقييم مبني على الأدلة + رأي ثانٍ من GPT-4o. لـ<strong>دكتورك</strong>.',
         "hero_f1t": 'وصف الأعراض',
         "hero_f1s": 'حكي طبيعي — AI بيسأل وبينظّم',
@@ -3990,7 +4160,7 @@ T = {
         "nav_vitals": 'חיוניים',
         "nav_symptoms": 'תסמינים',
         "nav_history": 'היסטוריה',
-        "hero_h1": "תאר מה אתה מרגיש.<br><span style='color:#2D3FE7'>קבל הערכה קלינית.</span>",
+        "hero_h1": "תאר מה אתה מרגיש.<br><span style='color:#0F766E'>קבל הערכה קלינית.</span>",
         "hero_sub": 'הערכה מבוססת ראיות + חוות דעת שנייה מ-GPT-4o. ל<strong>רופא</strong> שלך.',
         "hero_f1t": 'תיאור תסמינים',
         "hero_f1s": 'דבר בטבעיות — AI שואל ומארגן',
@@ -4080,7 +4250,7 @@ T = {
         "nav_vitals": 'ਸੰਕੇਤ',
         "nav_symptoms": 'ਲੱਛਣ',
         "nav_history": 'ਇਤਿਹਾਸ',
-        "hero_h1": "ਦੱਸੋ ਤੁਸੀਂ ਕੀ ਮਹਿਸੂਸ ਕਰ ਰਹੇ ਹੋ।<br><span style='color:#2D3FE7'>ਕਲੀਨੀਕਲ ਮੁਲਾਂਕਣ ਪ੍ਰਾਪਤ ਕਰੋ।</span>",
+        "hero_h1": "ਦੱਸੋ ਤੁਸੀਂ ਕੀ ਮਹਿਸੂਸ ਕਰ ਰਹੇ ਹੋ।<br><span style='color:#0F766E'>ਕਲੀਨੀਕਲ ਮੁਲਾਂਕਣ ਪ੍ਰਾਪਤ ਕਰੋ।</span>",
         "hero_sub": "PubMed + GPT-4o ਦੂਜੀ ਰਾਏ ਨਾਲ ਮੁਲਾਂਕਣ। ਤੁਹਾਡੇ <strong>ਡਾਕਟਰ</strong> ਲਈ।",
         "hero_f1t": "ਲੱਛਣਾਂ ਦਾ ਵਰਣਨ", "hero_f1s": "ਕੁਦਰਤੀ ਤੌਰ 'ਤੇ ਬੋਲੋ — AI ਪੁੱਛਦਾ ਹੈ",
         "hero_f2t": "ਮਹੱਤਵਪੂਰਨ ਸੰਕੇਤ", "hero_f2s": "HR, BP, SpO₂, ਤਾਪਮਾਨ",
@@ -4108,6 +4278,12 @@ RTL_LANGS = {"ar", "ur", "lb", "he"}
 def t(key):
     lang = st.session_state.get("lang", "el")
     return T.get(lang, T["en"]).get(key, T["en"].get(key, key))
+
+def _html_bold(txt):
+    """Render **bold** markdown inside raw-HTML blocks (st.markdown won't parse
+    markdown that sits inside a <div>)."""
+    import re as _re_b
+    return _re_b.sub(r"\*\*(.+?)\*\*", r"<b>\1</b>", txt or "")
 
 def is_rtl():
     return st.session_state.get("lang", "el") in RTL_LANGS
@@ -4182,25 +4358,25 @@ def render_doc_header(title_el, title_en, *, icon="📋",
   display: flex; align-items: center; gap: 16px;
   padding: 18px 22px;
   background: white;
-  border: 1px solid #E5E7EB;
+  border: 1px solid #E7EBEF;
   border-radius: 14px;
-  margin: 4px 0 22px;
+  margin: 4px 0 18px;
   font-family: 'Inter', system-ui, sans-serif;
   box-shadow: 0 1px 3px rgba(0,0,0,0.03);
 }}
 .dph-logo {{
-  width: 50px; height: 50px; border-radius: 50%;
-  background: #DBEAFE;
+  width: 46px; height: 46px; border-radius: 50%;
+  background: radial-gradient(circle at 35% 30%, #1F6F68, #0C1727);
   display: flex; align-items: center; justify-content: center;
   font-size: 23px; flex-shrink: 0;
 }}
 .dph-text {{ flex: 1; min-width: 0; }}
 .dph-org {{
   font-size: 9.5px; font-weight: 700; letter-spacing: 0.14em;
-  color: #6B7280; text-transform: uppercase; margin-bottom: 3px;
+  color: #A9762E; text-transform: uppercase; margin-bottom: 3px;
 }}
 .dph-title {{
-  font-size: 19px; font-weight: 700; color: #111827;
+  font-size: 19px; font-weight: 800; color: #0C1727;
   letter-spacing: -0.015em; line-height: 1.2;
 }}
 .dph-sub {{
@@ -4270,9 +4446,9 @@ def render_bottom_nav():
 /* Fix the stHorizontalBlock that contains .bn-marker to the TOP */
 div[data-testid="stHorizontalBlock"]:has(.bn-marker) {
   position: fixed; left: 0; right: 0; top: 0; bottom: auto; z-index: 999;
-  background: white; border-bottom: 1px solid #EEF2FA; border-top: none;
+  background: #0C1727; border-bottom: 1px solid #172333; border-top: none;
   padding: 0 8px;
-  box-shadow: 0 2px 12px rgba(15,42,82,0.07);
+  box-shadow: 0 2px 14px rgba(12,23,39,0.22);
   height: 52px;
   display: flex !important; align-items: center !important;
   flex-wrap: nowrap !important;
@@ -4284,9 +4460,12 @@ div[data-testid="stHorizontalBlock"]:has(.bn-marker) > div[data-testid="stColumn
   display: flex !important; align-items: center !important;
 }
 .bn-marker { display: none; }
+div[data-testid="stElementContainer"]:has(> div .bn-marker),
+div[data-testid="stElementContainer"]:has(.bn-marker) { display: none !important; }
 div[data-testid="stHorizontalBlock"]:has(.bn-marker) button {
   background: transparent !important; border: none !important; box-shadow: none !important;
-  color: #B8C2D6 !important; font-weight: 700 !important; font-size: 9.5px !important;
+  color: #9AA7BD !important; font-weight: 700 !important; font-size: 10.5px !important;
+  letter-spacing: .02em !important; border-radius: 0 !important;
   line-height: 1.3 !important; padding: 2px 2px !important; min-height: 0 !important;
   white-space: nowrap !important; width: 100% !important; height: 48px !important;
   display: flex !important; align-items: center !important; justify-content: center !important;
@@ -4295,11 +4474,17 @@ div[data-testid="stHorizontalBlock"]:has(.bn-marker) button {
 div[data-testid="stHorizontalBlock"]:has(.bn-marker) button p {
   text-align: center !important; width: 100%;
 }
+div[data-testid="stHorizontalBlock"]:has(.bn-marker) button p { color: #9AA7BD !important; }
+div[data-testid="stHorizontalBlock"]:has(.bn-marker) button:hover p { color: #FFFFFF !important; }
+div[data-testid="stHorizontalBlock"]:has(.bn-marker) button:hover {
+  background: rgba(255,255,255,.06) !important; border-color: transparent !important;
+}
 div[data-testid="stHorizontalBlock"]:has(.bn-marker) button[kind="primary"] {
-  color: #2D6FE0 !important; border-bottom: 2px solid #2D6FE0 !important;
+  color: #FFFFFF !important; border-bottom: 3px solid #C99A4A !important;
+  background: transparent !important; box-shadow: none !important;
 }
 div[data-testid="stHorizontalBlock"]:has(.bn-marker) button[kind="primary"] p {
-  color: #2D6FE0 !important; font-weight: 800 !important;
+  color: #FFFFFF !important; font-weight: 800 !important;
 }
 </style>
 """, unsafe_allow_html=True)
@@ -4330,7 +4515,9 @@ def render_stepper(current):
     html = '<div class="kira-stepper">'
     for i, label in enumerate(steps):
         cls = "done" if i < cur_i else ("active" if i == cur_i else "")
-        icon = "✓" if i < cur_i else str(i+1)
+        # Labels already carry their step number (HAL-style "1 Στοιχεία"),
+        # so the marker only shows a tick for completed steps.
+        icon = "✓" if i < cur_i else ""
         html += f'<div class="kira-step {cls}"><div class="kira-step-circle">{icon}</div><div class="kira-step-label">{label}</div></div>'
         if i < len(steps)-1:
             line_cls = "done" if i < cur_i else ""
@@ -4928,16 +5115,16 @@ def generate_html_report(profile, vitals, report_text, pubmed_refs, lang="el", r
             )
         lab_html = f'<h2>{_lf_title}</h2><div class="lf-list">{_lf_items}</div>'
     html_out=f"""<!DOCTYPE html><html lang="{lang}"><head><meta charset="UTF-8"><title>Asklepios Report — {name}</title>
-<style>*{{box-sizing:border-box;margin:0;padding:0}}body{{font-family:'Inter',sans-serif;font-size:13px;color:#1A1A2E;max-width:820px;margin:0 auto;padding:32px 40px}}
-.hdr{{display:flex;justify-content:space-between;align-items:center;border-bottom:3px solid #2D3FE7;padding-bottom:14px;margin-bottom:20px}}
-.hdr-logo{{font-size:22px;font-weight:800;color:#2D3FE7}}.hdr-date{{font-size:11px;color:#6B7280;text-align:right}}
-.patient{{background:linear-gradient(135deg,#2D3FE7,#7B2FE0);color:white;border-radius:12px;padding:18px 22px;margin-bottom:20px}}
+<style>*{{box-sizing:border-box;margin:0;padding:0}}body{{font-family:'Inter',sans-serif;font-size:13px;color:#172333;max-width:820px;margin:0 auto;padding:32px 40px}}
+.hdr{{display:flex;justify-content:space-between;align-items:center;border-bottom:3px solid #0F766E;padding-bottom:14px;margin-bottom:20px}}
+.hdr-logo{{font-size:22px;font-weight:800;color:#0F766E}}.hdr-date{{font-size:11px;color:#6B7280;text-align:right}}
+.patient{{background:linear-gradient(135deg,#0F766E,#0C1727);color:white;border-radius:12px;padding:18px 22px;margin-bottom:20px}}
 .patient-name{{font-size:20px;font-weight:700;margin-bottom:4px}}.patient-meta{{font-size:12px;opacity:.8}}.patient-detail{{font-size:11px;opacity:.75;margin-top:10px;line-height:1.8}}
-h2{{font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:#7B2FE0;border-bottom:1px solid #E0E5FF;padding-bottom:5px;margin:20px 0 10px}}
-h3{{font-size:12.5px;font-weight:700;color:#2D3FE7;margin:14px 0 6px}}
+h2{{font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:#0C1727;border-bottom:1px solid #E7EBEF;padding-bottom:5px;margin:20px 0 10px}}
+h3{{font-size:12.5px;font-weight:700;color:#0F766E;margin:14px 0 6px}}
 p{{margin:4px 0;line-height:1.65}}ul{{margin:6px 0 6px 18px}}li{{margin:3px 0;line-height:1.6}}
 table.vitals{{width:100%;border-collapse:collapse;margin:10px 0;font-size:12px}}
-table.vitals thead tr{{background:#2D3FE7;color:white}}table.vitals th,table.vitals td{{padding:7px 12px;text-align:left;border:1px solid #E0E5FF}}
+table.vitals thead tr{{background:#0F766E;color:white}}table.vitals th,table.vitals td{{padding:7px 12px;text-align:left;border:1px solid #E7EBEF}}
 table.vitals tbody tr:nth-child(even){{background:#F8FAFF}}
 .emergency{{background:#DC2626;color:white;border-radius:8px;padding:12px 16px;font-weight:700;margin:16px 0}}
 .disclaimer{{background:#FFFBEB;border:1px solid #FCD34D;border-radius:8px;padding:10px 14px;font-size:11px;color:#92400E;margin:12px 0}}
@@ -4959,7 +5146,7 @@ table.vitals tbody tr:nth-child(even){{background:#F8FAFF}}
 .lf-row-num{{background:#D1FAE5;color:#065F46;font-size:10px;font-weight:700;width:18px;height:18px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center}}
 .lf-row-lbl{{font-size:12px;font-weight:700;color:#111827}}.lf-row-body{{font-size:11.5px;color:#374151;line-height:1.55}}
 @media print{{.recs-box{{-webkit-print-color-adjust:exact;print-color-adjust:exact}}.recs-grid{{grid-template-columns:1fr 1fr 1fr !important}}}}
-.hint{{text-align:center;margin:24px 0 0;font-size:12px;color:#94A3B8;border-top:1px dashed #E0E5FF;padding-top:14px}}
+.hint{{text-align:center;margin:24px 0 0;font-size:12px;color:#94A3B8;border-top:1px dashed #E7EBEF;padding-top:14px}}
 @media print{{body{{padding:16px}}.patient,.emergency{{-webkit-print-color-adjust:exact;print-color-adjust:exact}}@page{{margin:15mm}}}}</style></head><body>
 <div class="hdr"><div class="hdr-logo">🩺 Asklepios AI Nurse</div><div class="hdr-date">Κλινική Εκτίμηση<br>{ts}</div></div>
 <div class="patient"><div class="patient-name">{name}</div><div class="patient-meta">{age} ετών · {sex}</div>
@@ -5020,14 +5207,14 @@ body{{background:transparent;padding:0;font-size:14px;color:#1F2937}}
 .st-card h3{{font-size:12px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:#6B7280;margin-bottom:12px}}
 .st-row{{display:flex;gap:8px;align-items:flex-end;flex-wrap:wrap}}
 input[type=text],textarea{{width:100%;border:1px solid #D1D5DB;border-radius:8px;padding:8px 10px;font-size:13px;color:#1F2937;background:white}}
-input[type=text]:focus,textarea:focus{{outline:none;border-color:#2D3FE7;box-shadow:0 0 0 2px rgba(45,63,231,.10)}}
+input[type=text]:focus,textarea:focus{{outline:none;border-color:#0F766E;box-shadow:0 0 0 2px rgba(15,118,110,.10)}}
 textarea{{resize:vertical;min-height:48px}}
-input[type=range]{{width:100%;accent-color:#2D3FE7}}
+input[type=range]{{width:100%;accent-color:#0F766E}}
 .sev-row{{display:flex;align-items:center;gap:8px}}
 .sev-label{{font-size:11px;color:#6B7280;white-space:nowrap}}
-.sev-val{{font-size:18px;font-weight:700;color:#2D3FE7;min-width:24px;text-align:right}}
+.sev-val{{font-size:18px;font-weight:700;color:#0F766E;min-width:24px;text-align:right}}
 .btn{{padding:9px 16px;border-radius:8px;border:none;cursor:pointer;font-weight:600;font-size:13px;transition:all .15s}}
-.btn-primary{{background:#2D3FE7;color:white}}.btn-primary:hover{{background:#1E30CC}}
+.btn-primary{{background:#0F766E;color:white}}.btn-primary:hover{{background:#0B5F58}}
 .btn-ghost{{background:#F3F4F6;color:#374151;border:1px solid #E5E7EB}}.btn-ghost:hover{{background:#E5E7EB}}
 .btn-danger{{background:#FEF2F2;color:#DC2626;border:1px solid #FCA5A5}}.btn-danger:hover{{background:#FEE2E2}}
 .entry{{border-bottom:1px solid #F3F4F6;padding:10px 0;display:flex;justify-content:space-between;align-items:flex-start;gap:8px}}
@@ -5190,34 +5377,34 @@ def render_home():
     st.markdown("""
 <style>
 .home-topbar { display:flex; align-items:center; justify-content:space-between; margin:4px 0 20px; }
-.home-brand { font-size:24px; font-weight:800; color:#1A1A2E; }
-.home-greeting { font-size:12.5px; color:#6B89B0; font-weight:600; margin-top:2px; }
+.home-brand { font-size:24px; font-weight:800; color:#172333; }
+.home-greeting { font-size:12.5px; color:#687586; font-weight:600; margin-top:2px; }
 .home-avatar {
-  width:46px; height:46px; border-radius:50%; background:#2D3FE7;
+  width:46px; height:46px; border-radius:50%; background:#0F766E;
   display:flex; align-items:center; justify-content:center;
   color:white; font-size:18px; font-weight:700;
-  box-shadow:0 4px 10px rgba(45,63,231,0.28); flex-shrink:0;
+  box-shadow:0 4px 10px rgba(15,118,110,0.28); flex-shrink:0;
 }
 .home-action-grid { display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:18px; }
 .home-action-icon {
-  width:52px; height:52px; border-radius:50%; background:#E8ECFE; margin:0 auto 12px;
+  width:52px; height:52px; border-radius:50%; background:#E6F4F1; margin:0 auto 12px;
   display:flex; align-items:center; justify-content:center; font-size:23px;
 }
-.home-action-icon.warm { background:#FFEFE8; }
-.home-action-label { font-size:14.5px; font-weight:700; color:#1A1A2E; line-height:1.3; }
-.home-group-title { font-size:15px; font-weight:800; color:#1A1A2E; margin-bottom:16px; }
+.home-action-icon.warm { background:#FBF3E6; }
+.home-action-label { font-size:14.5px; font-weight:700; color:#172333; line-height:1.3; }
+.home-group-title { font-size:15px; font-weight:800; color:#172333; margin-bottom:16px; }
 .home-vrow { display:flex; align-items:center; gap:13px; margin-bottom:16px; }
 .home-vrow:last-child { margin-bottom:0; }
 .home-vrow-icon {
-  width:38px; height:38px; border-radius:50%; background:#E8ECFE; flex-shrink:0;
+  width:38px; height:38px; border-radius:50%; background:#E6F4F1; flex-shrink:0;
   display:flex; align-items:center; justify-content:center; font-size:17px;
 }
 .home-vrow-body { flex:1; min-width:0; }
 .home-vrow-top { display:flex; justify-content:space-between; align-items:baseline; margin-bottom:6px; }
-.home-vrow-label { font-size:13.5px; font-weight:700; color:#1A1A2E; }
-.home-vrow-val { font-size:13px; font-weight:700; color:#2D3FE7; }
+.home-vrow-label { font-size:13.5px; font-weight:700; color:#172333; }
+.home-vrow-val { font-size:13px; font-weight:700; color:#0F766E; }
 .home-vrow-bar { height:6px; background:#EAF0FB; border-radius:6px; overflow:hidden; }
-.home-vrow-bar-fill { height:100%; border-radius:6px; background:#2D3FE7; }
+.home-vrow-bar-fill { height:100%; border-radius:6px; background:#0F766E; }
 .home-vrow-bar-fill.ok { background:#10B981; }
 .home-vrow-bar-fill.warn { background:#F59E0B; }
 .home-vrow-bar-fill.danger { background:#EF4444; }
@@ -5227,17 +5414,17 @@ def render_home():
 }
 .home-emergency strong { color:#991B1B; }
 .home-campaign-banner {
-  background: white; border: 1px solid #E0E5FF; border-radius: 18px;
+  background: white; border: 1px solid #E7EBEF; border-radius: 18px;
   padding: 14px 16px; margin-bottom: 16px;
   display: flex; align-items: center; gap: 12px;
-  box-shadow: 0 2px 8px rgba(45,63,231,0.06);
+  box-shadow: 0 2px 8px rgba(15,118,110,0.06);
   text-decoration: none;
 }
 .home-campaign-banner img {
   width: 44px; height: 44px; border-radius: 12px; object-fit: cover; flex-shrink: 0;
 }
-.home-campaign-banner .cb-title { font-size:13.5px; font-weight:700; color:#1A1A2E; }
-.home-campaign-banner .cb-sub { font-size:11.5px; color:#6B89B0; margin-top:1px; }
+.home-campaign-banner .cb-title { font-size:13.5px; font-weight:700; color:#172333; }
+.home-campaign-banner .cb-sub { font-size:11.5px; color:#687586; margin-top:1px; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -5294,13 +5481,39 @@ def render_home():
     # Avatar: shows user's initial if profile exists, or a prompt to complete intake
     _avatar_content = initial if (name and initial != "?") else ("👤" if el else "👤")
     _avatar_title   = name if name else ("Συμπλήρωσε το προφίλ σου" if el else "Complete your profile")
+    # HAL 3-style navy brand banner (replaces the plain wordmark topbar)
+    _rtl_home = is_rtl()
     st.markdown(f"""
-<div class="home-topbar">
-  <div>
-    <div class="home-brand">Asklepios</div>
-    <div class="home-greeting">{greeting}</div>
+<style>
+.home-hal-banner {{
+  background:#0C1727; border-radius:18px; padding:26px 26px 22px; margin:4px 0 18px;
+  box-shadow:0 14px 34px rgba(12,23,39,.16); font-family:'Inter',system-ui,sans-serif;
+  direction:{"rtl" if _rtl_home else "ltr"}; text-align:{"right" if _rtl_home else "left"};
+}}
+.home-hal-top {{ display:flex; align-items:center; justify-content:space-between; gap:12px; }}
+.home-hal-banner .home-avatar {{ background:#C99A4A; box-shadow:none; }}
+.home-hal-greet {{ color:#9AA7BD; font-size:13px; font-weight:600; margin-top:16px; }}
+.home-hal-h1 {{ color:#FFFFFF; font-size:28px; font-weight:800; line-height:1.15; letter-spacing:-.01em; margin:4px 0 10px; }}
+.home-hal-lead {{ color:#C3CBDB; font-size:13.5px; line-height:1.6; max-width:520px; margin:0 0 16px; }}
+.home-hal-banner .ask-trust {{ flex-direction:row; flex-wrap:wrap; gap:8px 18px; }}
+@media (max-width: 640px) {{ .home-hal-h1 {{ font-size:23px; }} .home-hal-banner {{ padding:22px 18px 18px; }} }}
+</style>
+<div class="home-hal-banner">
+  <div class="home-hal-top">
+    <div>
+      <div class="ask-brand-row">{t("hal_brand")}</div>
+      <div class="ask-eyebrow" style="margin-top:8px;">{t("hal_eyebrow")}</div>
+    </div>
+    <div class="home-avatar" title="{_avatar_title}" style="font-size:{'18px' if (name and initial != '?') else '22px'};">{_avatar_content}</div>
   </div>
-  <div class="home-avatar" title="{_avatar_title}" style="font-size:{'18px' if (name and initial != '?') else '22px'};">{_avatar_content}</div>
+  <div class="home-hal-greet">{greeting}</div>
+  <div class="home-hal-h1">{t("hal_home_h1")}</div>
+  <div class="home-hal-lead">{t("hal_home_lead")}</div>
+  <ul class="ask-trust">
+    <li><i class="ask-dot"></i>{t("hal_t1")}</li>
+    <li><i class="ask-dot"></i>{t("hal_t2")}</li>
+    <li><i class="ask-dot"></i>{t("hal_t3")}</li>
+  </ul>
 </div>
 """, unsafe_allow_html=True)
 
@@ -5309,12 +5522,12 @@ def render_home():
         _exp_title = t("home_explainer_title")
         _exp_body  = t("home_explainer_body")
         st.markdown(f"""
-<div style="background:#EEF2FF;border:1px solid #C7D2FE;border-radius:14px;
+<div style="background:#EEF7F5;border:1px solid #BFE3DC;border-radius:14px;
   padding:13px 16px;margin:0 0 16px;font-family:'Inter',system-ui,sans-serif;
   display:flex;gap:12px;align-items:flex-start;">
   <span style="font-size:22px;flex-shrink:0;margin-top:1px;">💡</span>
   <div>
-    <div style="font-size:13.5px;font-weight:700;color:#1A1A2E;margin-bottom:3px;">{_exp_title}</div>
+    <div style="font-size:13.5px;font-weight:700;color:#172333;margin-bottom:3px;">{_exp_title}</div>
     <div style="font-size:12.5px;color:#4B5563;line-height:1.5;">{_exp_body}</div>
   </div>
 </div>
@@ -5332,7 +5545,7 @@ def render_home():
 <style>
 div[data-testid="stVerticalBlock"]:has(> div[data-testid="stElementContainer"] .home-action-marker) button {
   background: transparent !important; border: none !important; box-shadow: none !important;
-  color: #1A1A2E !important; font-weight: 700 !important; font-size: 14.5px !important;
+  color: #172333 !important; font-weight: 700 !important; font-size: 14.5px !important;
   padding: 4px 0 0 !important; line-height: 1.3 !important;
 }
 </style>
@@ -5456,6 +5669,7 @@ def render_intake():
     _opt_other = t("intake_for_other")
     _current = st.session_state.profile.get("for_whom", "self")
     with st.container(border=True):
+        st.markdown('<div class="ask-card-marker"></div>', unsafe_allow_html=True)
         _choice = st.radio(
             _caregiver_q,
             [_opt_self, _opt_other],
@@ -5491,6 +5705,7 @@ def render_intake():
                                  "Noted — used to flag drug contraindications and adjusted recommendations."))
 
     with st.container(border=True):
+        st.markdown('<div class="ask-card-marker"></div>', unsafe_allow_html=True)
         history=st.text_area(t("history"),value=st.session_state.profile.get("history",""),height=90,placeholder="Π.χ. Υπέρταση, Τ2 Διαβήτης")
         allergies=st.text_input(t("allergies"),value=st.session_state.profile.get("allergies",""),placeholder="Π.χ. Πενικιλλίνη")
         st.markdown("**"+t("meds")+"**")
@@ -5552,11 +5767,11 @@ def render_vitals():
         kira_url=_secret("ASKLEPIOS_URL","https://asklepiosainurse.up.railway.app")
         scan_link=f"{facescan_url}?kira_url={urllib.parse.quote(kira_url)}"
         _save_session_for_external_nav()
-        st.markdown(f'''<div style="background:linear-gradient(135deg,#2D3FE7,#7B2FE0);border-radius:16px;padding:28px;text-align:center;color:white;margin:8px 0">
+        st.markdown(f'''<div style="background:linear-gradient(135deg,#0F766E,#0C1727);border-radius:16px;padding:28px;text-align:center;color:white;margin:8px 0">
             <div style="font-size:40px;margin-bottom:8px">📷</div>
             <div style="font-size:18px;font-weight:700;margin-bottom:8px">{"Σάρωση Προσώπου rPPG" if lang=="el" else "rPPG Face Scan"}</div>
             <div style="font-size:13px;opacity:0.8;margin-bottom:16px">{"Μέτρηση καρδιακού ρυθμού & αναπνοής σε 30 δευτερόλεπτα μέσω κάμερας" if lang=="el" else "Measure heart rate & breathing in 60 seconds via camera"}</div>
-            <a href="{scan_link}" target="_blank" style="background:white;color:#2D3FE7;padding:12px 28px;border-radius:8px;font-weight:700;text-decoration:none;font-size:14px">
+            <a href="{scan_link}" target="_blank" style="background:white;color:#0F766E;padding:12px 28px;border-radius:8px;font-weight:700;text-decoration:none;font-size:14px">
                 {"Έναρξη Σάρωσης →" if lang=="el" else "Start Scan →"}
             </a>
         </div>''', unsafe_allow_html=True)
@@ -5750,20 +5965,20 @@ Use a certified upper-arm cuff device, note systolic/diastolic values
             badge   = f"<div style='background:{color};color:white;padding:6px 14px;border-radius:20px;font-size:13px;font-weight:700'>{label}</div>"
 
         st.markdown(f"""
-<div style="background:rgba(45,63,231,0.06);border:1px solid rgba(45,63,231,0.15);border-radius:14px;padding:18px 20px;">
+<div style="background:rgba(15,118,110,0.06);border:1px solid rgba(15,118,110,0.15);border-radius:14px;padding:18px 20px;">
   <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
     <div>
-      <div style="font-size:13px;font-weight:700;color:#1A1A2E">🩺 {title}</div>
+      <div style="font-size:13px;font-weight:700;color:#172333">🩺 {title}</div>
       <div style="font-size:11px;color:#6B7280;margin-top:2px">{subtitle}</div>
     </div>
     {badge}
   </div>
   <div style="display:flex;gap:16px;margin-bottom:10px">
-    <div style="background:white;border:1px solid #E0E5FF;border-radius:10px;padding:10px 16px;flex:1;text-align:center">
+    <div style="background:white;border:1px solid #E7EBEF;border-radius:10px;padding:10px 16px;flex:1;text-align:center">
       <div style="font-size:11px;color:#6B7280">{"Εκτιμ. Συστολική" if lang=="el" else "Est. Systolic"}</div>
       <div style="font-size:20px;font-weight:700;color:{color}">{sbp_disp} <span style="font-size:12px;font-weight:400">{unit}</span></div>
     </div>
-    <div style="background:white;border:1px solid #E0E5FF;border-radius:10px;padding:10px 16px;flex:1;text-align:center">
+    <div style="background:white;border:1px solid #E7EBEF;border-radius:10px;padding:10px 16px;flex:1;text-align:center">
       <div style="font-size:11px;color:#6B7280">{"Εκτιμ. Διαστολική" if lang=="el" else "Est. Diastolic"}</div>
       <div style="font-size:20px;font-weight:700;color:{color}">{dbp_disp} <span style="font-size:12px;font-weight:400">{unit}</span></div>
     </div>
@@ -5798,8 +6013,8 @@ def render_vitals_summary():
     for i,(key,val,unit,col) in enumerate(badges):
         icon,label,_=LABELS.get(key,("","",""))
         with cols[i]:
-            bg={"green":"#EDFBF0","yellow":"#FFFBEB","red":"#FEF2F2"}.get(col,"#F4F6FF")
-            brd={"green":"#A3E6B5","yellow":"#FCD34D","red":"#FCA5A5"}.get(col,"#E0E5FF")
+            bg={"green":"#EDFBF0","yellow":"#FFFBEB","red":"#FEF2F2"}.get(col,"#F5F7F9")
+            brd={"green":"#A3E6B5","yellow":"#FCD34D","red":"#FCA5A5"}.get(col,"#E7EBEF")
             st.markdown(f'<div style="background:{bg};border:1px solid {brd};border-radius:12px;padding:12px;text-align:center"><div style="font-size:18px">{icon}</div><div style="font-size:20px;font-weight:700">{val}</div><div style="font-size:10px;color:#6B7280">{unit}</div><div style="font-size:11px;color:#374151">{label}</div></div>',unsafe_allow_html=True)
     if st.session_state.vitals_analysis:
         with st.expander("📋 Ανάλυση ζωτικών" if st.session_state.lang=="el" else "📋 Vitals analysis"):
@@ -6147,18 +6362,107 @@ def _render_lab_upload_widget(p, lang, key_prefix=""):
                          "Upload a PDF or photo to begin analysis"))
 
 
+# Conversation-scoped state cleared by "Start again" (profile + vitals are kept).
+_ASSESSMENT_KEYS = ("triage_chat", "triage_ready", "report", "report_pubmed", "report_gpt",
+                    "report_recs", "report_recs_refs", "report_physio_refs", "report_psych_refs",
+                    "photo_findings", "lab_findings", "symptom_chips")
+_ASSESSMENT_FLAGS = ("photo_added", "lab_added", "triage_emergency", "_report_gen_confirmed",
+                     "_report_possibly_incomplete", "_vitals_nudge_off", "_voice_transcript",
+                     "_voice_last_hash", "_physio_refs_cache", "_psych_refs_cache",
+                     "_gpt_integrated", "_scan_injected", "_scan_reply_pending",
+                     "_voice_send_pending", "fb_rating", "fb_sent")
+
+def _reset_assessment():
+    for _k in _ASSESSMENT_KEYS:
+        _v = defaults.get(_k)
+        st.session_state[_k] = _v.copy() if isinstance(_v, (list, dict)) else _v
+    for _k in _ASSESSMENT_FLAGS:
+        st.session_state.pop(_k, None)
+    st.session_state["fb_rating"] = ""
+    st.session_state["fb_sent"] = False
+
+
+def render_case_panel(p):
+    """HAL 3 'Your needs' panel, adapted: what Asklepios currently knows about
+    the case, shown as chips, with an Edit link back to the intake form."""
+    import html as _h
+    chips = []
+    if p.get("name"):
+        chips.append(_h.escape(str(p["name"])))
+    _demo = " · ".join(str(x) for x in (p.get("age"), p.get("sex")) if x not in (None, ""))
+    if _demo:
+        chips.append(_h.escape(_demo))
+    if p.get("for_whom") == "other":
+        chips.append(f'<span class="ask-chip flag">{t("hal_caregiver")}</span>')
+    if p.get("pregnancy"):
+        chips.append(f'<span class="ask-chip flag">🤰 {t("hal_pregnant")}</span>')
+    for _cond in [c.strip() for c in str(p.get("history") or "").replace(";", ",").split(",") if c.strip()][:4]:
+        chips.append(_h.escape(_cond))
+    if p.get("allergies"):
+        chips.append(f'<span class="ask-chip flag">⚠ {t("hal_allergy")}: {_h.escape(str(p["allergies"]))}</span>')
+    _meds = [m.strip() for m in str(p.get("meds_raw") or "").split(",") if m.strip()]
+    if _meds:
+        chips.append(f'💊 {t("hal_meds")}: {_h.escape(", ".join(_meds[:3]))}{"…" if len(_meds) > 3 else ""}')
+    _sym = [m["content"] for m in st.session_state.triage_chat if m["role"] == "user"][:1]
+    if _sym:
+        _first = _sym[0].strip().replace("\n", " ")
+        chips.append(f'<span class="ask-chip flag">🩺 {_h.escape(_first[:60])}{"…" if len(_first) > 60 else ""}</span>')
+    _chip_html = "".join(c if c.startswith("<span") else f'<span class="ask-chip">{c}</span>' for c in chips)
+    _body = (f'<div class="ask-chips">{_chip_html}</div>' if chips
+             else f'<div class="ask-needs-empty">{t("hal_case_empty")}</div>')
+    c1, c2 = st.columns([6, 1.3], vertical_alignment="center")
+    with c1:
+        st.markdown(f'<div class="ask-needs" style="border:none;padding:0;background:none;">'
+                    f'<div><div class="ask-needs-title">{t("hal_case_title")}</div>{_body}</div></div>',
+                    unsafe_allow_html=True)
+    with c2:
+        if st.button(t("hal_edit"), key="case_edit", use_container_width=True):
+            st.session_state.screen = "intake"
+            st.rerun()
+
+
+def render_chat_card_header():
+    """HAL 3 chat-card header: avatar dot, 'Asklepios ● Online', Start again."""
+    h1, h2 = st.columns([5, 2], vertical_alignment="center")
+    with h1:
+        st.markdown(
+            f'<div style="display:flex;align-items:center;gap:10px;">'
+            f'<div class="ask-avatar-dot">🩺</div>'
+            f'<div style="font-weight:700;font-size:15px;color:#172333;">Asklepios '
+            f'<span class="ask-online">{t("hal_online")}</span></div></div>',
+            unsafe_allow_html=True,
+        )
+    with h2:
+        if st.session_state.triage_chat and not st.session_state.get("_confirm_restart"):
+            if st.button(t("hal_start_again"), key="chat_restart", use_container_width=True):
+                st.session_state["_confirm_restart"] = True
+                st.rerun()
+    if st.session_state.get("_confirm_restart"):
+        st.warning(t("hal_start_again_confirm"))
+        r1, r2 = st.columns(2)
+        with r1:
+            if st.button(t("hal_yes_clear"), key="chat_restart_yes", type="primary", use_container_width=True):
+                _reset_assessment()
+                st.session_state.pop("_confirm_restart", None)
+                st.rerun()
+        with r2:
+            if st.button(t("hal_cancel"), key="chat_restart_no", use_container_width=True):
+                st.session_state.pop("_confirm_restart", None)
+                st.rerun()
+
+
 def render_triage():
     render_stepper("triage")
     p=st.session_state.profile
-    nm = p.get("name","")
-    render_doc_header(
-        "Ας μιλήσουμε για τα συμπτώματα", "Let's talk about your symptoms",
-        icon="💬",
-        sub_el=(f"συνομιλία με {nm}" if nm else "Πες τι σε απασχολεί — μία ερώτηση κάθε φορά"),
-        sub_en=(f"chat with {nm}" if nm else "Tell me what's bothering you — one question at a time"),
-    )
+    # HAL 3 layout: chat-card header + "Your case" panel in one white card
+    with st.container(border=True):
+        st.markdown('<div class="ask-card-marker"></div>', unsafe_allow_html=True)
+        render_chat_card_header()
+        st.markdown('<div style="border-top:1px solid #E7EBEF;margin:10px 0 12px;"></div>',
+                    unsafe_allow_html=True)
+        render_case_panel(p)
     render_vitals_summary()
-    st.markdown(f'<div class="disclaimer">{t("disclaimer_main")}</div>',unsafe_allow_html=True)
+    st.markdown(f'<div class="disclaimer">{_html_bold(t("disclaimer_main"))}</div>',unsafe_allow_html=True)
     # Live emergency banner — shown immediately once the code-level safety gate
     # (_set_emergency_from_text) has detected a red flag in any assistant reply
     # this session, not only at the end when the final report is generated.
@@ -6224,7 +6528,7 @@ def render_triage():
                 _ku = _secret("ASKLEPIOS_URL","https://asklepiosainurse.up.railway.app")
                 _link = f"{_fs}?kira_url={urllib.parse.quote(_ku)}"
                 _save_session_for_external_nav()
-                st.markdown(f'<a href="{_link}" target="_blank" style="display:block;text-align:center;padding:8px;border-radius:8px;background:#2D3FE7;color:white;text-decoration:none;font-weight:600;font-size:13px">📷 {"Σάρωση" if _lang=="el" else "Scan"}</a>', unsafe_allow_html=True)
+                st.markdown(f'<a href="{_link}" target="_blank" style="display:block;text-align:center;padding:8px;border-radius:8px;background:#0F766E;color:white;text-decoration:none;font-weight:600;font-size:13px">📷 {"Σάρωση" if _lang=="el" else "Scan"}</a>', unsafe_allow_html=True)
             _ci += 1
         with _cols[_ci]:
             if st.button(("Όχι τώρα" if _lang=="el" else "Not now"), key="nudge_off", use_container_width=True):
@@ -6409,13 +6713,13 @@ def render_triage():
                         "✅ Copy and paste into chat ↓")
             st.iframe(f"""<!DOCTYPE html><html><head><style>
 body{{margin:0;padding:0;font-family:system-ui,sans-serif;background:transparent}}
-#wrap{{display:flex;align-items:flex-start;gap:10px;background:#F0F4FF;border:1px solid #C7D2FE;border-radius:10px;padding:10px 14px;flex-wrap:wrap}}
-#mic{{background:none;border:2px solid #2D3FE7;border-radius:50%;width:38px;height:38px;font-size:18px;cursor:pointer;color:#2D3FE7;flex-shrink:0;transition:all .2s}}
-#mic.active{{background:#2D3FE7;color:white;box-shadow:0 0 0 4px rgba(45,63,231,.15)}}
+#wrap{{display:flex;align-items:flex-start;gap:10px;background:#F0F4FF;border:1px solid #BFE3DC;border-radius:10px;padding:10px 14px;flex-wrap:wrap}}
+#mic{{background:none;border:2px solid #0F766E;border-radius:50%;width:38px;height:38px;font-size:18px;cursor:pointer;color:#0F766E;flex-shrink:0;transition:all .2s}}
+#mic.active{{background:#0F766E;color:white;box-shadow:0 0 0 4px rgba(15,118,110,.15)}}
 #status{{font-size:12px;color:#6B7280;flex:1;padding-top:10px}}
-#result{{display:none;width:100%;background:white;border:1px solid #C7D2FE;border-radius:8px;padding:8px 12px;font-size:14px;color:#1F2937;line-height:1.5;margin-top:6px;word-break:break-word}}
-#copy{{display:none;background:#2D3FE7;color:white;border:none;border-radius:8px;padding:8px 18px;font-weight:700;cursor:pointer;font-size:13px;margin-top:6px}}
-#copy:hover{{background:#1E30CC}}
+#result{{display:none;width:100%;background:white;border:1px solid #BFE3DC;border-radius:8px;padding:8px 12px;font-size:14px;color:#1F2937;line-height:1.5;margin-top:6px;word-break:break-word}}
+#copy{{display:none;background:#0F766E;color:white;border:none;border-radius:8px;padding:8px 18px;font-weight:700;cursor:pointer;font-size:13px;margin-top:6px}}
+#copy:hover{{background:#0B5F58}}
 </style></head><body>
 <div id="wrap">
   <button id="mic" onclick="toggleVoice()">🎙️</button>
@@ -6508,8 +6812,8 @@ function copyText(){{
             "pa": "✍️ ਇੱਥੇ ਆਪਣੇ ਲੱਛਣ ਲਿਖੋ ↓",
         }.get(st.session_state.lang, "✍️ Write your symptoms here ↓")
         st.markdown(f"""
-<div style="text-align:center;font-size:13px;font-weight:700;color:#2D3FE7;
-  background:#EEF2FF;border:1px solid #C7D2FE;border-radius:10px;
+<div style="text-align:center;font-size:13px;font-weight:700;color:#0F766E;
+  background:#EEF7F5;border:1px solid #BFE3DC;border-radius:10px;
   padding:8px 16px;margin:8px 0 4px;font-family:'Inter',system-ui,sans-serif;
   {"direction:rtl;" if is_rtl() else ""}">
   {_write_lbl}
@@ -6532,7 +6836,7 @@ function copyText(){{
   bottom: 0;
   z-index: 999;
   padding-bottom: env(safe-area-inset-bottom, 0px);
-  background: var(--background-color, #F4F6FF);
+  background: var(--background-color, #F5F7F9);
 }
 @supports (height: 100dvh) {
   [data-testid="stAppViewContainer"] {
@@ -6693,16 +6997,16 @@ def _render_recs_card(recs, lang, refs=None):
 <style>
 .pnoe-recs {{
   background: white;
-  border: 1px solid #E0E5FF;
+  border: 1px solid #E7EBEF;
   border-radius: 22px;
   padding: 24px 24px 22px;
   margin: 18px 0;
   font-family: 'Inter', system-ui, sans-serif;
-  box-shadow: 0 2px 10px rgba(45,63,231,0.05);
+  box-shadow: 0 2px 10px rgba(15,118,110,0.05);
 }}
 .pnoe-recs-title {{
   font-size: 13.5px; font-weight: 800; letter-spacing: 0.01em;
-  color: #1A1A2E;
+  color: #172333;
   border-bottom: 1px solid #EEF1FC;
   padding-bottom: 14px; margin-bottom: 16px;
 }}
@@ -6970,14 +7274,14 @@ def _render_health_pillars(profile, vitals, status_map, report_text, lang):
     st.markdown(f"""
 <style>
 .hp-card {{
-  background: white; border: 1px solid #E0E5FF; border-radius: 22px;
+  background: white; border: 1px solid #E7EBEF; border-radius: 22px;
   padding: 24px 24px 22px; margin: 18px 0;
   font-family: 'Inter', system-ui, sans-serif;
-  box-shadow: 0 2px 10px rgba(45,63,231,0.05);
+  box-shadow: 0 2px 10px rgba(15,118,110,0.05);
 }}
 .hp-title {{
   font-size: 13.5px; font-weight: 800; letter-spacing: 0.01em;
-  color: #1A1A2E;
+  color: #172333;
   border-bottom: 1px solid #EEF1FC; padding-bottom: 14px; margin-bottom: 14px;
 }}
 .hp-overall {{
@@ -7159,14 +7463,14 @@ def render_emergency_resources(lang):
     st.markdown(f"""
 <style>
 .er-card {{
-  background: white; border: 1px solid #E0E5FF; border-radius: 22px;
+  background: white; border: 1px solid #E7EBEF; border-radius: 22px;
   padding: 24px 24px 22px; margin: 18px 0;
   font-family: 'Inter', system-ui, sans-serif;
-  box-shadow: 0 2px 10px rgba(45,63,231,0.05);
+  box-shadow: 0 2px 10px rgba(15,118,110,0.05);
 }}
 .er-title {{
   font-size: 13.5px; font-weight: 800; letter-spacing: 0.01em;
-  color: #1A1A2E;
+  color: #172333;
   border-bottom: 1px solid #EEF1FC; padding-bottom: 14px; margin-bottom: 4px;
 }}
 .er-subtitle {{
@@ -7210,7 +7514,7 @@ def render_emergency_resources(lang):
 }}
 .er-partner-row:first-of-type {{ border-top: none; padding-top: 0; }}
 .er-partner-info {{ flex: 1; min-width: 0; }}
-.er-partner-name {{ font-size: 13px; font-weight: 700; color: #1A1A2E; }}
+.er-partner-name {{ font-size: 13px; font-weight: 700; color: #172333; }}
 .er-partner-meta {{ font-size: 11px; color: #92400E; margin-top: 1px; }}
 .er-partner-actions {{ display: flex; gap: 6px; flex-shrink: 0; }}
 .er-partner-btn {{
@@ -7235,8 +7539,8 @@ def render_emergency_resources(lang):
   transition: all 0.15s;
 }}
 .er-link:hover {{
-  background: white; border-color: #2D3FE7; text-decoration: none; color: inherit;
-  transform: translateY(-1px); box-shadow: 0 2px 6px rgba(45,63,231,0.10);
+  background: white; border-color: #0F766E; text-decoration: none; color: inherit;
+  transform: translateY(-1px); box-shadow: 0 2px 6px rgba(15,118,110,0.10);
 }}
 .er-link-title {{ font-size: 13.5px; font-weight: 700; color: #1F2937; margin-bottom: 3px; }}
 .er-link-sub {{ font-size: 11px; color: #6B7280; }}
@@ -7252,11 +7556,11 @@ def render_emergency_resources(lang):
 .er-maps-btn {{
   flex: 1; min-width: 140px;
   display: inline-block; padding: 9px 14px;
-  background: white; border: 1px solid #C7D2FE; border-radius: 8px;
-  color: #2D3FE7; font-size: 12.5px; font-weight: 600;
+  background: white; border: 1px solid #BFE3DC; border-radius: 8px;
+  color: #0F766E; font-size: 12.5px; font-weight: 600;
   text-decoration: none; text-align: center;
 }}
-.er-maps-btn:hover {{ background: #EFF6FF; color: #2D3FE7; text-decoration: none; }}
+.er-maps-btn:hover {{ background: #EFF6FF; color: #0F766E; text-decoration: none; }}
 
 .er-gov-section {{
   margin-top: 20px; padding-top: 16px; border-top: 1px solid #E5E7EB;
@@ -7719,23 +8023,23 @@ Rewrite ONLY the "{_plan_hdr}" section, grounding it in what these specific abst
 <style>
 .report-card {{
   background: white;
-  border: 1px solid #E0E5FF;
+  border: 1px solid #E7EBEF;
   border-radius: 22px;
   padding: 24px 24px 22px;
   margin: 6px 0 16px;
   font-family: 'Inter', system-ui, sans-serif;
-  box-shadow: 0 2px 10px rgba(45,63,231,0.05);
+  box-shadow: 0 2px 10px rgba(15,118,110,0.05);
 }}
 .report-card-title {{
   font-size: 13.5px; font-weight: 800; letter-spacing: 0.01em;
-  color: #1A1A2E;
+  color: #172333;
   padding-bottom: 14px; margin-bottom: 16px;
   border-bottom: 1px solid #EEF1FC;
   display: flex; align-items: center; gap: 10px;
 }}
 .report-card-title .rct-icon {{
   width: 32px; height: 32px; border-radius: 50%;
-  background: #E8ECFE; flex-shrink: 0;
+  background: #E6F4F1; flex-shrink: 0;
   display: flex; align-items: center; justify-content: center;
   font-size: 15px;
 }}
@@ -7756,20 +8060,20 @@ Rewrite ONLY the "{_plan_hdr}" section, grounding it in what these specific abst
   font-size: 13.5px; line-height: 1.55;
 }}
 .aller-box {{ background: #FEF2F2; border: 1px solid #FECACA; }}
-.meds-box  {{ background: #E8ECFE; border: 1px solid #C7D2FE; }}
+.meds-box  {{ background: #E6F4F1; border: 1px solid #BFE3DC; }}
 .aller-box .am-lbl, .meds-box .am-lbl {{
   font-size: 10.5px; font-weight: 700; letter-spacing: 0.12em;
   text-transform: uppercase; margin-bottom: 8px;
 }}
 .aller-box .am-lbl {{ color: #991B1B; }}
-.meds-box  .am-lbl {{ color: #2D3FE7; }}
+.meds-box  .am-lbl {{ color: #0F766E; }}
 .aller-box .am-val {{ color: #7F1D1D; font-weight: 500; }}
-.meds-box  .am-val {{ color: #1A1A2E; font-weight: 500; }}
+.meds-box  .am-val {{ color: #172333; font-weight: 500; }}
 
 /* Clinical Assessment section header (separates patient info from Claude content) */
 .assessment-section-header {{
-  background: #F4F6FF;
-  border: 1px solid #E0E5FF;
+  background: #F5F7F9;
+  border: 1px solid #E7EBEF;
   border-radius: 16px;
   padding: 16px 20px;
   margin: 16px 0 14px;
@@ -7778,30 +8082,30 @@ Rewrite ONLY the "{_plan_hdr}" section, grounding it in what these specific abst
 }}
 .assessment-section-header .ash-icon {{
   width: 38px; height: 38px; border-radius: 50%;
-  background: #E8ECFE; flex-shrink: 0;
+  background: #E6F4F1; flex-shrink: 0;
   display: flex; align-items: center; justify-content: center;
   font-size: 18px;
 }}
 .assessment-section-header .ash-title {{
   font-size: 12.5px; font-weight: 800; letter-spacing: 0.08em;
-  color: #2D3FE7; text-transform: uppercase;
+  color: #0F766E; text-transform: uppercase;
 }}
 
 /* Style markdown section headers inside the Claude report so each section
  * ("ΚΥΡΙΟ ΠΑΡΑΠΟΝΟ", "ΙΣΤΟΡΙΚΟ", "ΕΚΤΙΜΗΣΗ" ...) reads like a medical report block */
 [data-testid="stMarkdownContainer"] h1,
 [data-testid="stMarkdownContainer"] h2 {{
-  color: #2D3FE7 !important;
+  color: #0F766E !important;
   font-size: 14px !important;
   font-weight: 700 !important;
   text-transform: uppercase !important;
   letter-spacing: 0.10em !important;
-  border-bottom: 1.5px solid #E0E5FF !important;
+  border-bottom: 1.5px solid #E7EBEF !important;
   padding-bottom: 6px !important;
   margin: 22px 0 12px !important;
 }}
 [data-testid="stMarkdownContainer"] h3 {{
-  color: #2D3FE7 !important;
+  color: #0F766E !important;
   font-size: 13.5px !important;
   font-weight: 700 !important;
   margin: 16px 0 8px !important;
@@ -7878,12 +8182,12 @@ Rewrite ONLY the "{_plan_hdr}" section, grounding it in what these specific abst
             )
         st.markdown(
             f'<style>'
-            f'.pf-card{{background:white;border:1px solid #E0E5FF;border-radius:22px;padding:24px 24px 22px;margin:18px 0;font-family:Inter,system-ui,sans-serif;box-shadow:0 2px 10px rgba(45,63,231,0.05)}}'
-            f'.pf-title{{font-size:13.5px;font-weight:800;letter-spacing:0.01em;color:#1A1A2E;border-bottom:1px solid #EEF1FC;padding-bottom:14px;margin-bottom:16px}}'
+            f'.pf-card{{background:white;border:1px solid #E7EBEF;border-radius:22px;padding:24px 24px 22px;margin:18px 0;font-family:Inter,system-ui,sans-serif;box-shadow:0 2px 10px rgba(15,118,110,0.05)}}'
+            f'.pf-title{{font-size:13.5px;font-weight:800;letter-spacing:0.01em;color:#172333;border-bottom:1px solid #EEF1FC;padding-bottom:14px;margin-bottom:16px}}'
             f'.pf-item{{padding:14px 0;border-bottom:1px solid #F3F4F6}}'
             f'.pf-item:last-child{{border-bottom:none;padding-bottom:0}}'
             f'.pf-head{{display:flex;align-items:center;gap:10px;margin-bottom:8px}}'
-            f'.pf-num{{background:#E8ECFE;color:#2D3FE7;font-size:11px;font-weight:700;width:24px;height:24px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0}}'
+            f'.pf-num{{background:#E6F4F1;color:#0F766E;font-size:11px;font-weight:700;width:24px;height:24px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0}}'
             f'.pf-label{{font-size:13.5px;font-weight:700;color:#111827}}'
             f'.pf-body{{font-size:13px;color:#374151;line-height:1.6}}'
             f'.pf-body strong{{color:#1F2937}}'
@@ -7914,8 +8218,8 @@ Rewrite ONLY the "{_plan_hdr}" section, grounding it in what these specific abst
             )
         st.markdown(
             f'<style>'
-            f'.lf-card{{background:white;border:1px solid #E0E5FF;border-radius:22px;padding:24px 24px 22px;margin:18px 0;font-family:Inter,system-ui,sans-serif;box-shadow:0 2px 10px rgba(45,63,231,0.05)}}'
-            f'.lf-title{{font-size:13.5px;font-weight:800;letter-spacing:0.01em;color:#1A1A2E;border-bottom:1px solid #EEF1FC;padding-bottom:14px;margin-bottom:16px}}'
+            f'.lf-card{{background:white;border:1px solid #E7EBEF;border-radius:22px;padding:24px 24px 22px;margin:18px 0;font-family:Inter,system-ui,sans-serif;box-shadow:0 2px 10px rgba(15,118,110,0.05)}}'
+            f'.lf-title{{font-size:13.5px;font-weight:800;letter-spacing:0.01em;color:#172333;border-bottom:1px solid #EEF1FC;padding-bottom:14px;margin-bottom:16px}}'
             f'.lf-item{{padding:14px 0;border-bottom:1px solid #F3F4F6}}'
             f'.lf-item:last-child{{border-bottom:none;padding-bottom:0}}'
             f'.lf-head{{display:flex;align-items:center;gap:10px;margin-bottom:8px}}'
@@ -8347,6 +8651,14 @@ elif screen=="triage": render_triage()
 elif screen=="report": render_report()
 elif screen=="history": render_history()
 else: render_home()
+
+# HAL 3-style footer disclaimer on every in-app screen
+_priv_lbl = "🔒 Τα δεδομένα μου & GDPR" if st.session_state.lang == "el" else "🔒 My data & GDPR"
+st.markdown(
+    f'<div class="ask-footer" dir="{"rtl" if is_rtl() else "ltr"}">{t("hal_footer")}<br>'
+    f'<a href="?page=privacy" target="_self">{_priv_lbl}</a></div>',
+    unsafe_allow_html=True,
+)
 
 # Top nav bar — spacer pushes content below the fixed bar at the top.
 st.markdown('<div class="bottom-nav-spacer"></div>', unsafe_allow_html=True)
