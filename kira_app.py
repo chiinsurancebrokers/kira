@@ -1916,6 +1916,55 @@ def render_explainer_video(lang):
 
 
 
+def render_dossier_banner(key, *, variant="full"):
+    """Promo for the "all your exams in one document" feature. variant:
+    'full' = dark glow card with text + CTA; 'strip' = slim one-line bar."""
+    el = st.session_state.get("lang", "el") == "el"
+    _mk = f"dos-banner-{key}"
+    st.markdown(f"""
+<style>
+div[data-testid="stVerticalBlock"]:has(> div[data-testid="stElementContainer"] .{_mk}) {{
+  background: radial-gradient(120% 90% at 100% 0%, rgba(99,102,241,.36) 0%, rgba(99,102,241,0) 55%),
+              radial-gradient(90% 80% at 0% 100%, rgba(34,211,238,.14) 0%, rgba(34,211,238,0) 60%), #050816 !important;
+  border: 1px solid rgba(148,163,255,.22) !important; border-radius: 22px !important;
+  box-shadow: 0 24px 50px -30px rgba(10,16,48,.6);
+}}
+div[data-testid="stVerticalBlock"]:has(> div[data-testid="stElementContainer"] .{_mk}) button {{
+  background: linear-gradient(135deg,#818CF8,#22D3EE) !important; color:#050816 !important; border:none !important;
+  border-radius:999px !important; font-weight:700 !important; min-height:44px !important;
+}}
+div[data-testid="stVerticalBlock"]:has(> div[data-testid="stElementContainer"] .{_mk}) button p {{ color:#050816 !important; font-weight:700 !important; }}
+</style>""", unsafe_allow_html=True)
+    with st.container(border=True):
+        if variant == "strip":
+            c1, c2 = st.columns([3, 1.4], vertical_alignment="center")
+            with c1:
+                st.markdown(
+                    f'<div class="{_mk}" style="display:flex;align-items:center;gap:10px;padding:2px 2px;">'
+                    f'<span class="ask-eyebrow" style="padding:4px 9px;font-size:10px;">{"ΝΕΟ" if el else "NEW"}</span>'
+                    f'<span style="color:#fff;font-weight:600;font-size:14px;line-height:1.35;">📁 '
+                    + ("Όλες οι εξετάσεις σου σε ένα έγγραφο για τον γιατρό" if el else "All your exams in one document for your doctor")
+                    + '</span></div>', unsafe_allow_html=True)
+            with c2:
+                if st.button(("Άνοιγμα →" if el else "Open →"), key=f"dos_banner_{key}", use_container_width=True):
+                    st.session_state["_hero_seen"] = True
+                    st.session_state.screen = "dossier"; st.rerun()
+            return
+        st.markdown(
+            f'<div class="{_mk}" style="padding:4px 4px 2px;">'
+            f'<span class="ask-eyebrow">{"ΝΕΟ · ΦΑΚΕΛΟΣ ΕΞΕΤΑΣΕΩΝ" if el else "NEW · EXAM DOSSIER"}</span>'
+            '<div style="font-family:\'Sora\',\'Inter\',sans-serif;color:#fff;font-size:21px;font-weight:700;letter-spacing:-.02em;margin:12px 0 6px;">'
+            + ("📁 Όλες οι εξετάσεις σου σε ένα έγγραφο για τον γιατρό" if el else "📁 All your exams in one document for your doctor")
+            + '</div><div style="color:#C3C9E6;font-size:13.5px;line-height:1.6;margin-bottom:10px;">'
+            + ("Φωτογράφισε ή ανέβασε αξονικές, υπέρηχους, ΗΚΓ, αιματολογικές. Ο Asklepios τις οργανώνει ανά εξέταση — τιμές, ημερομηνίες, κέντρα, φάρμακα — σε ένα καθαρό Word/PDF για το ραντεβού."
+               if el else
+               "Photograph or upload CT scans, ultrasounds, ECGs, blood tests. Asklepios organises them per exam — values, dates, centres, medication — into one clean Word/PDF for the appointment.")
+            + '</div></div>', unsafe_allow_html=True)
+        if st.button(("Φτιάξε τον φάκελο →" if el else "Build the dossier →"), key=f"dos_banner_{key}", use_container_width=True):
+            st.session_state["_hero_seen"] = True
+            st.session_state.screen = "dossier"; st.rerun()
+
+
 def render_login_screen():
     """Hero landing + login — fully multilingual via t() keys.
     Language picker at top sets st.session_state.lang which drives all t() calls.
@@ -2068,6 +2117,23 @@ div[data-testid="stHorizontalBlock"]:has(.ask-split-left) > div[data-testid="stC
             if st.button(t("hero_cta"), type="primary", use_container_width=True, key="hero_cta_noauth"):
                 st.session_state["_hero_seen"] = True
                 st.rerun()
+
+    # New feature promo — right under the hero so every visitor sees it
+    if is_logged_in() or not auth_enabled():
+        render_dossier_banner("landing")
+    else:
+        _el_l = (lang == "el")
+        st.markdown(f"""
+<div style="background:radial-gradient(120% 90% at 100% 0%, rgba(99,102,241,.36) 0%, rgba(99,102,241,0) 55%),#050816;
+  border:1px solid rgba(148,163,255,.22);border-radius:22px;padding:20px 22px;margin:0 0 26px;">
+  <span class="ask-eyebrow">{"ΝΕΟ · ΦΑΚΕΛΟΣ ΕΞΕΤΑΣΕΩΝ" if _el_l else "NEW · EXAM DOSSIER"}</span>
+  <div style="font-family:'Sora','Inter',sans-serif;color:#fff;font-size:21px;font-weight:700;letter-spacing:-.02em;margin:12px 0 6px;">
+    📁 {"Όλες οι εξετάσεις σου σε ένα έγγραφο για τον γιατρό" if _el_l else "All your exams in one document for your doctor"}</div>
+  <div style="color:#C3C9E6;font-size:13.5px;line-height:1.6;">
+    {"Φωτογράφισε ή ανέβασε αξονικές, υπέρηχους, ΗΚΓ, αιματολογικές. Ο Asklepios τις οργανώνει ανά εξέταση — τιμές, ημερομηνίες, κέντρα, φάρμακα — σε ένα καθαρό Word/PDF. <b style='color:#fff'>Συνδέσου παραπάνω για να ξεκινήσεις.</b>"
+     if _el_l else
+     "Photograph or upload CT scans, ultrasounds, ECGs, blood tests. Asklepios organises them per exam — values, dates, centres, medication — into one clean Word/PDF. <b style='color:#fff'>Sign in above to start.</b>"}</div>
+</div>""", unsafe_allow_html=True)
 
     # ── ASHLAR-STYLE LANDING SECTIONS ─────────────────────────────────────────
     # Mirrors ashlarassurance.com: mono eyebrow pill + Sora H2, numbered "01"
@@ -4643,7 +4709,7 @@ def render_bottom_nav():
 
     tab_for_screen = {
         "home": "home", "intake": "triage", "vitals": "vitals",
-        "triage": "triage", "report": "history", "dossier": "home",
+        "triage": "triage", "report": "history", "dossier": "dossier",
     }
     active_tab = tab_for_screen.get(cur, "home")
 
@@ -4652,6 +4718,7 @@ def render_bottom_nav():
         ("vitals",  "❤️", t("nav_vitals")),
         ("triage",  "💬", t("nav_symptoms")),
         ("history", "📋", t("nav_history")),
+        ("dossier", "📁", ("Φάκελος" if lang == "el" else "Dossier")),
     ]
 
     st.markdown("""
@@ -4672,7 +4739,7 @@ div[data-testid="stHorizontalBlock"]:has(.bn-marker) {
   gap: 2px !important;
 }
 div[data-testid="stHorizontalBlock"]:has(.bn-marker) > div[data-testid="stColumn"] {
-  min-width: 0 !important; width: 25% !important; flex: 0 0 25% !important;
+  min-width: 0 !important; width: 20% !important; flex: 0 0 20% !important;
   display: flex !important; align-items: center !important;
 }
 .bn-marker { display: none; }
@@ -4691,6 +4758,15 @@ div[data-testid="stHorizontalBlock"]:has(.bn-marker) button p {
   text-align: center !important; width: 100%;
 }
 div[data-testid="stHorizontalBlock"]:has(.bn-marker) button p { color: #98A2C8 !important; }
+@media (max-width: 640px) {
+  div[data-testid="stHorizontalBlock"]:has(.bn-marker) button {
+    white-space: normal !important; font-size: 10px !important; line-height: 1.15 !important; padding: 2px 0 !important;
+  }
+  div[data-testid="stHorizontalBlock"]:has(.bn-marker) button p {
+    white-space: normal !important; font-size: 10px !important; line-height: 1.15 !important;
+    overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+  }
+}
 div[data-testid="stHorizontalBlock"]:has(.bn-marker) button:hover p { color: #FFFFFF !important; }
 div[data-testid="stHorizontalBlock"]:has(.bn-marker) button:hover {
   background: rgba(255,255,255,.06) !important; border-color: transparent !important;
@@ -4714,7 +4790,7 @@ div[data-testid="stHorizontalBlock"]:has(.bn-marker) button[kind="primary"] p {
             if st.button(f"{icon}  {label}", key=f"bn_{key}",
                          use_container_width=True,
                          type=("primary" if is_active else "secondary")):
-                if key != "home" and not has_profile:
+                if key not in ("home", "dossier") and not has_profile:
                     st.session_state.screen = "intake"
                 else:
                     st.session_state.screen = key
@@ -5735,6 +5811,9 @@ def render_home():
 </div>
 """, unsafe_allow_html=True)
 
+    # ── New: exam dossier — promoted right under the greeting ────────────
+    render_dossier_banner("home")
+
     # ── Explainer banner — shown until user completes first assessment ────────
     if not has_profile:
         _exp_title = t("home_explainer_title")
@@ -5791,37 +5870,6 @@ div[data-testid="stVerticalBlock"]:has(> div[data-testid="stElementContainer"] .
             if st.button(_lbl2, key="home_go_vitals", use_container_width=True):
                 _go("vitals")
 
-    # ── Doctor dossier entry — the feature doctors react to most ─────────
-    st.markdown(f"""
-<style>
-div[data-testid="stVerticalBlock"]:has(> div[data-testid="stElementContainer"] .home-dossier-marker) button {{
-  background: linear-gradient(135deg,#818CF8,#22D3EE) !important; color:#050816 !important; border:none !important;
-  border-radius:999px !important; font-weight:700 !important; min-height:46px !important;
-}}
-div[data-testid="stVerticalBlock"]:has(> div[data-testid="stElementContainer"] .home-dossier-marker) button p {{ color:#050816 !important; font-weight:700 !important; }}
-div[data-testid="stVerticalBlock"]:has(> div[data-testid="stElementContainer"] .home-dossier-marker) {{
-  background: radial-gradient(120% 90% at 100% 0%, rgba(99,102,241,.36) 0%, rgba(99,102,241,0) 55%),
-              radial-gradient(90% 80% at 0% 100%, rgba(34,211,238,.14) 0%, rgba(34,211,238,0) 60%), #050816 !important;
-  border-color: rgba(148,163,255,.2) !important; border-radius:22px !important;
-}}
-</style>""", unsafe_allow_html=True)
-    with st.container(border=True):
-        st.markdown(
-            '<div class="home-dossier-marker"></div>'
-            '<div style="padding:4px 4px 2px;">'
-            f'<span class="ask-eyebrow">{"ΝΕΟ · ΓΙΑ ΤΟ ΡΑΝΤΕΒΟΥ" if el else "NEW · FOR YOUR APPOINTMENT"}</span>'
-            '<div style="font-family:\'Sora\',\'Inter\',sans-serif;color:#fff;font-size:20px;font-weight:700;letter-spacing:-.02em;margin:12px 0 6px;">'
-            f'📁 {"Φάκελος εξετάσεων για τον γιατρό" if el else "Exam dossier for your doctor"}</div>'
-            '<div style="color:#C3C9E6;font-size:13.5px;line-height:1.55;margin-bottom:10px;">'
-            + ("Ανέβασε αξονικές, υπέρηχους, ΗΚΓ, αιματολογικές — ο Asklepios τις οργανώνει σε ένα έγγραφο Word/PDF με όλες τις τιμές, ημερομηνίες και φάρμακα."
-               if el else
-               "Upload CT scans, ultrasounds, ECGs, blood tests — Asklepios organises them into one Word/PDF document with every value, date and medication.")
-            + '</div></div>',
-            unsafe_allow_html=True,
-        )
-        if st.button(("Φτιάξε τον φάκελο →" if el else "Build the dossier →"), key="home_go_dossier", use_container_width=True):
-            st.session_state.screen = "dossier"
-            st.rerun()
 
     # ── Intro video (A2E avatar) ─────────────────────────────────────────
     # Pre-generated ONCE offline via a2e_intro_video.py (not at runtime — we
@@ -5861,6 +5909,7 @@ def render_history():
         sub_en="Latest report & symptom log",
         show_date=False,
     )
+    render_dossier_banner("history", variant="strip")
     if st.session_state.report:
         with st.container(border=True):
             st.markdown("##### 📄 " + ("Τελευταία Αναφορά" if lang=="el" else "Latest Report"))
@@ -7123,6 +7172,7 @@ def render_triage():
         if st.button(("➕ Θέλω να προσθέσω κάτι ακόμα" if _el else "➕ I want to add something"),
                      use_container_width=True, key="triage_add_more"):
             st.session_state["_add_more"] = True; st.rerun()
+        render_dossier_banner("triage_ready", variant="strip")
     else:
         # ── Inline composer ──────────────────────────────────────────────────────
         # Sits directly under the latest message (HAL chat-card style) instead of
@@ -9015,10 +9065,7 @@ Rewrite ONLY the "{_plan_hdr}" section, grounding it in what these specific abst
         wa_url="https://wa.me/?text="+urllib.parse.quote(msg)
         st.markdown(f'<a href="{wa_url}" target="_blank" style="display:block;text-align:center;padding:8px;border-radius:8px;text-decoration:none;font-weight:600;font-size:13px;color:white;background:#25D366">WhatsApp</a>',unsafe_allow_html=True)
     # Doctor dossier — all exams + this assessment in one document for the doctor
-    if st.button(("📁 Φτιάξε φάκελο με όλες τις εξετάσεις για τον γιατρό →" if lang=="el"
-                  else "📁 Build a dossier with all exams for your doctor →"),
-                 key="report_go_dossier", use_container_width=True):
-        st.session_state.screen = "dossier"; st.rerun()
+    render_dossier_banner("report")
 
 # ── COOKIE MANAGER (once) — persistent login + in-progress profile draft ──────
 if _STX_OK and auth_enabled():
