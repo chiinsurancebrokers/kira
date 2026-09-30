@@ -740,6 +740,26 @@ st.markdown("""
 [data-testid="stAppViewContainer"]{ background: var(--ask-bg) !important; overflow-x: hidden !important; }
 html, body, [data-testid="stApp"], [data-testid="stMain"]{ overflow-x: hidden !important; max-width: 100vw; }
 [data-testid="stChatMessage"]{ box-sizing: border-box; }
+/* iOS Safari zooms the whole page in when a field under 16px gets focus —
+   that zoom is what left screens cut off on both sides after typing. */
+@media (max-width: 768px){
+  input, textarea, select, [data-baseweb="select"] div, .stTextInput input, .stNumberInput input, .stTextArea textarea{
+    font-size: 16px !important;
+  }
+}
+/* Language picker + logout stay one compact row on phones */
+div[data-testid="stHorizontalBlock"]:has(.topbar-marker){ flex-wrap: nowrap !important; gap: 8px !important; }
+div[data-testid="stHorizontalBlock"]:has(.topbar-marker) > div[data-testid="stColumn"]{ min-width: 0 !important; }
+div[data-testid="stHorizontalBlock"]:has(.topbar-marker) > div[data-testid="stColumn"]:last-child{ flex: 0 0 52px !important; width: 52px !important; }
+div[data-testid="stHorizontalBlock"]:has(.topbar-marker) > div[data-testid="stColumn"]:last-child button{ min-height: 40px !important; padding: 0 !important; }
+@media (max-width: 640px){
+  div[data-testid="stHorizontalBlock"]:has(.topbar-marker) > div[data-testid="stColumn"]:first-child{ display: none !important; }
+  div[data-testid="stHorizontalBlock"]:has(.topbar-marker) > div[data-testid="stColumn"]:nth-child(2){ flex: 1 1 auto !important; width: auto !important; }
+  .kira-step-label{ font-size: 10px !important; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+  .kira-stepper{ padding: 8px 8px 0 !important; gap: 4px !important; }
+  .kira-step{ min-width: 0; }
+}
+div[data-testid="stElementContainer"]:has(.topbar-marker){ display:none !important; }
 [data-testid="stChatMessageContent"]{ min-width: 0; overflow-wrap: anywhere; }
 [data-testid="stHeader"]{ background: transparent !important; }
 .main .block-container, [data-testid="stMainBlockContainer"]{ max-width: 980px; padding-top: 2.2rem !important; }
@@ -1940,17 +1960,16 @@ div[data-testid="stVerticalBlock"]:has(> div[data-testid="stElementContainer"] .
 </style>""", unsafe_allow_html=True)
     with st.container(border=True):
         if variant == "strip":
-            c1, c2 = st.columns([3, 1.4], vertical_alignment="center")
-            with c1:
-                st.markdown(
-                    f'<div class="{_mk}" style="display:flex;align-items:center;gap:10px;padding:2px 2px;">'
-                    f'<span class="ask-eyebrow" style="padding:4px 9px;font-size:10px;">{"ΝΕΟ" if el else "NEW"}</span>'
-                    f'<span style="color:#fff;font-weight:600;font-size:14px;line-height:1.35;">📁 '
-                    + ("Όλες οι εξετάσεις σου σε ένα έγγραφο για τον γιατρό" if el else "All your exams in one document for your doctor")
-                    + '</span></div>', unsafe_allow_html=True)
-            with c2:
-                if st.button(("Άνοιγμα →" if el else "Open →"), key=f"dos_banner_{key}", use_container_width=True):
+            st.markdown(
+                f'<div class="{_mk}" style="padding:2px 2px 0;">'
+                f'<span class="ask-eyebrow" style="padding:4px 10px;font-size:10px;white-space:nowrap;">{"ΝΕΟ · ΦΑΚΕΛΟΣ ΕΞΕΤΑΣΕΩΝ" if el else "NEW · EXAM DOSSIER"}</span>'
+                f'<div style="color:#fff;font-weight:600;font-size:15px;line-height:1.4;margin:10px 0 2px;">📁 '
+                + ("Όλες οι εξετάσεις σου σε ένα έγγραφο για τον γιατρό" if el else "All your exams in one document for your doctor")
+                + '</div></div>', unsafe_allow_html=True)
+            if True:
+                if st.button(("Άνοιγμα φακέλου →" if el else "Open the dossier →"), key=f"dos_banner_{key}", use_container_width=True):
                     st.session_state["_hero_seen"] = True
+                    st.session_state["_dossier_from"] = "triage" if key.startswith("triage") else None
                     st.session_state.screen = "dossier"; st.rerun()
             return
         st.markdown(
@@ -1965,6 +1984,7 @@ div[data-testid="stVerticalBlock"]:has(> div[data-testid="stElementContainer"] .
             + '</div></div>', unsafe_allow_html=True)
         if st.button(("Φτιάξε τον φάκελο →" if el else "Build the dossier →"), key=f"dos_banner_{key}", use_container_width=True):
             st.session_state["_hero_seen"] = True
+            st.session_state["_dossier_from"] = "triage" if key.startswith("triage") else None
             st.session_state.screen = "dossier"; st.rerun()
 
 
@@ -4589,6 +4609,8 @@ def render_topbar():
     """
     lang = st.session_state.lang
     _t1, _t2, _t3 = st.columns([5, 2, 1])
+    with _t1:
+        st.markdown('<div class="topbar-marker"></div>', unsafe_allow_html=True)
     with _t2:
         # Unified language picker: el/en → UI lang; others → output_lang only
         _all_lang_codes = list(OUTPUT_LANGUAGES.keys())
@@ -4793,6 +4815,7 @@ div[data-testid="stHorizontalBlock"]:has(.bn-marker) button[kind="primary"] p {
             if st.button(f"{icon}  {label}", key=f"bn_{key}",
                          use_container_width=True,
                          type=("primary" if is_active else "secondary")):
+                st.session_state["_dossier_from"] = None
                 if key not in ("home", "dossier") and not has_profile:
                     st.session_state.screen = "intake"
                 else:
@@ -5974,7 +5997,70 @@ def _dossier_state():
             "done_files": [], "doc_names": {}, "errors": [],
             "docx": None, "html": None, "built_at": None,
         }
-    return st.session_state.dossier
+    D = st.session_state.dossier
+    # Fill any blank patient field from the profile (e.g. the dossier was opened
+    # before the intake form was completed, or from the symptom check).
+    p = st.session_state.profile or {}
+    _map = {"name": p.get("name"), "age": str(p.get("age") or "") if p.get("name") else "",
+            "sex": p.get("sex"), "history": p.get("history"), "allergies": p.get("allergies")}
+    for k, v in _map.items():
+        if v and not str(D["patient"].get(k) or "").strip():
+            D["patient"][k] = v
+            st.session_state.pop(f"dos_{ {'name':'name','age':'age','sex':'sex','history':'hist','allergies':'all'}[k] }", None)
+    if not D["meds"] and p.get("meds_raw"):
+        D["meds"] = [{"time": "", "drug": m.strip(), "dose": ""} for m in str(p["meds_raw"]).split(",") if m.strip()]
+    return D
+
+
+def _exams_to_text(exams, lang="el", limit=7000):
+    """Compact plain-text version of the extracted exams, used to hand them to
+    Asklepios inside the symptom conversation."""
+    out = []
+    for e in exams or []:
+        head = " · ".join(x for x in [e.get("exam_title"), e.get("date"), e.get("facility")] if x)
+        out.append(f"■ {head}")
+        if e.get("source_note"):
+            out.append(f"  ({e['source_note']})")
+        for sec in e.get("sections") or []:
+            if sec.get("title"):
+                out.append(f"  {sec['title']}:")
+            if sec.get("description"):
+                out.append(f"    {sec['description']}")
+            for r in sec.get("rows") or []:
+                vals = [str(x) for x in r if str(x).strip()]
+                if vals:
+                    out.append("    - " + (vals[0] + ": " + " | ".join(vals[1:]) if len(vals) > 1 else vals[0]))
+        for c in e.get("conclusion") or []:
+            out.append("  " + ("Συμπέρασμα" if lang == "el" else "Conclusion") + ": "
+                       + " — ".join(x for x in [c.get("item"), c.get("detail")] if x))
+    txt = "\n".join(out)
+    return txt if len(txt) <= limit else txt[:limit].rsplit("\n", 1)[0] + "\n…"
+
+
+def _send_dossier_to_chat():
+    """Hand the (not yet sent) dossier exams to Asklepios as one message, keep
+    them for the final report, and go back to the conversation — where the
+    pending-message logic makes Asklepios answer right away."""
+    D = _dossier_state()
+    el = st.session_state.get("lang", "el") == "el"
+    sent = set(D.get("sent_ids") or [])
+    new = [e for e in D.get("exams") or [] if e.get("id") not in sent]
+    if not new:
+        return False
+    txt = _exams_to_text(new, st.session_state.get("lang", "el"))
+    msg = ((f"Ανέβασα {len(new)} εξετάσεις στον φάκελο. Οι τιμές όπως είναι γραμμένες:\n\n{txt}")
+           if el else (f"I uploaded {len(new)} exams to the dossier. Values as printed:\n\n{txt}"))
+    st.session_state.triage_chat.append({"role": "user", "content": msg})
+    _lf = st.session_state.get("lab_findings")
+    if not isinstance(_lf, list):
+        _lf = []
+    _lf.append({"file_name": ("Φάκελος εξετάσεων" if el else "Exam dossier") + f" ({len(new)})",
+                "analysis": txt})
+    st.session_state["lab_findings"] = _lf
+    D["sent_ids"] = list(sent | {e.get("id") for e in new})
+    st.session_state["lab_added"] = True
+    st.session_state.screen = "triage"
+    return True
 
 
 def _dossier_step(n, title, sub=""):
@@ -6004,6 +6090,16 @@ def render_dossier():
     lang = st.session_state.lang
     el = (lang == "el")
     D = _dossier_state()
+    _from_chat = st.session_state.get("_dossier_from") == "triage" and bool(st.session_state.triage_chat)
+    if _from_chat:
+        b1, b2 = st.columns([1.2, 2], vertical_alignment="center")
+        with b1:
+            if st.button("← " + ("Πίσω στη συζήτηση" if el else "Back to the chat"), key="dos_back_chat",
+                         use_container_width=True):
+                st.session_state.screen = "triage"; st.rerun()
+        with b2:
+            st.caption("💬 " + ("Από τον έλεγχο συμπτωμάτων — οι εξετάσεις θα σταλούν και στον Asklepios."
+                               if el else "From your symptom check — the exams will also go to Asklepios."))
     render_doc_header(
         "Φάκελος εξετάσεων για τον γιατρό", "Exam dossier for your doctor", icon="📁",
         sub_el="Όλες οι εξετάσεις σε ένα καθαρό έγγραφο — έτοιμο για το ραντεβού",
@@ -6184,6 +6280,18 @@ def render_dossier():
             D["docx"] = D["html"] = None
             st.rerun()
 
+    # Hand the exams to Asklepios (symptom check) — available whenever a
+    # conversation exists, so the dossier works both standalone and in-chat.
+    _unsent = [e for e in D.get("exams") or [] if e.get("id") not in set(D.get("sent_ids") or [])]
+    if _unsent and st.session_state.triage_chat:
+        if st.button(("💬 Στείλε τις εξετάσεις στον Asklepios και συνέχισε τη συζήτηση"
+                      if el else "💬 Send the exams to Asklepios and continue the chat"),
+                     type="primary", use_container_width=True, key="dos_to_chat"):
+            if _send_dossier_to_chat():
+                st.rerun()
+    elif D.get("exams") and D.get("sent_ids") and st.session_state.triage_chat:
+        st.caption("✅ " + ("Οι εξετάσεις έχουν σταλεί στον Asklepios." if el else "The exams have been sent to Asklepios."))
+
     # ── 04 Build ──────────────────────────────────────────────────────────
     with st.container(border=True):
         st.markdown('<div class="ask-card-marker"></div>', unsafe_allow_html=True)
@@ -6337,260 +6445,158 @@ def render_intake():
                 st.warning(t("please_enter_name"))
 
 def render_vitals():
+    """Vitals — one simple form (typed values from any device), an optional
+    'more' section, an optional face scan, and ONE continue button. Replaces
+    the old three tabs (manual / device / scan), whose manual and device tabs
+    asked for the same numbers twice and whose tab bar overflowed on phones."""
     render_stepper("vitals")
-    p=st.session_state.profile
-    lang=st.session_state.lang
-    nm = p.get("name","")
+    p = st.session_state.profile
+    lang = st.session_state.lang
+    el = (lang == "el")
+    nm = p.get("name", "")
     render_doc_header(
         "Πώς είναι τα ζωτικά σου;", "How are your vitals?",
         icon="❤️",
-        sub_el=(f"για τον/την {nm}" if nm else "Χειροκίνητα, με συσκευή ή σάρωση προσώπου"),
-        sub_en=(f"for {nm}" if nm else "Manual, device, or face scan"),
+        sub_el=(f"για τον/την {nm} · προαιρετικό" if nm else "Προαιρετικό — συμπλήρωσε μόνο όσα έχεις"),
+        sub_en=(f"for {nm} · optional" if nm else "Optional — fill in only what you have"),
     )
+    st.markdown("""
+<style>
+div[data-testid="stVerticalBlock"]:has(> div[data-testid="stElementContainer"] .vit-marker) div[data-testid="stHorizontalBlock"]{
+  flex-wrap: nowrap !important; gap: 12px !important;
+}
+div[data-testid="stVerticalBlock"]:has(> div[data-testid="stElementContainer"] .vit-marker) div[data-testid="stColumn"]{
+  min-width: 0 !important; width: auto !important; flex: 1 1 0 !important;
+}
+div[data-testid="stVerticalBlock"]:has(> div[data-testid="stElementContainer"] .vit-marker) [data-testid="stNumberInputStepDown"],
+div[data-testid="stVerticalBlock"]:has(> div[data-testid="stElementContainer"] .vit-marker) [data-testid="stNumberInputStepUp"]{
+  display: none !important;
+}
+div[data-testid="stVerticalBlock"]:has(> div[data-testid="stElementContainer"] .vit-marker) label p{
+  font-size: 13px !important; font-weight: 600 !important; color: #2D3558 !important;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+div[data-testid="stElementContainer"]:has(.vit-marker){ display:none !important; }
+.vit-intro{ font-size:13.5px; color:#5A6388; line-height:1.55; margin:-4px 2px 14px; }
+.vit-intro b{ color:#0A1030; }
+</style>""", unsafe_allow_html=True)
+    st.markdown(
+        '<div class="vit-intro">' + (
+            "Γράψε τις τιμές από <b>πιεσόμετρο, οξύμετρο, θερμόμετρο ή smartwatch</b>. "
+            "Άφησε κενό ό,τι δεν έχεις — ο Asklepios προχωράει και χωρίς μετρήσεις."
+            if el else
+            "Type the values from a <b>blood-pressure cuff, oximeter, thermometer or smartwatch</b>. "
+            "Leave blank anything you don't have — Asklepios works without measurements too.")
+        + '</div>', unsafe_allow_html=True)
 
-    # ── Tab layout: Manual (default) | Device Import | Face Scan (experimental) ──
-    tab_manual, tab_device, tab_scan = st.tabs([
-        "✏️ " + ("Χειροκίνητη Εισαγωγή" if lang=="el" else "Manual Entry"),
-        "⌚ " + ("Εισαγωγή από Συσκευή" if lang=="el" else "Import from Device"),
-        "📷 " + ("Σάρωση (πειραματικό)" if lang=="el" else "Face Scan (experimental)"),
-    ])
+    v = st.session_state.vitals or {}
+    def _iv(k):
+        try: return int(v.get(k)) or None
+        except Exception: return None
+    def _fv(k):
+        try: return float(v.get(k)) or None
+        except Exception: return None
 
-    with tab_scan:
-        st.caption(("⚠️ Πειραματικό. Η σάρωση με κάμερα δίνει μόνο ενδεικτικό καρδιακό ρυθμό — για αξιόπιστες τιμές χρησιμοποίησε «Χειροκίνητη Εισαγωγή» ή «Συσκευή»."
-                    if lang=="el" else
-                    "⚠️ Experimental. The camera scan gives only an indicative heart rate — for reliable values use 'Manual Entry' or 'Device'."))
-        facescan_url=_secret("FACESCAN_URL","https://asklepiosnurse.netlify.app")
-        kira_url=_secret("ASKLEPIOS_URL","https://asklepiosainurse.up.railway.app")
-        scan_link=f"{facescan_url}?kira_url={urllib.parse.quote(kira_url)}"
+    with st.container(border=True):
+        st.markdown('<div class="ask-card-marker vit-marker"></div>', unsafe_allow_html=True)
+        st.markdown(f'<div class="home-group-title" style="margin-bottom:8px;">{"Βασικές μετρήσεις" if el else "Core vitals"}</div>',
+                    unsafe_allow_html=True)
+        r1a, r1b = st.columns(2)
+        with r1a: hr = st.number_input("❤️ " + ("Σφυγμοί (bpm)" if el else "Pulse (bpm)"), min_value=0, max_value=300, value=_iv("hr"), placeholder="76", key="vt_hr")
+        with r1b: spo2 = st.number_input("🫁 " + ("Οξυγόνο SpO₂ (%)" if el else "Oxygen SpO₂ (%)"), min_value=0, max_value=100, value=_iv("spo2"), placeholder="98", key="vt_spo2")
+        r2a, r2b = st.columns(2)
+        with r2a: bp_s = st.number_input("🩺 " + ("Πίεση μεγάλη" if el else "BP systolic"), min_value=0, max_value=300, value=_iv("bp_sys"), placeholder="120", key="vt_bps")
+        with r2b: bp_d = st.number_input("🩺 " + ("Πίεση μικρή" if el else "BP diastolic"), min_value=0, max_value=200, value=_iv("bp_dia"), placeholder="80", key="vt_bpd")
+        r3a, r3b = st.columns(2)
+        with r3a: temp = st.number_input("🌡️ " + ("Θερμοκρασία (°C)" if el else "Temperature (°C)"), min_value=0.0, max_value=45.0, value=_fv("temp"), placeholder="36.6", format="%.1f", key="vt_temp")
+        with r3b: br = st.number_input("💨 " + ("Αναπνοές (/λεπτό)" if el else "Breaths (/min)"), min_value=0, max_value=60, value=_iv("br"), placeholder="15", key="vt_br")
+
+    with st.expander("＋ " + ("Βάρος, ύψος, HRV (προαιρετικά)" if el else "Weight, height, HRV (optional)")):
+        st.markdown('<div class="vit-marker"></div>', unsafe_allow_html=True)
+        e1, e2, e3 = st.columns(3)
+        with e1: weight = st.number_input(("Βάρος (kg)" if el else "Weight (kg)"), min_value=0.0, max_value=300.0, value=_fv("weight"), placeholder="75", format="%.1f", key="vt_wt")
+        with e2: height = st.number_input(("Ύψος (cm)" if el else "Height (cm)"), min_value=0, max_value=250, value=_iv("height"), placeholder="175", key="vt_ht")
+        with e3: hrv = st.number_input("HRV (ms)", min_value=0, max_value=300, value=_iv("hrv"), placeholder="45", key="vt_hrv")
+
+    with st.expander("⌚ " + ("Πού βρίσκω τις τιμές; (ρολόι, οξύμετρο, πιεσόμετρο)" if el else "Where do I find the values? (watch, oximeter, cuff)")):
+        st.markdown(
+            ("- **Apple Watch / iPhone:** Υγεία → Περιήγηση → Καρδιά (σφυγμοί, HRV) · Αναπνευστικό (οξυγόνο)\n"
+             "- **Fitbit / Garmin / Polar:** Αρχική οθόνη της εφαρμογής → Καρδιακός ρυθμός\n"
+             "- **Οξύμετρο δακτύλου:** SpO₂ και σφυγμοί απευθείας στην οθόνη\n"
+             "- **Πιεσόμετρο:** η πάνω τιμή είναι η μεγάλη (συστολική), η κάτω η μικρή (διαστολική)")
+            if el else
+            ("- **Apple Watch / iPhone:** Health → Browse → Heart (pulse, HRV) · Respiratory (oxygen)\n"
+             "- **Fitbit / Garmin / Polar:** app home screen → Heart rate\n"
+             "- **Finger oximeter:** SpO₂ and pulse directly on the display\n"
+             "- **Blood-pressure cuff:** top number = systolic, bottom = diastolic"))
+
+    # Optional camera scan — secondary, clearly labelled experimental
+    facescan_url = _secret("FACESCAN_URL", "https://asklepiosnurse.netlify.app")
+    kira_url = _secret("ASKLEPIOS_URL", "https://asklepiosainurse.up.railway.app")
+    scan_link = f"{facescan_url}?kira_url={urllib.parse.quote(kira_url)}"
+    with st.expander("📷 " + ("Δεν έχω συσκευή — σάρωση προσώπου με την κάμερα (πειραματικό)" if el
+                             else "No device — face scan with the camera (experimental)")):
         _save_session_for_external_nav()
-        st.markdown(f'''<div style="background:linear-gradient(135deg,#4F46E5,#050816);border-radius:16px;padding:28px;text-align:center;color:white;margin:8px 0">
-            <div style="font-size:40px;margin-bottom:8px">📷</div>
-            <div style="font-size:18px;font-weight:700;margin-bottom:8px">{"Σάρωση Προσώπου rPPG" if lang=="el" else "rPPG Face Scan"}</div>
-            <div style="font-size:13px;opacity:0.8;margin-bottom:16px">{"Μέτρηση καρδιακού ρυθμού & αναπνοής σε 30 δευτερόλεπτα μέσω κάμερας" if lang=="el" else "Measure heart rate & breathing in 60 seconds via camera"}</div>
-            <a href="{scan_link}" target="_blank" style="background:white;color:#4F46E5;padding:12px 28px;border-radius:8px;font-weight:700;text-decoration:none;font-size:14px">
-                {"Έναρξη Σάρωσης →" if lang=="el" else "Start Scan →"}
-            </a>
-        </div>''', unsafe_allow_html=True)
-        st.caption("✅ Μετράει: Καρδιακός ρυθμός, αναπνοή  |  ⚠️ Εκτίμηση: HRV, stress  |  ❌ Δεν μετράει: Αρτηριακή πίεση" if lang=="el"
-                   else "✅ Measures: Heart rate, breathing  |  ⚠️ Estimate: HRV, stress  |  ❌ Does not measure: Blood pressure")
+        st.caption(("Ενδεικτικός καρδιακός ρυθμός & αναπνοή σε ~30 δευτερόλεπτα. Δεν μετράει πίεση ή οξυγόνο."
+                    if el else "Indicative heart rate & breathing in ~30 seconds. Does not measure blood pressure or oxygen."))
+        st.link_button(("Έναρξη σάρωσης →" if el else "Start scan →"), scan_link, use_container_width=True)
 
-    with tab_device:
-        st.markdown(f"### {'Εισαγωγή από Smartwatch / Οξύμετρο' if lang=='el' else 'Import from Smartwatch / Oximeter'}")
-        st.caption("Apple Watch · Fitbit · Garmin · Polar · Finger oximeter" if lang=="el" else "Apple Watch · Fitbit · Garmin · Polar · Finger oximeter")
+    # Blood-pressure estimate — only useful when BP was NOT measured but
+    # weight/height/pulse are known; otherwise it's noise.
+    _bp_est_html = None
+    if not (bp_s or bp_d) and (p.get("age") or 0) >= 18 and hr and weight and height:
+        _bmi = round(weight / ((height / 100) ** 2), 1)
+        risk = demographic_bp_risk(p.get("age"), _bmi, hr, weight, height)
+        _lbl = risk["label_el"] if el else risk["label_en"]
+        _bp_est_html = f"""
+<div style="background:#FFFFFF;border:1px solid #E1E5F4;border-radius:18px;padding:14px 16px;margin:4px 0 10px;">
+  <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;">
+    <div style="font-size:13px;font-weight:700;color:#0A1030;">🩺 {"Εκτίμηση πίεσης (χωρίς μέτρηση)" if el else "Blood-pressure estimate (not measured)"}</div>
+    <span style="background:{risk['color']};color:#fff;border-radius:999px;padding:3px 10px;font-size:11.5px;font-weight:700;white-space:nowrap;">{_lbl}</span>
+  </div>
+  <div style="font-size:13px;color:#2D3558;margin-top:6px;">{risk['sbp']} / {risk['dbp']} mmHg</div>
+  <div style="font-size:11px;color:#7A83A8;margin-top:4px;">{"Μόνο ενδεικτικό — για σωστή τιμή χρησιμοποίησε πιεσόμετρο." if el else "Indicative only — use a blood-pressure cuff for a real value."}</div>
+</div>"""
+    if _bp_est_html:
+        st.markdown(_bp_est_html, unsafe_allow_html=True)
 
-        d1, d2 = st.columns(2)
-        with d1:
-            st.markdown(f"**{'Apple Watch / Smartwatch' if lang=='el' else 'Apple Watch / Smartwatch'}**")
-            dev_hr   = st.number_input("Heart Rate (bpm)", min_value=0, max_value=300, value=None, placeholder="76", key="dev_hr")
-            dev_hrv  = st.number_input("HRV (ms)", min_value=0, max_value=300, value=None, placeholder="45", key="dev_hrv")
-            dev_spo2 = st.number_input("SpO2 (%)", min_value=0, max_value=100, value=None, placeholder="98", key="dev_spo2")
-            dev_br   = st.number_input("Breathing Rate (/min)", min_value=0, max_value=60, value=None, placeholder="15", key="dev_br")
-        with d2:
-            st.markdown(f"**{'Πιεσόμετρο / Άλλη Συσκευή' if lang=='el' else 'Blood Pressure Monitor / Other'}**")
-            dev_bps  = st.number_input("BP Systolic (mmHg)", min_value=0, max_value=300, value=None, placeholder="120", key="dev_bps")
-            dev_bpd  = st.number_input("BP Diastolic (mmHg)", min_value=0, max_value=200, value=None, placeholder="80", key="dev_bpd")
-            dev_temp = st.number_input("Temperature (°C)", min_value=0.0, max_value=45.0, value=None, placeholder="36.6", key="dev_temp", format="%.1f")
-            dev_wt   = st.number_input("Weight (kg)", min_value=0.0, max_value=300.0, value=None, placeholder="75", key="dev_wt", format="%.1f")
+    vd = {}
+    if hr: vd["hr"] = int(hr)
+    if spo2: vd["spo2"] = int(spo2)
+    if bp_s: vd["bp_sys"] = int(bp_s)
+    if bp_d: vd["bp_dia"] = int(bp_d)
+    if temp: vd["temp"] = float(temp)
+    if br: vd["br"] = int(br)
+    if weight: vd["weight"] = float(weight)
+    if height: vd["height"] = int(height)
+    if hrv: vd["hrv"] = int(hrv)
+    for extra in ("stress", "cardio", "quality", "wellness"):
+        if extra in (st.session_state.vitals or {}):
+            vd[extra] = st.session_state.vitals[extra]
 
-        st.markdown(f"**{'Ύψος (για ΔΜΣ)' if lang=='el' else 'Height (for BMI)'}**")
-        dev_ht = st.number_input("Height (cm)", min_value=0, max_value=250, value=None, placeholder="175", key="dev_ht")
-
-        if st.button(f"{'Φόρτωση δεδομένων συσκευής' if lang=='el' else 'Load device data'}", type="primary", key="load_device", use_container_width=True):
-            vd = {}
-            if dev_hr:   vd["hr"]     = int(dev_hr)
-            if dev_hrv:  vd["hrv"]    = int(dev_hrv)
-            if dev_spo2: vd["spo2"]   = int(dev_spo2)
-            if dev_br:   vd["br"]     = int(dev_br)
-            if dev_bps:  vd["bp_sys"] = int(dev_bps)
-            if dev_bpd:  vd["bp_dia"] = int(dev_bpd)
-            if dev_temp: vd["temp"]   = float(dev_temp)
-            if dev_wt:   vd["weight"] = float(dev_wt)
-            if dev_ht:   vd["height"] = int(dev_ht)
+    _n = sum(1 for k in ("hr", "spo2", "bp_sys", "bp_dia", "temp", "br", "weight", "height", "hrv") if k in vd)
+    _cont = ((f"Συνέχεια με {_n} μέτρηση{'' if _n == 1 else 'ις'} →" if _n else "Συνέχεια χωρίς μετρήσεις →") if el
+             else (f"Continue with {_n} value{'' if _n == 1 else 's'} →" if _n else "Continue without vitals →"))
+    col_b, col_n = st.columns([1, 2.6])
+    with col_b:
+        if st.button(t("back"), key="vit_back", use_container_width=True):
+            st.session_state.screen = "intake"; st.rerun()
+    with col_n:
+        if st.button(_cont, type="primary", use_container_width=True, key="vit_continue"):
             if vd:
                 classify_vitals(vd, age=p.get("age"))
                 st.session_state.vitals = vd
-                st.session_state["_device_loaded"] = True
+                if _rate_limit_gate("vitals_analysis"):
+                    with st.spinner("Asklepios " + ("διαβάζει τις μετρήσεις…" if el else "is reading your vitals…")):
+                        vtext = "\n".join(f"- {k}: {val}" for k, val in vd.items())
+                        pp = p.get
+                        st.session_state.vitals_analysis = claude(
+                            [{"role": "user", "content": f"Patient: {pp('name')}, {pp('age')}yo {pp('sex')}, Hx: {pp('history','none')}, Meds: {pp('meds_raw','none')}\n\nVitals:\n{vtext}\n\nInterpret. Categorise each. Flag urgent findings. Be direct."}],
+                            system=kira_system(), max_tokens=1200)
             else:
-                st.warning("Εισάγετε τουλάχιστον έναν δείκτη." if lang=="el" else "Enter at least one metric.")
+                st.session_state.vitals = {}
+            st.session_state.screen = "triage"; st.rerun()
 
-        # Show confirmation + vitals + proceed button (no rerun needed)
-        if st.session_state.get("_device_loaded") and st.session_state.vitals:
-            v_loaded = st.session_state.vitals
-            st.success(f"{'✅ Δεδομένα φορτώθηκαν:' if lang=='el' else '✅ Data loaded:'} " +
-                       " | ".join(f"{k}={v}" for k,v in v_loaded.items()))
-            if st.button(f"{'Συνέχεια στην Εκτίμηση →' if lang=='el' else 'Continue to Assessment →'}",
-                         type="primary", key="dev_continue", use_container_width=True):
-                st.session_state["_device_loaded"] = False
-                with st.spinner("Ανάλυση..."):
-                    vtext = "\n".join(f"- {k}: {val}" for k,val in v_loaded.items())
-                    pp = p.get
-                    st.session_state.vitals_analysis = claude(
-                        [{"role":"user","content":f"Patient: {pp('name')}, {pp('age')}yo {pp('sex')}, Hx: {pp('history','none')}, Meds: {pp('meds_raw','none')}\n\nVitals:\n{vtext}\n\nInterpret. Categorise each. Flag urgent findings. Be direct."}],
-                        system=kira_system(), max_tokens=1200
-                    )
-                st.session_state.screen = "triage"
-                st.rerun()
-
-        # How-to guide
-        with st.expander(f"{'Πώς να εξαγάγετε δεδομένα από τη συσκευή σας' if lang=='el' else 'How to export data from your device'}"):
-            st.markdown("""
-**Apple Watch / iPhone:**
-Health app → Browse → Heart → Heart Rate → export or note the value
-
-**Fitbit:**
-Fitbit app → Today → Heart Rate tile
-
-**Garmin / Polar:**
-Garmin Connect / Polar Flow app → Dashboard → Heart Rate
-
-**Finger oximeter:**
-Read SpO2 and HR directly from the device display
-
-**Blood pressure monitor:**
-Use a certified upper-arm cuff device, note systolic/diastolic values
-            """)
-    with tab_manual:
-        v=st.session_state.vitals
-        with st.container(border=True):
-            st.markdown(
-                f'<div class="home-group-title">{t("vitals_core_title")}</div>',
-                unsafe_allow_html=True,
-            )
-            cc1,cc2=st.columns(2)
-            with cc1:
-                hr=st.number_input(t("hr"),min_value=0,max_value=300,value=int(v.get("hr",0)) or None,placeholder="76")
-                temp=st.number_input(t("temp"),min_value=0.0,max_value=45.0,value=float(v.get("temp",0.0)) or None,placeholder="36.6",format="%.1f")
-            with cc2:
-                spo2=st.number_input(t("spo2"),min_value=0,max_value=100,value=int(v.get("spo2",0)) or None,placeholder="98")
-                bp_col1, bp_col2 = st.columns(2)
-                with bp_col1:
-                    bp_s=st.number_input(t("bp_sys"),min_value=0,max_value=300,value=int(v.get("bp_sys",0)) or None,placeholder="120")
-                with bp_col2:
-                    bp_d=st.number_input(t("bp_dia"),min_value=0,max_value=200,value=int(v.get("bp_dia",0)) or None,placeholder="80")
-
-        with st.expander("＋ " + t("vitals_optional")):
-            ec1, ec2, ec3 = st.columns(3)
-            with ec1:
-                br=st.number_input(t("br"),min_value=0,max_value=60,value=int(v.get("br",0)) or None,placeholder="15")
-            with ec2:
-                weight=st.number_input(t("weight"),min_value=0.0,max_value=300.0,value=float(v.get("weight",0.0)) or None,placeholder="75",format="%.1f")
-            with ec3:
-                height=st.number_input(t("height"),min_value=0,max_value=250,value=int(v.get("height",0)) or None,placeholder="175")
-
-        if st.button(t("analyse_vitals"),type="primary",use_container_width=True,key="analyse_manual"):
-            vd={}
-            if hr: vd["hr"]=hr
-            if bp_s: vd["bp_sys"]=bp_s
-            if bp_d: vd["bp_dia"]=bp_d
-            if br: vd["br"]=br
-            if spo2: vd["spo2"]=spo2
-            if temp: vd["temp"]=temp
-            if weight: vd["weight"]=weight
-            if height: vd["height"]=height
-            for extra in ["hrv","stress","cardio"]:
-                if extra in st.session_state.vitals: vd[extra]=st.session_state.vitals[extra]
-            st.session_state.vitals=vd; classify_vitals(vd, age=p.get("age"))
-            if vd and _rate_limit_gate("vitals_analysis"):
-                with st.spinner("Ανάλυση..."):
-                    vtext="\n".join(f"- {k}: {val}" for k,val in vd.items())
-                    pp=p.get
-                    st.session_state.vitals_analysis=claude([{"role":"user","content":f"Patient: {pp('name')}, {pp('age')}yo {pp('sex')}, Hx: {pp('history','none')}, Meds: {pp('meds_raw','none')}\n\nVitals:\n{vtext}\n\nInterpret. Categorise each. Flag urgent findings. Be direct."}],system=kira_system(),max_tokens=1200)
-            st.session_state.screen="triage"; st.rerun()
-
-    # ── BP Estimation — Railway GPR API + Demographic fallback ───────────────
-    st.divider()
-    pr = st.session_state.profile
-    age_val  = pr.get("age", 0)
-    v_now    = st.session_state.vitals
-    hr_val   = v_now.get("hr")
-    wt_val   = v_now.get("weight") or pr.get("weight")
-    ht_val   = v_now.get("height") or pr.get("height")
-    bmi_val  = v_now.get("bmi")
-    if not bmi_val and wt_val and ht_val:
-        bmi_val = round(wt_val / ((ht_val/100)**2), 1)
-    sex_val  = pr.get("sex","")
-    gender_n = 1 if sex_val in ["Άνδρας","Male"] else 0
-
-    bp_api_url = _secret("BP_API_URL","")
-    api_result = None
-
-    # Try Railway GPR model first (real ML prediction)
-    if bp_api_url and age_val >= 18 and wt_val and ht_val and hr_val:
-        try:
-            payload = json.dumps({
-                "age": int(age_val), "height": float(ht_val),
-                "weight": float(wt_val), "hr": int(hr_val),
-                "gender": gender_n
-            }).encode()
-            req = urllib.request.Request(
-                f"{bp_api_url.rstrip('/')}/predict",
-                data=payload,
-                headers={"Content-Type":"application/json"},
-            )
-            with urllib.request.urlopen(req, timeout=8) as r:
-                api_result = json.loads(r.read())
-        except Exception:
-            api_result = None
-
-    if age_val >= 18:
-        risk = demographic_bp_risk(age_val, bmi_val, hr_val, wt_val, ht_val)
-        label = risk["label_el"] if lang=="el" else risk["label_en"]
-        note  = risk["note_el"]  if lang=="el" else risk["note_en"]
-        color = risk["color"]
-
-        if api_result:
-            # ── ML model result (precise estimate with confidence interval) ──
-            sbp     = api_result.get("sbp", "—")
-            dbp     = api_result.get("dbp", "—")
-            sbp_ci  = api_result.get("sbp_ci95", "")
-            dbp_ci  = api_result.get("dbp_ci95", "")
-            bmi_api = api_result.get("bmi", bmi_val or "—")
-            title   = "Εκτίμηση Αρτηριακής Πίεσης — GPR Model" if lang=="el" else "Blood Pressure Estimate — GPR Model"
-            subtitle= "Gaussian Process Regression · Chowdhury et al. (2020) · Railway API" if lang=="el" else "Gaussian Process Regression · Chowdhury et al. (2020) · Railway API"
-            sbp_disp= f"{sbp} <span style='font-size:11px;color:#6B7280'>± {sbp_ci}</span>"
-            dbp_disp= f"{dbp} <span style='font-size:11px;color:#6B7280'>± {dbp_ci}</span>"
-            unit    = "mmHg"
-            badge   = f"<div style='background:{color};color:white;padding:6px 14px;border-radius:20px;font-size:13px;font-weight:700'>{label}</div><div style='font-size:9px;color:#6B7280;text-align:right;margin-top:4px'>GPR Model ✓</div>"
-        else:
-            # ── Demographic fallback (range estimate) ──
-            sbp_disp= risk["sbp"]
-            dbp_disp= risk["dbp"]
-            unit    = "mmHg"
-            title   = t("bp_risk_title")
-            subtitle= "Βάσει: ηλικία, ΔΜΣ, HR — Chowdhury et al. (2020)" if lang=="el" else "Based on: age, BMI, HR — Chowdhury et al. (2020)"
-            badge   = f"<div style='background:{color};color:white;padding:6px 14px;border-radius:20px;font-size:13px;font-weight:700'>{label}</div>"
-
-        st.markdown(f"""
-<div style="background:rgba(99,102,241,0.06);border:1px solid rgba(99,102,241,0.15);border-radius:14px;padding:18px 20px;">
-  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
-    <div>
-      <div style="font-size:13px;font-weight:700;color:#0A1030">🩺 {title}</div>
-      <div style="font-size:11px;color:#6B7280;margin-top:2px">{subtitle}</div>
-    </div>
-    {badge}
-  </div>
-  <div style="display:flex;gap:16px;margin-bottom:10px">
-    <div style="background:white;border:1px solid #E1E5F4;border-radius:10px;padding:10px 16px;flex:1;text-align:center">
-      <div style="font-size:11px;color:#6B7280">{"Εκτιμ. Συστολική" if lang=="el" else "Est. Systolic"}</div>
-      <div style="font-size:20px;font-weight:700;color:{color}">{sbp_disp} <span style="font-size:12px;font-weight:400">{unit}</span></div>
-    </div>
-    <div style="background:white;border:1px solid #E1E5F4;border-radius:10px;padding:10px 16px;flex:1;text-align:center">
-      <div style="font-size:11px;color:#6B7280">{"Εκτιμ. Διαστολική" if lang=="el" else "Est. Diastolic"}</div>
-      <div style="font-size:20px;font-weight:700;color:{color}">{dbp_disp} <span style="font-size:12px;font-weight:400">{unit}</span></div>
-    </div>
-  </div>
-  <div style="font-size:12px;color:#374151">{note}</div>
-  <div style="font-size:10px;color:#9CA3AF;margin-top:6px">⚠️ {"Εκτίμηση μόνο — όχι αντικατάσταση πιεσομέτρου. Χρησιμοποιείστε πιστοποιημένο πιεσόμετρο για ακριβή μέτρηση." if lang=="el" else "Estimate only — not a substitute for a blood pressure monitor. Use a certified BP cuff for accurate measurement."}</div>
-</div>
-        """, unsafe_allow_html=True)
-
-    # Navigation buttons
-    col_b, col_s = st.columns([1, 3])
-    with col_b:
-        if st.button(t("back")): st.session_state.screen="intake"; st.rerun()
-    with col_s:
-        if st.button(t("vitals_skip_continue"), use_container_width=True):
-            st.session_state.vitals={}; st.session_state.screen="triage"; st.rerun()
 
 def render_vitals_summary():
     v=st.session_state.vitals
@@ -7210,12 +7216,29 @@ def render_triage():
         if _asst_spoke and _visual_relevant():
             _tool_opts["photo"] = ("📷 Φωτογραφία" if _el else "📷 Photo")
         if _asst_spoke:
-            _tool_opts["lab"] = ("🧪 Εξετάσεις" if _el else "🧪 Lab results")
+            _tool_opts["lab"] = ("🧪 Μία εξέταση" if _el else "🧪 One lab result")
+        _tool_opts["dossier"] = ("📁 Όλες οι εξετάσεις" if _el else "📁 All my exams")
         _tool = st.segmented_control(
             ("Πρόσθεσε (προαιρετικό)" if _el else "Add (optional)"),
             options=list(_tool_opts.keys()), format_func=lambda k: _tool_opts[k],
             selection_mode="single", key="triage_tool",
         )
+        if _tool == "dossier":
+            with st.container(border=True):
+                st.markdown(
+                    ("**📁 Φάκελος εξετάσεων** — ανέβασε όσες εξετάσεις έχεις (αξονικές, υπέρηχους, ΗΚΓ, αιματολογικές). "
+                     "Ο Asklepios τις οργανώνει σε ένα έγγραφο για τον γιατρό **και** τις λαμβάνει υπόψη σε αυτή τη συζήτηση και στην αναφορά."
+                     if _el else
+                     "**📁 Exam dossier** — upload all the exams you have (CT, ultrasound, ECG, blood tests). "
+                     "Asklepios organises them into one document for your doctor **and** takes them into account in this chat and the report."))
+                _Dn = len((st.session_state.get("dossier") or {}).get("exams") or [])
+                if _Dn:
+                    st.caption(("✅ " + f"{_Dn} εξετάσεις ήδη στον φάκελο.") if _el else ("✅ " + f"{_Dn} exams already in the dossier."))
+                if st.button(("Άνοιγμα φακέλου →" if _el else "Open the dossier →"), type="primary",
+                             use_container_width=True, key="triage_open_dossier"):
+                    st.session_state["_dossier_from"] = "triage"
+                    st.session_state.pop("triage_tool", None)
+                    st.session_state.screen = "dossier"; st.rerun()
         if _tool == "vitals":
             _names = ", ".join(dict.fromkeys(c["el" if _lang=="el" else "en"] for c in _relv))
             _show_scan = any(c["scan"] for c in _relv)
@@ -7499,7 +7522,13 @@ def render_triage():
             st.session_state.pop("photo_added", None)
             st.session_state.pop("lab_added", None)
             st.session_state.triage_chat.append({"role":"user","content":user_input})
-        _gate_ok = _rate_limit_gate("triage_chat")
+        # A short cooldown right after another AI action (e.g. reading exams)
+        # should delay the answer by a few seconds, not leave the chat stuck.
+        _ok_rl, _wait_rl, _why_rl = _rate_limit_check("triage_chat")
+        if not _ok_rl and _why_rl == "cooldown" and _wait_rl <= RATE_LIMIT_COOLDOWN_SECONDS:
+            time.sleep(_wait_rl + 0.2)
+            _ok_rl, _wait_rl, _why_rl = _rate_limit_check("triage_chat")
+        _gate_ok = _ok_rl or _rate_limit_gate("triage_chat")
     if (user_input or _auto_reply or _voice_reply) and _gate_ok:
         if user_input:
             # Echo the just-sent message while Asklepios is answering
