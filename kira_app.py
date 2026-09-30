@@ -8256,57 +8256,58 @@ def render_emergency_resources(lang):
   .er-maps-btn {{ min-width: 100%; }}
   .er-gov-link {{ font-size: 11.5px; }}
 }}
-</style>
-<div class="er-card">
-  <div class="er-title">{tx['title']}</div>
-  <div class="er-subtitle">{tx['subtitle']}</div>
 
-  <div class="er-emerg">
-    <div class="er-emerg-title">{tx['emerg_title']}</div>
-    <div class="er-emerg-row">
-      <span class="er-emerg-label">{tx['ekab']}</span>
-      <a class="er-call-btn" href="tel:166">📞 166</a>
-    </div>
-    <div class="er-emerg-row">
-      <span class="er-emerg-label">{tx['eu_112']}</span>
-      <a class="er-call-btn" href="tel:112">📞 112</a>
-    </div>
-    <div class="er-emerg-row">
-      <span class="er-emerg-label">{tx['pfy']}</span>
-      <a class="er-call-btn" href="tel:1135">📞 1135</a>
+.er2{{ font-family:'Inter',system-ui,sans-serif; margin:0 0 8px; }}
+.er2 a{{ text-decoration:none !important; }}
+.er2-emerg{{ background:#FEF2F2; border:1px solid #FECACA; border-radius:20px; padding:14px 14px 12px; margin-bottom:12px; }}
+.er2-emerg-t{{ font-family:'JetBrains Mono',monospace; font-size:11px; font-weight:600; letter-spacing:.1em; color:#991B1B; margin:0 2px 10px; }}
+.er2-calls{{ display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:8px; }}
+.er2-call{{ display:flex; flex-direction:column; align-items:center; justify-content:center; gap:2px; padding:10px 4px;
+  background:#DC2626; border-radius:14px; color:#fff !important; }}
+.er2-call b{{ font-family:'Sora','Inter',sans-serif; font-size:20px; line-height:1; color:#fff; }}
+.er2-call span{{ font-size:11px; color:#FEE2E2; }}
+.er2-call.soft{{ background:#fff; border:1px solid #FECACA; }}
+.er2-call.soft b{{ color:#B91C1C; }} .er2-call.soft span{{ color:#991B1B; }}
+.er2-grid{{ display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:10px; }}
+.er2-tile{{ background:#fff; border:1px solid #E1E5F4; border-radius:18px; padding:14px 14px 12px; }}
+.er2-tile-t{{ font-weight:700; font-size:14.5px; color:#0A1030; margin-bottom:10px; }}
+.er2-actions{{ display:flex; flex-wrap:wrap; gap:6px; }}
+.er2-actions a{{ font-size:12.5px; font-weight:600; color:#2D3558 !important; background:#EEF1FB; border:1px solid #DDE2F3;
+  border-radius:999px; padding:6px 11px; }}
+@media (max-width:640px){{ .er2-grid{{ grid-template-columns:1fr; }} }}
+</style>
+<div class="er2">
+  <div class="er2-emerg">
+    <div class="er2-emerg-t">{tx['emerg_title']}</div>
+    <div class="er2-calls">
+      <a class="er2-call" href="tel:166"><b>166</b><span>{"ΕΚΑΒ" if lang=="el" else "Ambulance"}</span></a>
+      <a class="er2-call" href="tel:112"><b>112</b><span>{"Έκτακτη ανάγκη" if lang=="el" else "Emergency"}</span></a>
+      <a class="er2-call soft" href="tel:1135"><b>1135</b><span>{"Γραμμή υγείας" if lang=="el" else "Health line"}</span></a>
     </div>
   </div>
 {_partner_html}
-  <div class="er-grid">
-    <a class="er-link" href="{URL_DOC}" target="_blank" rel="noopener">
-      <div class="er-link-title">{tx['find_doc']}</div>
-      <div class="er-link-sub">{tx['find_doc_sub']} ↗</div>
-    </a>
-    <a class="er-link" href="{URL_HOSP}" target="_blank" rel="noopener">
-      <div class="er-link-title">{tx['find_hosp']}</div>
-      <div class="er-link-sub">{tx['find_hosp_sub']} ↗</div>
-    </a>
-    <a class="er-link" href="{URL_PHARM}" target="_blank" rel="noopener">
-      <div class="er-link-title">{tx['find_pharm']}</div>
-      <div class="er-link-sub">{tx['find_pharm_sub']} ↗</div>
-    </a>
-  </div>
-
-  <div class="er-maps">
-    <div class="er-maps-title">📍 {tx['maps_title']}</div>
-    <div class="er-maps-row">
-      <a class="er-maps-btn" href="{_maps(maps_q['hosp'])}" target="_blank" rel="noopener">🚑 {tx['maps_hosp']}</a>
-      <a class="er-maps-btn" href="{_maps(maps_q['doc'])}" target="_blank" rel="noopener">🩺 {tx['maps_doc']}</a>
-      <a class="er-maps-btn" href="{_maps(maps_q['pharm'])}" target="_blank" rel="noopener">💊 {tx['maps_pharm']}</a>
+  <div class="er2-grid">
+    <div class="er2-tile">
+      <div class="er2-tile-t">🚑 {tx['find_hosp'].split(' ',1)[1]}</div>
+      <div class="er2-actions">
+        <a href="{URL_HOSP}" target="_blank" rel="noopener">{"Εφημερίες σήμερα" if lang=="el" else "Today's rota"} ↗</a>
+        <a href="{_maps(maps_q['hosp'])}" target="_blank" rel="noopener">📍 {"Κοντά μου" if lang=="el" else "Near me"}</a>
+      </div>
     </div>
-  </div>
-
-  <div class="er-gov-section">
-    <div class="er-gov-title">🇬🇷 {tx['gov_title']}</div>
-    <div class="er-gov-grid">
-      {"".join(f'<a class="er-gov-link" href="{url}" target="_blank" rel="noopener">{icon} {label}</a>' for icon,label,url in tx['gov_links'])}
+    <div class="er2-tile">
+      <div class="er2-tile-t">🩺 {tx['find_doc'].split(' ',1)[1]}</div>
+      <div class="er2-actions">
+        <a href="{URL_DOC}" target="_blank" rel="noopener">{"Κατάλογος" if lang=="el" else "Directory"} ↗</a>
+        <a href="{_maps(maps_q['doc'])}" target="_blank" rel="noopener">📍 {"Κοντά μου" if lang=="el" else "Near me"}</a>
+      </div>
     </div>
-    <div class="er-gov-note">{tx['gov_note']}</div>
+    <div class="er2-tile">
+      <div class="er2-tile-t">💊 {tx['find_pharm'].split(' ',1)[1]}</div>
+      <div class="er2-actions">
+        <a href="{URL_PHARM}" target="_blank" rel="noopener">{"Διανυκτερεύοντα" if lang=="el" else "Open tonight"} ↗</a>
+        <a href="{_maps(maps_q['pharm'])}" target="_blank" rel="noopener">📍 {"Κοντά μου" if lang=="el" else "Near me"}</a>
+      </div>
+    </div>
   </div>
 </div>
 """, unsafe_allow_html=True)
@@ -8661,6 +8662,19 @@ Rewrite ONLY the "{_plan_hdr}" section, grounding it in what these specific abst
     if not st.session_state.report:
         if st.button("🔄 "+("Δοκιμή ξανά" if lang=="el" else "Retry"),type="primary"): st.rerun()
         return
+    # Code-level safety backstop: also scan the final report text itself, in
+    # case a red flag only surfaced there. Shown FIRST so it cannot be missed.
+    _set_emergency_from_text(st.session_state.report)
+    if st.session_state.get("triage_emergency"):
+        st.markdown('<div class="red-flags-urgent">🚨 ' + ("Η αναφορά περιέχει <b>επείγουσες ενδείξεις</b>. Καλέστε <a href=\"tel:166\" style=\"color:#fff\"><b>166</b></a> ή <a href=\"tel:112\" style=\"color:#fff\"><b>112</b></a> αμέσως αν ισχύουν."
+                    if lang=="el" else "The report contains <b>urgent warning signs</b>. Call <a href=\"tel:166\" style=\"color:#fff\"><b>166</b></a> or <a href=\"tel:112\" style=\"color:#fff\"><b>112</b></a> now if they apply.") + '</div>',
+                    unsafe_allow_html=True)
+    st.markdown("""<style>
+.ask-sec-h{ display:flex; align-items:baseline; gap:10px; margin:30px 2px 12px; font-family:'Sora','Inter',sans-serif;
+  font-size:19px; font-weight:700; color:#0A1030; letter-spacing:-.015em; }
+.ask-sec-h .ask-num{ font-family:'JetBrains Mono',monospace; font-size:12.5px; font-weight:600; color:#4F46E5; }
+</style>""", unsafe_allow_html=True)
+    st.markdown(f'<div class="ask-sec-h" style="margin-top:8px;"><span class="ask-num">01</span>{"Η αναφορά σου" if lang=="el" else "Your report"}</div>', unsafe_allow_html=True)
     # ── Doctor's-report style: PATIENT INFO doc-card + CLINICAL ASSESSMENT header ──
     # Inspired by the medical-report template (USGH-style): blue/red accent boxes
     # for allergies + medications side-by-side, with medical history above. The
@@ -8672,6 +8686,9 @@ Rewrite ONLY the "{_plan_hdr}" section, grounding it in what these specific abst
     meds_raw = (p.get("meds_raw") or "").strip()
     meds_list = [m.strip() for m in meds_raw.split(",") if m.strip()]
     meds_html = "<br>".join(f"• {m}" for m in meds_list) if meds_list else "—"
+    import html as _hpt
+    _pt_line = _hpt.escape(" · ".join(str(x) for x in [p.get("name"), (f"{p.get('age')} " + ("ετών" if lang=="el" else "yrs")) if p.get("age") else None, p.get("sex")] if x)) + \
+               (" — " + ("χωρίς γνωστό ιστορικό, αλλεργίες ή φάρμακα" if lang=="el" else "no known history, allergies or medication"))
     if lang == "el":
         TX = {
             "patient_info": "Στοιχεία Ασθενή",
@@ -8787,20 +8804,9 @@ Rewrite ONLY the "{_plan_hdr}" section, grounding it in what these specific abst
 </style>
 <div class="report-card">
   <div class="report-card-title"><span class="rct-icon">📑</span>{TX['patient_info']}</div>
-  <div class="history-block">
-    <div class="hb-lbl">📋 {TX['history_lbl']}</div>
-    <div>{history}</div>
-  </div>
-  <div class="aller-meds">
-    <div class="aller-box">
-      <div class="am-lbl">🔴 {TX['allergies_lbl']}</div>
-      <div class="am-val">{allergies}</div>
-    </div>
-    <div class="meds-box">
-      <div class="am-lbl">💊 {TX['meds_lbl']}</div>
-      <div class="am-val">{meds_html}</div>
-    </div>
-  </div>
+  {(f'<div class="history-block"><div class="hb-lbl">📋 {TX["history_lbl"]}</div><div>{history}</div></div>') if history_raw else ''}
+  {('<div class="aller-meds">' + ((f'<div class="aller-box"><div class="am-lbl">🔴 {TX["allergies_lbl"]}</div><div class="am-val">{allergies}</div></div>') if allergies_raw else '') + ((f'<div class="meds-box"><div class="am-lbl">💊 {TX["meds_lbl"]}</div><div class="am-val">{meds_html}</div></div>') if meds_list else '') + '</div>') if (allergies_raw or meds_list) else ''}
+  {(f'<div style="font-size:13px;color:#5A6388;">{_pt_line}</div>') if not (history_raw or allergies_raw or meds_list) else ''}
 </div>
 <div class="assessment-section-header">
   <span class="ash-icon">📋</span>
@@ -8907,10 +8913,87 @@ Rewrite ONLY the "{_plan_hdr}" section, grounding it in what these specific abst
 
     # (Physio and psychology cards removed — no dedicated API available.)
 
+    # ── 4-Pillar Health Profile (replaces the old placeholder wellness score).
+    # Honest, factor-explained — Cardiovascular / Respiratory / Metabolic /
+    # Symptom burden — each backed by the vitals + history items that drove it.
+    v=st.session_state.vitals
+    _status_map = classify_vitals(dict(v), age=st.session_state.profile.get("age")) if v else {}
+    _render_health_pillars(st.session_state.profile, v, _status_map,
+                           st.session_state.report, lang)
+    # ── Keep / share the report ──────────────────────────────────────────
+    st.markdown(f'<div class="ask-sec-h"><span class="ask-num">02</span>{"Κράτα & μοιράσου την αναφορά" if lang=="el" else "Keep & share the report"}</div>', unsafe_allow_html=True)
+    fname=f"asklepios_report_{p.get('name','patient')}_{datetime.now().strftime('%Y%m%d')}"
+    c3,c4,c2=st.columns([1.3,1.3,1])  # PDF · WhatsApp · TXT
+    with c2:
+        # TXT: report + recs (plain text) so the file is self-contained
+        _txt_parts = [st.session_state.report or ""]
+        _r = st.session_state.get("report_recs")
+        if _r and any(_r.get(k) for k in ("exercise","nutrition","lifestyle")):
+            _hdr = ("ΕΞΑΤΟΜΙΚΕΥΜΕΝΕΣ ΣΥΣΤΑΣΕΙΣ" if lang=="el" else "PERSONALISED RECOMMENDATIONS")
+            _lbls = (("Φυσική Δραστηριότητα","Διατροφή","Τρόπος Ζωής") if lang=="el"
+                     else ("Exercise","Nutrition","Lifestyle"))
+            _txt_parts += [
+                "", "", "## " + _hdr,
+                f"🏃 {_lbls[0]}: " + _r.get("exercise","—"),
+                f"🥗 {_lbls[1]}: " + _r.get("nutrition","—"),
+                f"🌿 {_lbls[2]}: " + _r.get("lifestyle","—"),
+            ]
+        _txt_full = "\n".join(_txt_parts)
+        st.download_button("📄 TXT",data=_txt_full,file_name=fname+".txt",mime="text/plain",use_container_width=True)
+    with c3:
+        _recs_for_html = dict(st.session_state.get("report_recs") or {})
+        if _recs_for_html:
+            _recs_for_html["_refs"] = st.session_state.get("report_recs_refs") or {}
+        _pf_for_html = st.session_state.get("photo_findings") or []
+        if not isinstance(_pf_for_html, list):
+            _pf_for_html = []
+        _lf_for_html = st.session_state.get("lab_findings") or []
+        if not isinstance(_lf_for_html, list):
+            _lf_for_html = []
+        st.download_button("📄 PDF",data=generate_html_report(st.session_state.profile,st.session_state.vitals,st.session_state.report,st.session_state.report_pubmed,lang=lang,recs=_recs_for_html,photo_findings=_pf_for_html,lab_findings=_lf_for_html),file_name=fname+".html",mime="text/html",use_container_width=True,type="primary",help="Open in browser → Ctrl+P → Save as PDF")
+    with c4:
+        import re as _re_wa
+        wa_lines=[f"🩺 Asklepios AI Nurse",
+                  f"Ασθενής: {p.get('name','')} {p.get('age','')}y · {p.get('sex','')}"]
+        vbits=[]
+        if v.get("hr"):     vbits.append(f"HR {v['hr']}bpm")
+        if v.get("bp_sys"): vbits.append(f"BP {v['bp_sys']}/{v.get('bp_dia','?')}mmHg")
+        if v.get("br"):     vbits.append(f"BR {v['br']}/min")
+        if v.get("spo2"):   vbits.append(f"SpO2 {v['spo2']}%")
+        if v.get("temp"):   vbits.append(f"T {v['temp']}°C")
+        if v.get("bmi"):    vbits.append(f"ΔΜΣ {v['bmi']}")
+        if vbits: wa_lines.append("Ζωτικά: "+", ".join(vbits))
+        # Clean markdown from report so it reads well in WhatsApp
+        rep=_re_wa.sub(r"[#*>`|]", "", st.session_state.report or "").strip()
+        rep=_re_wa.sub(r"\n{3,}", "\n\n", rep)
+        # Cap length — wa.me pre-fill fails on very long URLs
+        if len(rep)>1500:
+            rep=rep[:1500].rsplit("\n",1)[0].rstrip()+"\n…(πλήρης αναφορά στο PDF)"
+        if rep:
+            wa_lines+=["", rep]
+        # PNOE-style recs in WhatsApp (plain emoji-prefixed lines)
+        _r2 = st.session_state.get("report_recs")
+        if _r2 and any(_r2.get(k) for k in ("exercise","nutrition","lifestyle")):
+            _lbls2 = (("Άσκηση","Διατροφή","Τρόπος ζωής") if lang=="el"
+                      else ("Exercise","Nutrition","Lifestyle"))
+            wa_lines += ["", ("📍 Συστάσεις:" if lang=="el" else "📍 Recommendations:")]
+            if _r2.get("exercise"):  wa_lines.append(f"🏃 {_lbls2[0]}: {_r2['exercise']}")
+            if _r2.get("nutrition"): wa_lines.append(f"🥗 {_lbls2[1]}: {_r2['nutrition']}")
+            if _r2.get("lifestyle"): wa_lines.append(f"🌿 {_lbls2[2]}: {_r2['lifestyle']}")
+        wa_lines+=["", "---", "⚠️ AI-generated. asklepiosainurse.up.railway.app"]
+        msg="\n".join(wa_lines)
+        wa_url="https://wa.me/?text="+urllib.parse.quote(msg)
+        st.markdown(f'<a href="{wa_url}" target="_blank" style="display:block;text-align:center;padding:8px;border-radius:8px;text-decoration:none;font-weight:600;font-size:13px;color:white;background:#25D366">WhatsApp</a>',unsafe_allow_html=True)
+
+    render_dossier_banner("report", variant="strip")
+
     # Where-to-go card: emergency numbers + nearby clinics/pharmacies finder.
     # Placed right after the personalised recs so the user has all the info
     # needed to take the next step.
+    st.markdown(f'<div class="ask-sec-h"><span class="ask-num">03</span>{"Πού να απευθυνθείς" if lang=="el" else "Where to go"}</div>', unsafe_allow_html=True)
     render_emergency_resources(lang)
+    if st.session_state.report_pubmed or get_openai_key() or len(st.session_state.medications) >= 2:
+        st.markdown(f'<div class="ask-sec-h"><span class="ask-num">04</span>{"Τεκμηρίωση για τον γιατρό" if lang=="el" else "Evidence for your doctor"}</div>', unsafe_allow_html=True)
     if st.session_state.report_pubmed:
         with st.expander(f"🔬 {t('pubmed')} ({len(st.session_state.report_pubmed)})"):
             for a in st.session_state.report_pubmed:
@@ -8989,25 +9072,6 @@ Rewrite ONLY the "{_plan_hdr}" section, grounding it in what these specific abst
                     ("Δεν αναγνωρίστηκαν: " if lang=="el" else "Not recognised: ")
                     + ", ".join(rxr["unresolved"])
                 )
-    # ── 4-Pillar Health Profile (replaces the old placeholder wellness score).
-    # Honest, factor-explained — Cardiovascular / Respiratory / Metabolic /
-    # Symptom burden — each backed by the vitals + history items that drove it.
-    v=st.session_state.vitals
-    _status_map = classify_vitals(dict(v), age=st.session_state.profile.get("age")) if v else {}
-    _render_health_pillars(st.session_state.profile, v, _status_map,
-                           st.session_state.report, lang)
-    # Code-level safety backstop: also scan the final report text itself, in
-    # case a red flag only surfaced there (e.g. synthesized from several
-    # earlier replies) rather than in any single chat message.
-    _set_emergency_from_text(st.session_state.report)
-    urgent_kw=["chest pain","πόνος στήθους","stroke","εγκεφαλικό","anaphylaxis","αναφυλαξία","166","112","emergency","επείγον","unconscious","αναίσθητος"]
-    _legacy_hit = any(kw in st.session_state.report.lower() for kw in urgent_kw)
-    if st.session_state.get("triage_emergency") or _legacy_hit:
-        st.markdown('<div class="red-flags-urgent">🚨 Η αναφορά περιέχει <b>επείγουσες ενδείξεις</b>. Καλέστε <b>166</b> ή <b>112</b> αμέσως αν ισχύουν.</div>',unsafe_allow_html=True)
-    else:
-        st.markdown(f'<div class="emergency">{t("emergency")}</div>',unsafe_allow_html=True)
-    st.markdown('<div class="disclaimer-red">AI-generated. Δεν αντικαθιστά ιατρική γνώμη.</div>',unsafe_allow_html=True)
-
     # ── Feedback (👍/👎) — quality signal only, no medical data stored ──────────
     st.markdown("---")
     if st.session_state.get("fb_sent"):
@@ -9031,80 +9095,17 @@ Rewrite ONLY the "{_plan_hdr}" section, grounding it in what these specific abst
                 save_feedback(rating, comment)
                 st.session_state["fb_sent"]=True; st.rerun()
 
-    fname=f"asklepios_report_{p.get('name','patient')}_{datetime.now().strftime('%Y%m%d')}"
-    c1,c2,c3,c4=st.columns(4)
-    with c1:
-        if st.button("← "+("Νέα Αξιολόγηση" if lang=="el" else "New Assessment"),use_container_width=True):
-            delete_draft(st.session_state.get("auth_user",""))
-            for k,vv in defaults.items(): st.session_state[k]=vv
-            for fbk in ("fb_comment","fb_rating","fb_sent","photo_added","photo_findings",
-                        "_draft_hash","_from_facescan","_scan_injected","_vitals_nudge_off",
-                        "_gpt_integrated","_photo_preview","_report_gen_confirmed",
-                        "_report_possibly_incomplete",
-                        "lab_added","lab_findings","_lab_preview"): st.session_state.pop(fbk, None)
-            st.rerun()
-    with c2:
-        # TXT: report + recs (plain text) so the file is self-contained
-        _txt_parts = [st.session_state.report or ""]
-        _r = st.session_state.get("report_recs")
-        if _r and any(_r.get(k) for k in ("exercise","nutrition","lifestyle")):
-            _hdr = ("ΕΞΑΤΟΜΙΚΕΥΜΕΝΕΣ ΣΥΣΤΑΣΕΙΣ" if lang=="el" else "PERSONALISED RECOMMENDATIONS")
-            _lbls = (("Φυσική Δραστηριότητα","Διατροφή","Τρόπος Ζωής") if lang=="el"
-                     else ("Exercise","Nutrition","Lifestyle"))
-            _txt_parts += [
-                "", "", "## " + _hdr,
-                f"🏃 {_lbls[0]}: " + _r.get("exercise","—"),
-                f"🥗 {_lbls[1]}: " + _r.get("nutrition","—"),
-                f"🌿 {_lbls[2]}: " + _r.get("lifestyle","—"),
-            ]
-        _txt_full = "\n".join(_txt_parts)
-        st.download_button("📄 TXT",data=_txt_full,file_name=fname+".txt",mime="text/plain",use_container_width=True)
-    with c3:
-        _recs_for_html = dict(st.session_state.get("report_recs") or {})
-        if _recs_for_html:
-            _recs_for_html["_refs"] = st.session_state.get("report_recs_refs") or {}
-        _pf_for_html = st.session_state.get("photo_findings") or []
-        if not isinstance(_pf_for_html, list):
-            _pf_for_html = []
-        _lf_for_html = st.session_state.get("lab_findings") or []
-        if not isinstance(_lf_for_html, list):
-            _lf_for_html = []
-        st.download_button("📄 PDF/HTML",data=generate_html_report(st.session_state.profile,st.session_state.vitals,st.session_state.report,st.session_state.report_pubmed,lang=lang,recs=_recs_for_html,photo_findings=_pf_for_html,lab_findings=_lf_for_html),file_name=fname+".html",mime="text/html",use_container_width=True,help="Open in browser → Ctrl+P → Save as PDF")
-    with c4:
-        import re as _re_wa
-        wa_lines=[f"🩺 Asklepios AI Nurse",
-                  f"Ασθενής: {p.get('name','')} {p.get('age','')}y · {p.get('sex','')}"]
-        vbits=[]
-        if v.get("hr"):     vbits.append(f"HR {v['hr']}bpm")
-        if v.get("bp_sys"): vbits.append(f"BP {v['bp_sys']}/{v.get('bp_dia','?')}mmHg")
-        if v.get("br"):     vbits.append(f"BR {v['br']}/min")
-        if v.get("spo2"):   vbits.append(f"SpO2 {v['spo2']}%")
-        if v.get("temp"):   vbits.append(f"T {v['temp']}°C")
-        if v.get("bmi"):    vbits.append(f"ΔΜΣ {v['bmi']}")
-        if vbits: wa_lines.append("Ζωτικά: "+", ".join(vbits))
-        # Clean markdown from report so it reads well in WhatsApp
-        rep=_re_wa.sub(r"[#*>`|]", "", st.session_state.report or "").strip()
-        rep=_re_wa.sub(r"\n{3,}", "\n\n", rep)
-        # Cap length — wa.me pre-fill fails on very long URLs
-        if len(rep)>1500:
-            rep=rep[:1500].rsplit("\n",1)[0].rstrip()+"\n…(πλήρης αναφορά στο PDF)"
-        if rep:
-            wa_lines+=["", rep]
-        # PNOE-style recs in WhatsApp (plain emoji-prefixed lines)
-        _r2 = st.session_state.get("report_recs")
-        if _r2 and any(_r2.get(k) for k in ("exercise","nutrition","lifestyle")):
-            _lbls2 = (("Άσκηση","Διατροφή","Τρόπος ζωής") if lang=="el"
-                      else ("Exercise","Nutrition","Lifestyle"))
-            wa_lines += ["", ("📍 Συστάσεις:" if lang=="el" else "📍 Recommendations:")]
-            if _r2.get("exercise"):  wa_lines.append(f"🏃 {_lbls2[0]}: {_r2['exercise']}")
-            if _r2.get("nutrition"): wa_lines.append(f"🥗 {_lbls2[1]}: {_r2['nutrition']}")
-            if _r2.get("lifestyle"): wa_lines.append(f"🌿 {_lbls2[2]}: {_r2['lifestyle']}")
-        wa_lines+=["", "---", "⚠️ AI-generated. asklepiosainurse.up.railway.app"]
-        msg="\n".join(wa_lines)
-        wa_url="https://wa.me/?text="+urllib.parse.quote(msg)
-        st.markdown(f'<a href="{wa_url}" target="_blank" style="display:block;text-align:center;padding:8px;border-radius:8px;text-decoration:none;font-weight:600;font-size:13px;color:white;background:#25D366">WhatsApp</a>',unsafe_allow_html=True)
-    # Doctor dossier — all exams + this assessment in one document for the doctor
-    render_dossier_banner("report")
+    st.markdown('<div style="height:8px"></div>', unsafe_allow_html=True)
+    if st.button("↺ "+("Νέα αξιολόγηση" if lang=="el" else "New assessment"),use_container_width=True,key="report_new"):
+        delete_draft(st.session_state.get("auth_user",""))
+        for k,vv in defaults.items(): st.session_state[k]=vv
+        for fbk in ("fb_comment","fb_rating","fb_sent","photo_added","photo_findings",
+                    "_draft_hash","_from_facescan","_scan_injected","_vitals_nudge_off",
+                    "_gpt_integrated","_photo_preview","_report_gen_confirmed",
+                    "_report_possibly_incomplete",
+                    "lab_added","lab_findings","_lab_preview"): st.session_state.pop(fbk, None)
+        st.rerun()
+
 
 # ── COOKIE MANAGER (once) — persistent login + in-progress profile draft ──────
 if _STX_OK and auth_enabled():
