@@ -17,6 +17,8 @@ import logging as _logging
 import uuid as _uuid
 import re, uuid
 import dossier as _dossier
+import longevity as _lg
+from pulse_component import pulse_component as _pulse_component
 
 # "Stay signed in" via a browser cookie (persists login across reloads / new tabs,
 # e.g. when returning from the external face scan). Degrades gracefully if missing.
@@ -1307,7 +1309,7 @@ def _save_session_for_external_nav():
 # back on the next visit ("Continue" / "Start again"), and dropped after
 # RESUME_MAX_DAYS or when the user starts again.
 RESUME_MAX_DAYS = 7
-_AUTOSAVE_KEYS = ("profile", "lang", "triage_chat", "medications", "vitals", "vitals_analysis",
+_AUTOSAVE_KEYS = ("profile", "lang", "triage_chat", "medications", "vitals", "vitals_analysis", "longevity",
                   "photo_findings", "lab_findings", "report", "report_pubmed", "report_gpt",
                   "report_recs", "report_recs_refs")
 
@@ -1328,7 +1330,8 @@ def _autosave_assessment(force=False):
     if st.session_state.get("_resume_offer"):
         return  # never overwrite a saved assessment the user hasn't decided about yet
     d = st.session_state.get("dossier") or {}
-    if not (st.session_state.get("triage_chat") or d.get("exams") or st.session_state.get("report")):
+    if not (st.session_state.get("triage_chat") or d.get("exams") or st.session_state.get("report")
+            or (st.session_state.get("longevity") or {}).get("rest")):
         return
     payload = _assessment_payload()
     try:
@@ -1351,7 +1354,7 @@ def _apply_saved_assessment(dr):
         _dd = dict(dr["dossier"]); _dd["docx"] = None; _dd["html"] = None
         st.session_state["dossier"] = _dd
     _scr = dr.get("screen") or "triage"
-    if _scr not in ("home", "vitals", "triage", "report", "history", "dossier"):
+    if _scr not in ("home", "vitals", "triage", "report", "history", "dossier", "longevity"):
         _scr = "triage"
     if _scr == "report" and not dr.get("report"):
         _scr = "triage"
@@ -1986,6 +1989,23 @@ div[data-testid="stVerticalBlock"]:has(> div[data-testid="stElementContainer"] .
             st.session_state["_hero_seen"] = True
             st.session_state["_dossier_from"] = "triage" if key.startswith("triage") else None
             st.session_state.screen = "dossier"; st.rerun()
+
+
+def render_longevity_banner(key):
+    el = st.session_state.get("lang", "el") == "el"
+    with st.container(border=True):
+        st.markdown(
+            '<div class="ask-card-marker"></div>'
+            f'<span class="ask-eyebrow light">{"ΝΕΟ · ΕΛΕΓΧΟΣ ΜΑΚΡΟΖΩΙΑΣ" if el else "NEW · LONGEVITY CHECK"}</span>'
+            '<div style="font-family:\'Sora\',\'Inter\',sans-serif;color:#0A1030;font-size:19px;font-weight:700;letter-spacing:-.02em;margin:10px 0 4px;">'
+            + ("🫀 Ποια είναι η ηλικία της φυσικής σου κατάστασης;" if el else "🫀 What is your fitness age?")
+            + '</div><div style="color:#5A6388;font-size:13.5px;line-height:1.55;margin-bottom:6px;">'
+            + ("10 λεπτά με το κινητό: σφυγμοί & HRV με το δάχτυλο στην κάμερα, step test 3 λεπτών, και παίρνεις εκτίμηση VO2max, αποκατάσταση και ζώνες προπόνησης."
+               if el else "10 minutes with your phone: pulse & HRV with your fingertip on the camera, a 3-minute step test, and you get an estimated VO2max, recovery and training zones.")
+            + '</div>', unsafe_allow_html=True)
+        if st.button(("Ξεκίνα τον έλεγχο →" if el else "Start the check →"), key=f"lg_banner_{key}", type="primary", use_container_width=True):
+            st.session_state["_hero_seen"] = True
+            st.session_state.screen = "longevity"; st.rerun()
 
 
 def render_login_screen():
@@ -4734,7 +4754,7 @@ def render_bottom_nav():
 
     tab_for_screen = {
         "home": "home", "intake": "triage", "vitals": "vitals",
-        "triage": "triage", "report": "history", "dossier": "dossier",
+        "triage": "triage", "report": "history", "dossier": "dossier", "longevity": "home",
     }
     active_tab = tab_for_screen.get(cur, "home")
 
@@ -5839,6 +5859,7 @@ def render_home():
 
     # ── New: exam dossier — promoted right under the greeting ────────────
     render_dossier_banner("home")
+    render_longevity_banner("home")
 
     # ── Explainer banner — shown until user completes first assessment ────────
     if not has_profile:
@@ -6356,6 +6377,211 @@ def render_dossier():
                         if el else "Files are sent only to be read and are not stored. When signed in, the extracted values are kept encrypted for up to 7 days so you can continue."))
 
 
+
+# ── LONGEVITY CHECK ───────────────────────────────────────────────────────────
+# Home version of a metabolic / fitness assessment: resting pulse + HRV with the
+# fingertip on the phone camera, a 3-minute step test with metronome and
+# countdown, heart-rate recovery, and a short questionnaire → estimated VO2max,
+# fitness age, recovery, HRV, training zones and a plan. Wellness estimate only;
+# see longevity.py for methods and sources.
+def pulse_widget(mode, key, **kw):
+    """Fingertip-camera measurement component. Returns the result dict once
+    the user presses 'Use this result', else None."""
+    return _pulse_component(mode=mode, lang=st.session_state.get("lang", "el"), key=key, default=None, **kw)
+
+
+def _lg_state():
+    if "longevity" not in st.session_state or not isinstance(st.session_state.longevity, dict):
+        st.session_state.longevity = {"rest": None, "step": None, "q": {}, "result": None, "safe": None}
+    return st.session_state.longevity
+
+
+def _lg_pillar_html(pl, lang):
+    import html as _h
+    bars = "".join(
+        f'<span style="flex:1;height:8px;border-radius:6px;background:{(col if i <= pl["score"] else "#E1E5F4")};"></span>'
+        for i, (_k, _e, _n, col) in enumerate(_lg.LEVELS))
+    return (f'<div style="background:#fff;border:1px solid #E1E5F4;border-radius:18px;padding:14px 16px;margin-bottom:10px;">'
+            f'<div style="display:flex;justify-content:space-between;align-items:baseline;gap:10px;">'
+            f'<div style="font-weight:700;font-size:14.5px;color:#0A1030;">{_h.escape(pl["name"])}</div>'
+            f'<div style="font-family:Sora,Inter,sans-serif;font-weight:700;font-size:16px;color:#0A1030;white-space:nowrap;">{_h.escape(pl["value"])}</div></div>'
+            f'<div style="display:flex;gap:4px;margin:10px 0 6px;">{bars}</div>'
+            f'<div style="font-size:12.5px;font-weight:700;color:{pl["color"]};">{_h.escape(pl["label"])}</div></div>')
+
+
+def render_longevity_result(res, lang, compact=False):
+    el = (lang == "el")
+    if not res:
+        return
+    if res.get("vo2"):
+        lo, hi = res["vo2_range"]
+        st.markdown(f"""
+<div style="background:radial-gradient(120% 90% at 100% 0%, rgba(99,102,241,.36) 0%, rgba(99,102,241,0) 55%),
+  radial-gradient(90% 80% at 0% 100%, rgba(34,211,238,.14) 0%, rgba(34,211,238,0) 60%),#050816;
+  border:1px solid rgba(148,163,255,.2);border-radius:22px;padding:20px 20px 16px;margin:0 0 12px;color:#fff;">
+  <span class="ask-eyebrow">{"ΗΛΙΚΙΑ ΦΥΣΙΚΗΣ ΚΑΤΑΣΤΑΣΗΣ" if el else "FITNESS AGE"}</span>
+  <div style="display:flex;align-items:flex-end;gap:14px;margin-top:12px;flex-wrap:wrap;">
+    <div style="font-family:Sora,Inter,sans-serif;font-size:52px;font-weight:700;letter-spacing:-.04em;line-height:1;">{res["fitness_age"]}</div>
+    <div style="color:#C3C9E6;font-size:14px;line-height:1.5;padding-bottom:4px;">
+      {"έτη" if el else "years"} ({res.get("fitness_age_range",("",""))[0]}–{res.get("fitness_age_range",("",""))[1]}) · {"πραγματική ηλικία" if el else "actual age"} {res["age"]}<br>
+      <span style="color:#98A2C8;font-size:12px;">{"σε σύγκριση με υγιή πληθυσμό (μελέτη HUNT)" if el else "compared with a healthy population (HUNT study)"}</span><br>
+      VO2max ~{res["vo2"]} ({lo}–{hi}) ml/kg/min</div>
+  </div>
+  <div style="color:#98A2C8;font-size:12px;margin-top:10px;">{"Εκτίμηση από τους σφυγμούς ηρεμίας — όχι μέτρηση. Για ακριβή τιμή: εργομετρικό τεστ με μάσκα (π.χ. PNOE)." if el else "Estimated from resting pulse — not a measurement. For an exact value: a lab exercise test with a mask (e.g. PNOE)."}</div>
+</div>""", unsafe_allow_html=True)
+    st.markdown("".join(_lg_pillar_html(pl, lang) for pl in res.get("pillars", [])), unsafe_allow_html=True)
+    if compact:
+        return
+    if res.get("zones"):
+        names = ["Χαλαρά", "Zone 2 · βάση", "Ρυθμός", "Κατώφλι", "Μέγιστη"] if el else ["Easy", "Zone 2 · base", "Tempo", "Threshold", "Max"]
+        rows = "".join(f'<tr><td style="padding:7px 10px;border-bottom:1px solid #E1E5F4;"><b>Zone {z}</b> · {names[z-1]}</td>'
+                       f'<td style="padding:7px 10px;border-bottom:1px solid #E1E5F4;text-align:right;white-space:nowrap;">{a}–{b} bpm</td></tr>'
+                       for z, a, b in res["zones"])
+        st.markdown(f'<div style="background:#fff;border:1px solid #E1E5F4;border-radius:18px;padding:10px 6px;margin:4px 0 12px;">'
+                    f'<div style="font-weight:700;font-size:14.5px;padding:4px 10px 8px;">❤️ {"Οι ζώνες προπόνησής σου" if el else "Your training zones"}'
+                    f' <span style="font-weight:500;color:#5A6388;font-size:12px;">(HRmax ~{res["hr_max_est"]})</span></div>'
+                    f'<table style="width:100%;border-collapse:collapse;font-size:13.5px;">{rows}</table></div>', unsafe_allow_html=True)
+    for n in res.get("notes", []):
+        st.warning(n)
+    if res.get("plan"):
+        st.markdown("**" + ("Το πλάνο σου" if el else "Your plan") + "**")
+        for pl in res["plan"]:
+            st.markdown(f"- {pl}")
+
+
+def render_longevity():
+    lang = st.session_state.lang
+    el = (lang == "el")
+    S = _lg_state()
+    p = st.session_state.profile or {}
+    render_doc_header("Έλεγχος μακροζωίας", "Longevity check", icon="🫀",
+                      sub_el="Σφυγμοί, HRV, step test 3 λεπτών → ηλικία φυσικής κατάστασης",
+                      sub_en="Pulse, HRV, 3-minute step test → fitness age")
+    st.markdown(
+        '<div class="vit-intro" style="font-size:13.5px;color:#5A6388;line-height:1.55;margin:-4px 2px 14px;">' + (
+            "Περίπου <b>10 λεπτά</b> με το κινητό σου: μέτρηση σε ηρεμία με το δάχτυλο στην κάμερα, "
+            "ανέβα-κατέβα σε ένα σκαλί για 3 λεπτά, και πόσο γρήγορα πέφτουν οι σφυγμοί μετά. "
+            "Είναι <b>εκτίμηση</b> για ευεξία — όχι ιατρική εξέταση."
+            if el else
+            "About <b>10 minutes</b> with your phone: a resting measurement with your fingertip on the camera, "
+            "3 minutes stepping on a stair, and how fast your pulse drops afterwards. "
+            "It is a <b>wellness estimate</b> — not a medical test.") + '</div>', unsafe_allow_html=True)
+
+    def _step_h(n, title, done=False):
+        st.markdown(f'<div class="ask-sec-h" style="margin:22px 2px 10px;"><span class="ask-num">{n:02d}</span>{title}'
+                    f'{" <span style=\"color:#059669;font-size:14px;\">✓</span>" if done else ""}</div>', unsafe_allow_html=True)
+    st.markdown("""<style>.ask-sec-h{ display:flex; align-items:baseline; gap:10px; font-family:'Sora','Inter',sans-serif;
+      font-size:19px; font-weight:700; color:#0A1030; letter-spacing:-.015em; }
+      .ask-sec-h .ask-num{ font-family:'JetBrains Mono',monospace; font-size:12.5px; font-weight:600; color:#4F46E5; }</style>""",
+                unsafe_allow_html=True)
+
+    # 01 — about you + safety
+    _step_h(1, "Για σένα" if el else "About you", done=S.get("safe") is not None)
+    with st.container(border=True):
+        st.markdown('<div class="ask-card-marker vit-marker"></div>', unsafe_allow_html=True)
+        c1, c2 = st.columns(2)
+        with c1:
+            age = st.number_input("Ηλικία" if el else "Age", min_value=16, max_value=95,
+                                  value=int(S["q"].get("age") or p.get("age") or 40), key="lg_age")
+        with c2:
+            _sx = ["Άνδρας", "Γυναίκα"] if el else ["Male", "Female"]
+            _cur = S["q"].get("sex") or p.get("sex") or _sx[0]
+            sex = st.selectbox("Φύλο" if el else "Sex", _sx, index=(1 if str(_cur) in ("Γυναίκα", "Female") else 0), key="lg_sex")
+        st.markdown("**" + ("Ισχύει κάτι από αυτά;" if el else "Does any of these apply?") + "**")
+        red = [
+            st.checkbox(("Πόνος στο στήθος στην ηρεμία ή στην προσπάθεια" if el else "Chest pain at rest or on effort"), key="lg_r1"),
+            st.checkbox(("Ζαλάδες ή λιποθυμία τους τελευταίους 12 μήνες" if el else "Dizziness or fainting in the past 12 months"), key="lg_r2"),
+            st.checkbox(("Καρδιοπάθεια, ή ο γιατρός είπε άσκηση μόνο με επίβλεψη" if el else "Heart disease, or a doctor said only supervised exercise"), key="lg_r3"),
+            st.checkbox(("Πρόβλημα σε γόνατο/ισχίο/μέση που χειροτερεύει με σκαλιά" if el else "Knee/hip/back problem made worse by stairs"), key="lg_r4"),
+            st.checkbox(("Εγκυμοσύνη" if el else "Pregnancy"), key="lg_r5"),
+        ]
+        beta = st.checkbox(("Παίρνω φάρμακο που ρίχνει τους σφυγμούς (π.χ. β-αναστολέα: Concor, Lopresor…)" if el
+                            else "I take a medicine that lowers heart rate (e.g. a beta-blocker)"), key="lg_beta")
+        S["q"].update({"age": int(age), "sex": sex, "beta_blocker": bool(beta)})
+        S["safe"] = not any(red)
+        if any(red):
+            st.warning("⚠️ " + ("Χωρίς step test για σένα — κάνε μόνο τη μέτρηση ηρεμίας και μίλα με τον γιατρό σου πριν αυξήσεις την άσκηση."
+                                if el else "No step test for you — do only the resting measurement and talk to your doctor before increasing exercise."))
+
+    # 02 — resting pulse & HRV
+    _step_h(2, "Σφυγμοί & HRV σε ηρεμία" if el else "Resting pulse & HRV", done=bool(S.get("rest")))
+    if S.get("rest"):
+        r = S["rest"]
+        st.success("✓ " + (f"Σφυγμοί {r['hr']} bpm" if el else f"Pulse {r['hr']} bpm")
+                   + (f" · HRV {r['rmssd']} ms" if r.get("rmssd") else (" · HRV: δεν μετρήθηκε αξιόπιστα" if el else " · HRV: not reliably measured")))
+        if st.button(("↺ Νέα μέτρηση ηρεμίας" if el else "↺ Measure rest again"), key="lg_redo_rest"):
+            S["rest"] = None; S["result"] = None
+            st.session_state["_lg_rest_n"] = st.session_state.get("_lg_rest_n", 0) + 1
+            st.rerun()
+    else:
+        v = pulse_widget("rest", key=f"lg_rest_{st.session_state.get('_lg_rest_n', 0)}", duration=60)
+        if v and v.get("kind") == "rest":
+            S["rest"] = v; S["result"] = None
+            st.rerun()
+
+    # 03 — step test
+    if S.get("safe") and S.get("rest"):
+        _step_h(3, "Step test 3 λεπτών" if el else "3-minute step test", done=bool(S.get("step")))
+        if S.get("step"):
+            sp = S["step"]
+            st.success("✓ " + (f"Σφυγμοί στο τέλος {sp['hrEnd']} → στο 1′ {sp['hr60']} (πτώση {sp['hrr60']})" if el
+                               else f"Pulse at end {sp['hrEnd']} → at 1′ {sp['hr60']} (drop {sp['hrr60']})"))
+            if st.button(("↺ Επανάληψη step test (μετά από 10′ ξεκούραση)" if el else "↺ Repeat step test (after 10′ rest)"), key="lg_redo_step"):
+                S["step"] = None; S["result"] = None
+                st.session_state["_lg_step_n"] = st.session_state.get("_lg_step_n", 0) + 1
+                st.rerun()
+        else:
+            v = pulse_widget("step", key=f"lg_step_{st.session_state.get('_lg_step_n', 0)}",
+                             step_seconds=int(os.environ.get("ASK_STEP_SECONDS", "180")),  # env override for testing only
+                             metronome_bpm=96, recovery_seconds=65)
+            if v and v.get("kind") == "step":
+                S["step"] = v; S["result"] = None
+                st.rerun()
+            if st.button(("Παράλειψη step test" if el else "Skip the step test"), key="lg_skip_step"):
+                S["step"] = {"skipped": True}; st.rerun()
+
+    # 04 — questions + results
+    if S.get("rest") and (S.get("step") or not S.get("safe")):
+        _step_h(4, "Λίγες ερωτήσεις" if el else "A few questions", done=bool(S.get("result")))
+        with st.container(border=True):
+            st.markdown('<div class="ask-card-marker vit-marker"></div>', unsafe_allow_html=True)
+            q1, q2 = st.columns(2)
+            with q1:
+                days = st.selectbox(("Μέρες/εβδομάδα με ≥30′ άσκηση" if el else "Days/week with ≥30′ exercise"),
+                                    list(range(0, 8)), index=int(S["q"].get("active_days") or 0), key="lg_days")
+            with q2:
+                sleep = st.number_input(("Ώρες ύπνου" if el else "Hours of sleep"), min_value=3.0, max_value=12.0,
+                                        value=float(S["q"].get("sleep_h") or 7.0), step=0.5, format="%.1f", key="lg_sleep")
+            smoker = st.checkbox(("Καπνίζω" if el else "I smoke"), value=bool(S["q"].get("smoker")), key="lg_smoke")
+            S["q"].update({"active_days": int(days), "sleep_h": float(sleep), "smoker": bool(smoker)})
+        if st.button(("🫀 Δες το αποτέλεσμα" if el else "🫀 See the result"), type="primary", use_container_width=True, key="lg_go"):
+            _step = S["step"] if (S.get("step") and not S["step"].get("skipped")) else None
+            S["result"] = _lg.analyse(S["q"]["age"], S["q"]["sex"], rest=S["rest"], step=_step, q=S["q"], lang=lang)
+            S["result"]["date"] = datetime.now().strftime("%d/%m/%Y")
+            st.rerun()
+
+    if S.get("result"):
+        _step_h(5, "Το αποτέλεσμά σου" if el else "Your result", done=True)
+        render_longevity_result(S["result"], lang)
+        st.caption("ℹ️ " + ("Μέθοδοι: VO2max με τη μέθοδο λόγου σφυγμών (Uth 2004), HRmax 211−0,64×ηλικία (HUNT), νόρμες ηλικίας HUNT3, "
+                           "πτώση σφυγμών 1′ (Cole 1999). Εκτιμήσεις ευεξίας — όχι διάγνωση."
+                           if el else "Methods: heart-rate-ratio VO2max (Uth 2004), HRmax 211−0.64×age (HUNT), HUNT3 age norms, "
+                           "1-min heart-rate recovery (Cole 1999). Wellness estimates — not a diagnosis."))
+        with st.expander("🔬 " + ("Δεδομένα μέτρησης (για έλεγχο με ζώνη στήθους)" if el else "Measurement data (to check against a chest strap)")):
+            import csv as _csv, io as _io2
+            buf = _io2.StringIO(); w = _csv.writer(buf)
+            w.writerow(["test", "t_ms", "ibi_ms", "accepted"])
+            for kind in ("rest", "step"):
+                for row in ((S.get(kind) or {}).get("ibi") or []):
+                    w.writerow([kind] + list(row))
+            st.write({k: v for k, v in (S.get("rest") or {}).items() if k != "ibi"})
+            if S.get("step") and not S["step"].get("skipped"):
+                st.write({k: v for k, v in S["step"].items() if k != "ibi"})
+            st.download_button("⬇️ CSV (IBI)", buf.getvalue().encode(), file_name="asklepios_pulse_ibi.csv", mime="text/csv")
+        if st.button(("↺ Νέος έλεγχος" if el else "↺ New check"), key="lg_new"):
+            st.session_state.pop("longevity", None); st.rerun()
+
+
 def render_intake():
     render_stepper("intake")
     lang = st.session_state.lang
@@ -6488,6 +6714,25 @@ div[data-testid="stElementContainer"]:has(.vit-marker){ display:none !important;
             "Type the values from a <b>blood-pressure cuff, oximeter, thermometer or smartwatch</b>. "
             "Leave blank anything you don't have — Asklepios works without measurements too.")
         + '</div>', unsafe_allow_html=True)
+
+    # Fingertip-camera pulse (60 s) — fills pulse and HRV below
+    _pv = st.session_state.get("_vit_pulse_val")
+    with st.expander("📱 " + ("Δεν έχω συσκευή — μέτρησε σφυγμούς με το δάχτυλο στην κάμερα (60″)" if el
+                             else "No device — measure your pulse with a fingertip on the camera (60″)"), expanded=False):
+        _pw = pulse_widget("rest", key=f"vit_pulse_{st.session_state.get('_vit_pulse_n', 0)}", duration=60)
+        if _pw and _pw.get("kind") == "rest" and _pw.get("at") != (_pv or {}).get("at"):
+            st.session_state["_vit_pulse_val"] = _pw
+            _vv = dict(st.session_state.vitals or {})
+            _vv["hr"] = int(_pw["hr"])
+            if _pw.get("rmssd"): _vv["hrv"] = int(_pw["rmssd"])
+            st.session_state.vitals = _vv
+            st.session_state["vt_hr"] = int(_pw["hr"])
+            if _pw.get("rmssd"): st.session_state["vt_hrv"] = int(_pw["rmssd"])
+            st.session_state["_vit_pulse_n"] = st.session_state.get("_vit_pulse_n", 0) + 1
+            st.rerun()
+    if _pv:
+        st.success("✓ " + (f"Μετρήθηκαν με την κάμερα: σφυγμοί {_pv['hr']}" if el else f"Measured with the camera: pulse {_pv['hr']}")
+                   + (f" · HRV {_pv['rmssd']} ms" if _pv.get("rmssd") else ""))
 
     v = st.session_state.vitals or {}
     def _iv(k):
@@ -8912,6 +9157,10 @@ Rewrite ONLY the "{_plan_hdr}" section, grounding it in what these specific abst
                           refs=st.session_state.get("report_recs_refs") or {})
 
     # (Physio and psychology cards removed — no dedicated API available.)
+    _lgr = (st.session_state.get("longevity") or {}).get("result")
+    if _lgr:
+        st.markdown("##### 🫀 " + (f"Έλεγχος μακροζωίας ({_lgr.get('date','')})" if lang=="el" else f"Longevity check ({_lgr.get('date','')})"))
+        render_longevity_result(_lgr, lang, compact=True)
 
     # ── 4-Pillar Health Profile (replaces the old placeholder wellness score).
     # Honest, factor-explained — Cardiovascular / Respiratory / Metabolic /
@@ -9342,6 +9591,7 @@ elif screen=="triage": render_triage()
 elif screen=="report": render_report()
 elif screen=="history": render_history()
 elif screen=="dossier": render_dossier()
+elif screen=="longevity": render_longevity()
 else: render_home()
 
 # HAL 3-style footer disclaimer on every in-app screen

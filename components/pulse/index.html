@@ -1,0 +1,392 @@
+<!doctype html>
+<html lang="el">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Asklepios pulse</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@600&display=swap" rel="stylesheet">
+<style>
+  :root{ --ink:#050816; --text:#0A1030; --muted:#5A6388; --line:#E1E5F4; --paper:#F4F6FC; --indigo:#4F46E5; --cyan:#22D3EE; --good:#059669; --warn:#B45309; --bad:#DC2626; }
+  *{ box-sizing:border-box; }
+  html,body{ margin:0; padding:0; background:transparent; font-family:Inter,system-ui,sans-serif; color:var(--text); -webkit-text-size-adjust:100%; }
+  .card{ background:#fff; border:1px solid var(--line); border-radius:22px; padding:18px 18px 16px; }
+  .dark{ background:radial-gradient(120% 90% at 100% 0%, rgba(99,102,241,.36) 0%, rgba(99,102,241,0) 55%), radial-gradient(90% 80% at 0% 100%, rgba(34,211,238,.14) 0%, rgba(34,211,238,0) 60%), var(--ink); border-color:rgba(148,163,255,.2); color:#fff; }
+  .eyebrow{ display:inline-flex; font-family:'JetBrains Mono',monospace; font-size:11px; font-weight:600; letter-spacing:.12em; text-transform:uppercase; padding:5px 11px; border-radius:999px; color:#4F46E5; background:rgba(99,102,241,.08); border:1px solid rgba(79,70,229,.3); }
+  .dark .eyebrow{ color:#67E8F9; background:rgba(34,211,238,.07); border-color:rgba(34,211,238,.32); }
+  h2{ font-family:Sora,Inter,sans-serif; font-size:20px; letter-spacing:-.02em; margin:12px 0 6px; }
+  p{ margin:6px 0; font-size:14.5px; line-height:1.55; color:var(--muted); }
+  .dark p{ color:#C3C9E6; }
+  ol{ margin:8px 0 4px 20px; padding:0; color:var(--muted); font-size:14px; line-height:1.6; }
+  .dark ol{ color:#C3C9E6; }
+  .btn{ display:block; width:100%; border:0; border-radius:999px; padding:14px 18px; font:700 15.5px Inter,sans-serif; cursor:pointer; margin-top:12px; }
+  .btn.primary{ background:linear-gradient(135deg,#818CF8,#22D3EE); color:#050816; box-shadow:0 12px 28px -12px rgba(79,70,229,.6); }
+  .btn.ghost{ background:#fff; color:var(--text); border:1px solid var(--line); }
+  .dark .btn.ghost{ background:rgba(255,255,255,.06); color:#fff; border-color:rgba(255,255,255,.18); }
+  .row{ display:flex; gap:8px; } .row .btn{ margin-top:10px; }
+  .seg{ display:flex; gap:6px; background:var(--paper); border:1px solid var(--line); border-radius:999px; padding:4px; margin:10px 0 2px; }
+  .seg button{ flex:1; border:0; background:transparent; border-radius:999px; padding:9px 6px; font:600 13px Inter,sans-serif; color:var(--muted); cursor:pointer; }
+  .seg button.on{ background:#fff; color:var(--text); box-shadow:0 1px 3px rgba(10,16,48,.1); }
+  .stage{ position:relative; display:flex; flex-direction:column; align-items:center; gap:10px; padding:4px 0; }
+  .ring{ position:relative; width:190px; height:190px; }
+  .ring svg{ transform:rotate(-90deg); }
+  .ring .num{ position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; }
+  .ring .big{ font-family:Sora,Inter,sans-serif; font-weight:700; font-size:44px; letter-spacing:-.03em; line-height:1; }
+  .ring .small{ font-size:12.5px; color:var(--muted); margin-top:4px; }
+  .dark .ring .small{ color:#98A2C8; }
+  .status{ font-weight:600; font-size:14.5px; text-align:center; min-height:22px; }
+  .status.ok{ color:var(--good); } .status.warn{ color:var(--warn); } .status.bad{ color:var(--bad); }
+  .dark .status.ok{ color:#34D399; } .dark .status.warn{ color:#FBBF24; }
+  canvas.wave{ width:100%; height:70px; border-radius:14px; background:var(--paper); }
+  .dark canvas.wave{ background:rgba(255,255,255,.05); }
+  .cue{ font-family:Sora,Inter,sans-serif; font-weight:700; font-size:34px; letter-spacing:.02em; height:44px; }
+  .res{ display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px; margin-top:10px; }
+  .tile{ background:var(--paper); border:1px solid var(--line); border-radius:16px; padding:12px; }
+  .tile .k{ font-size:12px; color:var(--muted); } .tile .v{ font-family:Sora,Inter,sans-serif; font-size:26px; font-weight:700; letter-spacing:-.02em; }
+  .tile .v span{ font-size:13px; font-weight:600; color:var(--muted); margin-left:4px; }
+  .note{ font-size:12.5px; color:var(--muted); margin-top:8px; }
+  .flash{ position:fixed; inset:0; background:#fff; z-index:50; display:none; flex-direction:column; align-items:center; justify-content:flex-end; padding:24px; }
+  .flash .panel{ background:rgba(5,8,22,.92); color:#fff; border-radius:18px; padding:14px 16px; text-align:center; width:100%; max-width:420px; }
+  video{ position:absolute; width:1px; height:1px; opacity:0; pointer-events:none; }
+  .hide{ display:none !important; }
+</style>
+</head>
+<body>
+<div id="app"></div>
+<!-- white screen used as the light source when the front camera is used -->
+<div class="flash" id="flash"><div class="panel"><div id="flashMsg" style="font-weight:600"></div><div class="big" id="flashNum" style="font-family:Sora;font-size:40px;font-weight:700;margin-top:6px"></div></div></div>
+<video id="vid" playsinline muted></video>
+<canvas id="grab" width="48" height="36" style="display:none"></canvas>
+<script src="./pulse_core.js"></script>
+<script>
+(function(){
+"use strict";
+// ── Streamlit component protocol (no build step, no npm) ────────────────────
+function send(type, data){ window.parent.postMessage(Object.assign({isStreamlitMessage:true, type:type}, data||{}), "*"); }
+function setHeight(){ send("streamlit:setFrameHeight", {height: Math.ceil(document.documentElement.scrollHeight) + 6}); }
+function setValue(v){ send("streamlit:setComponentValue", {value:v, dataType:"json"}); }
+var ARGS = null, started = false;
+window.addEventListener("message", function(ev){
+  var d = ev.data || {};
+  if (d.type === "streamlit:render"){ ARGS = d.args || {}; if (!started){ started = true; init(); } }
+});
+send("streamlit:componentReady", {apiVersion: 1});
+new ResizeObserver(setHeight).observe(document.body);
+
+// ── Texts ───────────────────────────────────────────────────────────────────
+var T = {
+ el:{
+  rest_eb:"ΜΕΤΡΗΣΗ ΣΕ ΗΡΕΜΙΑ", rest_h:"Σφυγμοί & HRV με το δάχτυλο",
+  rest_p:"60 δευτερόλεπτα, καθιστός/ή, ήρεμα. Η κάμερα «βλέπει» το αίμα να περνάει από το δάχτυλο — κάθε παλμός αλλάζει ελάχιστα το χρώμα.",
+  rest_steps:["Κάθισε 2 λεπτά πριν, χωρίς να μιλάς.","Ακούμπησε <b>ελαφρά</b> την άκρη του δείκτη πάνω στην κάμερα (και στο φλας) — μην πιέζεις.","Στήριξε το χέρι στο τραπέζι και μείνε ακίνητος/η."],
+  cam_rear:"📷 Πίσω κάμερα + φλας", cam_front:"🤳 Μπροστινή (η οθόνη φωτίζει)",
+  start:"Ξεκίνα τη μέτρηση", need_cam:"Χρειάζεται πρόσβαση στην κάμερα.",
+  put_finger:"Βάλε το δάχτυλο στην κάμερα", finger_ok:"✓ Σωστή τοποθέτηση — μην κουνιέσαι", finger_lost:"Το δάχτυλο μετακινήθηκε — ξανά πάνω στην κάμερα",
+  secs:"δευτ.", bpm:"παλμοί/λεπτό", analysing:"Ανάλυση…",
+  res_eb:"ΑΠΟΤΕΛΕΣΜΑ", hr:"Σφυγμοί ηρεμίας", hrv:"HRV (RMSSD)", ms:"ms", q:"Ποιότητα σήματος",
+  q_good:"καλή", q_fair:"μέτρια", q_poor:"χαμηλή",
+  hrv_unrel:"Το σήμα δεν ήταν αρκετά καθαρό για HRV — οι σφυγμοί ισχύουν. Για HRV δοκίμασε ξανά πιο ακίνητα / με περισσότερο φως.",
+  retry:"Νέα μέτρηση", use:"Χρήση αποτελέσματος →", fail:"Δεν πήραμε καθαρό σήμα. Δοκίμασε ξανά: λιγότερη πίεση, περισσότερο φως, ακίνητο χέρι.",
+  no_torch:"Το κινητό δεν επιτρέπει φλας από τον browser (συνηθισμένο σε iPhone). Κάθισε κοντά σε δυνατό φως ή διάλεξε «Μπροστινή».",
+  step_eb:"STEP TEST · 3 ΛΕΠΤΑ", step_h:"Ανέβα-κατέβα σε ένα σκαλί",
+  step_p:"Ένα σκαλί περίπου 20 cm (ένα κανονικό σκαλί σκάλας). Ρυθμός: πάνω-πάνω-κάτω-κάτω με τον μετρονόμο (24 βήματα το λεπτό). Μόλις τελειώσει, κάθεσαι και βάζεις αμέσως το δάχτυλο στην κάμερα για 65 δευτερόλεπτα.",
+  step_safe:"Σταμάτα αμέσως αν νιώσεις πόνο στο στήθος, ζάλη, δύσπνοια που σε ανησυχεί ή αδιαθεσία.",
+  step_steps:["Βάλε ήχο στο κινητό (μετρονόμος).","Άφησε το κινητό κοντά σε καρέκλα — θα το χρειαστείς αμέσως μετά.","Πάτα «Ξεκίνα» → 5 δευτ. αντίστροφη μέτρηση → 3 λεπτά."],
+  step_start:"Ξεκίνα το step test", get_ready:"Ετοιμάσου", up:"ΠΑΝΩ", down:"ΚΑΤΩ", left:"απομένουν", stop:"Διακοπή",
+  now_sit:"Κάθισε — δάχτυλο στην κάμερα ΤΩΡΑ", recovering:"Αποκατάσταση — μείνε ακίνητος/η",
+  hr_end:"Σφυγμοί στο τέλος", hr_60:"Σφυγμοί στο 1 λεπτό", hrr:"Πτώση σε 1 λεπτό", step_fail:"Δεν πήραμε καθαρό σήμα στην αποκατάσταση. Ξεκουράσου 10 λεπτά και ξαναδοκίμασε.",
+ },
+ en:{
+  rest_eb:"RESTING MEASUREMENT", rest_h:"Pulse & HRV with your fingertip",
+  rest_p:"60 seconds, seated and calm. The camera sees blood flowing through your fingertip — every beat changes its colour very slightly.",
+  rest_steps:["Sit quietly for 2 minutes first, without talking.","Rest your index fingertip <b>lightly</b> on the camera (and flash) — don't press.","Rest your hand on a table and keep still."],
+  cam_rear:"📷 Back camera + flash", cam_front:"🤳 Front (screen as light)",
+  start:"Start measuring", need_cam:"Camera access is needed.",
+  put_finger:"Place your finger on the camera", finger_ok:"✓ Good placement — keep still", finger_lost:"Finger moved — back on the camera",
+  secs:"sec", bpm:"beats/min", analysing:"Analysing…",
+  res_eb:"RESULT", hr:"Resting pulse", hrv:"HRV (RMSSD)", ms:"ms", q:"Signal quality",
+  q_good:"good", q_fair:"fair", q_poor:"low",
+  hrv_unrel:"The signal wasn't clean enough for HRV — the pulse is valid. For HRV, try again keeping stiller / with more light.",
+  retry:"Measure again", use:"Use this result →", fail:"We didn't get a clean signal. Try again: lighter touch, more light, still hand.",
+  no_torch:"This phone doesn't allow the flash from the browser (common on iPhone). Sit near a bright light or choose \"Front\".",
+  step_eb:"STEP TEST · 3 MINUTES", step_h:"Step up and down one stair",
+  step_p:"A step of about 20 cm (a normal stair). Rhythm: up-up-down-down with the metronome (24 steps a minute). As soon as it ends, sit and put your finger on the camera for 65 seconds.",
+  step_safe:"Stop at once if you feel chest pain, dizziness, worrying breathlessness or unwell.",
+  step_steps:["Turn your phone sound on (metronome).","Keep the phone next to a chair — you'll need it right after.","Press Start → 5-second countdown → 3 minutes."],
+  step_start:"Start the step test", get_ready:"Get ready", up:"UP", down:"DOWN", left:"left", stop:"Stop",
+  now_sit:"Sit down — finger on the camera NOW", recovering:"Recovery — keep still",
+  hr_end:"Pulse at the end", hr_60:"Pulse at 1 minute", hrr:"Drop in 1 minute", step_fail:"We didn't get a clean recovery signal. Rest 10 minutes and try again.",
+ }};
+var L = function(k){ var lang = (ARGS && ARGS.lang === "en") ? "en" : "el"; return T[lang][k]; };
+
+// ── Camera + light ──────────────────────────────────────────────────────────
+var vid = document.getElementById("vid"), grab = document.getElementById("grab"), gctx = grab.getContext("2d", {willReadFrequently:true});
+var stream = null, track = null, camMode = "rear", torchOK = false, wakeLock = null;
+function openCamera(mode){
+  camMode = mode;
+  closeCamera();
+  var c = {audio:false, video:{facingMode:{ideal: mode === "front" ? "user" : "environment"}, width:{ideal:640}, height:{ideal:480}, frameRate:{ideal:30, max:60}}};
+  return navigator.mediaDevices.getUserMedia(c).then(function(s){
+    stream = s; track = s.getVideoTracks()[0];
+    vid.srcObject = s; return vid.play();
+  }).then(function(){ return setTorch(mode === "rear"); });
+}
+function setTorch(on){
+  torchOK = false;
+  if (!track || !track.getCapabilities) return Promise.resolve(false);
+  var caps = {}; try{ caps = track.getCapabilities(); }catch(e){}
+  if (!caps.torch) return Promise.resolve(false);
+  return track.applyConstraints({advanced:[{torch:!!on}]}).then(function(){ torchOK = !!on; return true; }).catch(function(){ return false; });
+}
+function closeCamera(){ if (stream){ stream.getTracks().forEach(function(t){ t.stop(); }); } stream = null; track = null; }
+function keepAwake(){ try{ if (navigator.wakeLock) navigator.wakeLock.request("screen").then(function(w){ wakeLock = w; }).catch(function(){}); }catch(e){} }
+function releaseAwake(){ try{ if (wakeLock) wakeLock.release(); }catch(e){} wakeLock = null; }
+function flashScreen(on, msg, num){
+  var f = document.getElementById("flash");
+  f.style.display = on ? "flex" : "none";
+  if (msg !== undefined) document.getElementById("flashMsg").textContent = msg;
+  if (num !== undefined) document.getElementById("flashNum").textContent = num;
+}
+
+// ── Frame sampling (real frame timestamps when the browser exposes them) ─────
+var sampling = false, onSample = null;
+function startSampling(cb){
+  onSample = cb; sampling = true;
+  var lastT = -1;
+  function grabFrame(tms){
+    if (!sampling) return;
+    var w = vid.videoWidth, h = vid.videoHeight;
+    if (w && h){
+      // central 50 % of the image, averaged down to 48×36 pixels
+      gctx.drawImage(vid, w*0.25, h*0.25, w*0.5, h*0.5, 0, 0, 48, 36);
+      var d = gctx.getImageData(0, 0, 48, 36).data, n = d.length/4, r=0, g=0, b=0, r2=0;
+      for (var i=0;i<d.length;i+=4){ r+=d[i]; g+=d[i+1]; b+=d[i+2]; r2+=d[i]*d[i]; }
+      r/=n; g/=n; b/=n; var sd = Math.sqrt(Math.max(0, r2/n - r*r));
+      if (tms !== lastT){ lastT = tms; onSample({t:tms, r:r, g:g, b:b, sd:sd, finger: PulseCore.fingerOn(r,g,b,sd)}); }
+    }
+    schedule();
+  }
+  function schedule(){
+    // All timestamps on the performance.now() clock: captureTime (camera
+    // capture moment) when available, else the frame's display time.
+    if (vid.requestVideoFrameCallback) vid.requestVideoFrameCallback(function(now, meta){
+      grabFrame(meta && meta.captureTime ? meta.captureTime : (meta && meta.expectedDisplayTime ? meta.expectedDisplayTime : now)); });
+    else requestAnimationFrame(function(now){ grabFrame(now); });
+  }
+  schedule();
+}
+function stopSampling(){ sampling = false; onSample = null; }
+
+// ── Small UI helpers ────────────────────────────────────────────────────────
+var app = document.getElementById("app");
+function html(s){ app.innerHTML = s; setHeight(); }
+function ring(pct, big, small, color){
+  var R = 84, C = 2*Math.PI*R, off = C*(1-Math.max(0,Math.min(1,pct)));
+  return '<div class="ring"><svg width="190" height="190"><circle cx="95" cy="95" r="'+R+'" stroke="rgba(148,163,255,.22)" stroke-width="10" fill="none"/>'+
+    '<circle cx="95" cy="95" r="'+R+'" stroke="'+(color||'url(#g)')+'" stroke-width="10" fill="none" stroke-linecap="round" stroke-dasharray="'+C+'" stroke-dashoffset="'+off+'"/>'+
+    '<defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#818CF8"/><stop offset="1" stop-color="#22D3EE"/></linearGradient></defs></svg>'+
+    '<div class="num"><div class="big">'+big+'</div><div class="small">'+(small||"")+'</div></div></div>';
+}
+function drawWave(cv, vals){
+  if (!cv) return; var ctx = cv.getContext("2d"), W = cv.width = cv.clientWidth*2, H = cv.height = 140;
+  ctx.clearRect(0,0,W,H); if (vals.length < 10) return;
+  var n = Math.min(vals.length, 150), v = vals.slice(-n), m = v.reduce(function(a,b){return a+b;},0)/n;
+  // simple detrend for display
+  var sm = [], k = 8; for (var i=0;i<n;i++){ var s=0,c=0; for (var j=Math.max(0,i-k);j<=Math.min(n-1,i+k);j++){ s+=v[j]; c++; } sm.push(v[i]-s/c); }
+  var mx = Math.max.apply(null, sm.map(Math.abs)) || 1;
+  ctx.lineWidth = 4; ctx.strokeStyle = "#6366F1"; ctx.beginPath();
+  for (var q=0;q<n;q++){ var x = q/(n-1)*W, y = H/2 + (sm[q]/mx)*(H*0.42); if (q) ctx.lineTo(x,y); else ctx.moveTo(x,y); }
+  ctx.stroke();
+}
+function camSeg(){
+  return '<div class="seg"><button id="cRear" class="'+(camMode==="rear"?"on":"")+'">'+L("cam_rear")+'</button><button id="cFront" class="'+(camMode==="front"?"on":"")+'">'+L("cam_front")+'</button></div>';
+}
+function bindSeg(render){
+  var a = document.getElementById("cRear"), b = document.getElementById("cFront");
+  if (a) a.onclick = function(){ camMode = "rear"; render(); };
+  if (b) b.onclick = function(){ camMode = "front"; render(); };
+}
+
+// ════════════════════════════════════════════════════════════════════════════
+// REST: 60 s fingertip recording → HR + HRV
+// ════════════════════════════════════════════════════════════════════════════
+function restIntro(msg){
+  html('<div class="card"><span class="eyebrow">'+L("rest_eb")+'</span><h2>'+L("rest_h")+'</h2><p>'+L("rest_p")+'</p><ol>'+
+    L("rest_steps").map(function(s){return "<li>"+s+"</li>";}).join("")+'</ol>'+camSeg()+
+    (msg?'<p class="status bad" style="text-align:left">'+msg+'</p>':'')+
+    '<button class="btn primary" id="go">'+L("start")+'</button></div>');
+  bindSeg(function(){ restIntro(msg); });
+  document.getElementById("go").onclick = function(){ runCapture(ARGS.duration || 60, null); };
+}
+
+function runCapture(seconds, afterStepEnd){
+  var frames = [], got = 0, startedAt = null, lostSince = null, done = false, recovery = afterStepEnd !== null;
+  var reds = [];
+  var dark = recovery ? " dark" : "";
+  html('<div class="card'+dark+'"><span class="eyebrow">'+(recovery?"STEP TEST":L("rest_eb"))+'</span>'+
+       '<div class="stage"><div id="ring"></div><div class="status" id="st"></div><canvas class="wave" id="wave"></canvas>'+
+       '<p class="note" id="nt"></p><button class="btn ghost" id="cancel">'+L("stop")+'</button></div></div>');
+  var ringEl = document.getElementById("ring"), st = document.getElementById("st"), wave = document.getElementById("wave"), nt = document.getElementById("nt");
+  document.getElementById("cancel").onclick = function(){ done = true; stopSampling(); closeCamera(); flashScreen(false); releaseAwake(); recovery ? stepIntro() : restIntro(); };
+  keepAwake();
+  var go = function(){
+    if (camMode === "front") flashScreen(true, L("put_finger"), "");
+    if (camMode === "rear" && !torchOK) nt.textContent = L("no_torch");
+    var tRef = null;
+    startSampling(function(s){
+      if (done) return;
+      if (tRef === null) tRef = s.t;
+      if (s.finger){
+        lostSince = null;
+        if (startedAt === null) startedAt = s.t;
+        frames.push({t:s.t, r:s.r, g:s.g, finger:true}); reds.push(s.r);
+      } else {
+        if (startedAt !== null){ frames.push({t:s.t, r:s.r, g:s.g, finger:false}); if (lostSince === null) lostSince = s.t; }
+      }
+      var el = startedAt === null ? 0 : (s.t - startedAt)/1000;
+      var left = Math.max(0, Math.ceil(seconds - el));
+      // live rate from the last ~8 s
+      var live = "";
+      if (frames.length > 240 && frames.length % 15 === 0){
+        var seg = frames.slice(-240).filter(function(f){return f.finger;});
+        if (seg.length > 200){ var rs = PulseCore.resample(seg.map(function(f){return f.t;}), seg.map(function(f){return f.r;})); var sp = PulseCore.spectralHR(PulseCore.bandpass(rs.v).map(function(v){return -v;})); if (sp.prominence > .2) live = Math.round(sp.bpm); }
+        runCapture._live = live || runCapture._live;
+      }
+      var shownLive = runCapture._live ? runCapture._live + " " + L("bpm") : L("secs");
+      ringEl.innerHTML = ring(el/seconds, startedAt===null ? "—" : left, startedAt===null ? L("secs") : shownLive);
+      if (!s.finger){ st.className = "status warn"; st.textContent = startedAt===null ? (recovery ? L("now_sit") : L("put_finger")) : L("finger_lost"); }
+      else { st.className = "status ok"; st.textContent = recovery ? L("recovering") : L("finger_ok"); }
+      if (camMode === "front") flashScreen(true, st.textContent, startedAt===null ? "" : left);
+      if (frames.length % 3 === 0) drawWave(wave, reds);
+      // a finger lifted for > 4 s during a resting test → start that test again
+      if (!recovery && lostSince !== null && s.t - lostSince > 4000){ frames = []; reds = []; startedAt = null; lostSince = null; runCapture._live = ""; }
+      if (startedAt !== null && el >= seconds){ done = true; finish(); }
+    });
+  };
+  function finish(){
+    stopSampling(); flashScreen(false); setTorch(false); closeCamera(); releaseAwake();
+    html('<div class="card'+dark+'"><div class="stage">'+ring(1, "…", L("analysing"))+'</div></div>');
+    setTimeout(function(){
+      if (!recovery){
+        var r = PulseCore.analyse(frames);
+        showRest(r);
+      } else {
+        // windows are measured from the moment the stepping stopped
+        var off = (frames.length ? frames[0].t : 0) - afterStepEnd;
+        var shift = frames.map(function(f){ return {t:f.t, r:f.r, g:f.g, finger:f.finger}; });
+        var r2 = PulseCore.analyse(shift, {windows:[[Math.max(0,-off/1000), Math.max(0,-off/1000)+10],[Math.max(0,55-off/1000), Math.max(0,65-off/1000)]]});
+        r2.delayToFingerS = +(off/1000).toFixed(1);
+        showStep(r2);
+      }
+    }, 60);
+  }
+  runCapture._live = "";
+  if (!stream){ openCamera(camMode).then(go).catch(function(){ recovery ? stepIntro(L("need_cam")) : restIntro(L("need_cam")); }); }
+  else { setTorch(camMode === "rear").then(go); }
+}
+
+function showRest(r){
+  if (!r.ok){ restIntro(L("fail")); return; }
+  var qtxt = {good:L("q_good"), fair:L("q_fair"), poor:L("q_poor")}[r.quality];
+  html('<div class="card"><span class="eyebrow">'+L("res_eb")+'</span><div class="res">'+
+    '<div class="tile"><div class="k">'+L("hr")+'</div><div class="v">'+r.hr+'<span>bpm</span></div></div>'+
+    '<div class="tile"><div class="k">'+L("hrv")+'</div><div class="v">'+(r.hrvReliable ? r.rmssd+'<span>'+L("ms")+'</span>' : '—')+'</div></div></div>'+
+    '<p class="note">'+L("q")+': <b>'+qtxt+'</b> · '+r.beats+' beats · '+r.durationS+'s</p>'+
+    (r.hrvReliable ? '' : '<p class="note">'+L("hrv_unrel")+'</p>')+
+    '<div class="row"><button class="btn ghost" id="again">'+L("retry")+'</button><button class="btn primary" id="use">'+L("use")+'</button></div></div>');
+  document.getElementById("again").onclick = function(){ restIntro(); };
+  document.getElementById("use").onclick = function(){
+    setValue({kind:"rest", at:Date.now(), camera:camMode, torch:torchOK, hr:r.hr, hrSpectral:r.hrSpectral,
+              rmssd:r.hrvReliable ? r.rmssd : null, sdnn:r.hrvReliable ? r.sdnn : null, lnrmssd:r.hrvReliable ? r.lnrmssd : null,
+              quality:r.quality, shape:r.shape, goodShare:r.goodShare, beats:r.beats, durationS:r.durationS, ibi:r.ibi});
+  };
+}
+
+// ════════════════════════════════════════════════════════════════════════════
+// STEP TEST: metronome 96 bpm (up-up-down-down = 24 steps/min) · 3:00 countdown
+// then 65 s fingertip recovery recording
+// ════════════════════════════════════════════════════════════════════════════
+var actx = null;
+function click(accent){
+  if (!actx) return; var t = actx.currentTime, o = actx.createOscillator(), g = actx.createGain();
+  o.frequency.value = accent ? 1320 : 880; g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(accent?0.6:0.35, t+0.005); g.gain.exponentialRampToValueAtTime(0.0001, t+0.08);
+  o.connect(g); g.connect(actx.destination); o.start(t); o.stop(t+0.1);
+}
+function longBeep(){ if (!actx) return; var t = actx.currentTime, o = actx.createOscillator(), g = actx.createGain(); o.frequency.value = 1000; g.gain.setValueAtTime(0.5,t); g.gain.exponentialRampToValueAtTime(0.0001,t+0.9); o.connect(g); g.connect(actx.destination); o.start(t); o.stop(t+0.95); try{ navigator.vibrate && navigator.vibrate([300,100,300]); }catch(e){} }
+
+function stepIntro(msg){
+  html('<div class="card dark"><span class="eyebrow">'+L("step_eb")+'</span><h2>'+L("step_h")+'</h2><p>'+L("step_p")+'</p><ol>'+
+    L("step_steps").map(function(s){return "<li>"+s+"</li>";}).join("")+'</ol>'+
+    '<p style="color:#FCA5A5;font-weight:600;font-size:13.5px">⚠️ '+L("step_safe")+'</p>'+camSeg()+
+    (msg?'<p class="status warn" style="text-align:left">'+msg+'</p>':'')+
+    '<button class="btn primary" id="go">'+L("step_start")+'</button></div>');
+  bindSeg(function(){ stepIntro(msg); });
+  document.getElementById("go").onclick = function(){
+    try{ actx = actx || new (window.AudioContext || window.webkitAudioContext)(); actx.resume(); }catch(e){}
+    // Ask for the camera now (permission prompt before stepping), light off while stepping.
+    openCamera(camMode).then(function(){ return setTorch(false); }).then(runStep).catch(function(){ stepIntro(L("need_cam")); });
+  };
+}
+
+function runStep(){
+  var total = ARGS.step_seconds || 180, bpm = ARGS.metronome_bpm || 96, beatMs = 60000/bpm;
+  var t0 = null, lastBeat = -1, stopped = false, pre = 5;
+  keepAwake();
+  html('<div class="card dark"><span class="eyebrow">'+L("step_eb")+'</span><div class="stage"><div id="ring"></div><div class="cue" id="cue"></div><div class="status" id="st"></div>'+
+       '<button class="btn ghost" id="stop">'+L("stop")+'</button></div></div>');
+  var ringEl = document.getElementById("ring"), cue = document.getElementById("cue"), st = document.getElementById("st");
+  document.getElementById("stop").onclick = function(){ stopped = true; closeCamera(); releaseAwake(); stepIntro(); };
+  var tStart = performance.now();
+  function tick(){
+    if (stopped) return;
+    var now = performance.now(), sinceStart = (now - tStart)/1000;
+    if (sinceStart < pre){
+      var n = Math.ceil(pre - sinceStart);
+      ringEl.innerHTML = ring(sinceStart/pre, n, L("get_ready"), "#FBBF24");
+      cue.textContent = ""; st.textContent = "";
+      if (Math.floor(sinceStart) !== tick._p){ tick._p = Math.floor(sinceStart); click(true); }
+      requestAnimationFrame(tick); return;
+    }
+    if (t0 === null) t0 = now;
+    var el = (now - t0)/1000, left = Math.max(0, total - el);
+    var b = Math.floor((now - t0)/beatMs);
+    if (b !== lastBeat){ lastBeat = b; click(b % 4 === 0); cue.textContent = (b % 4 < 2) ? L("up") + " ↑" : L("down") + " ↓"; }
+    var mm = Math.floor(left/60), ss = Math.floor(left%60);
+    ringEl.innerHTML = ring(el/total, mm + ":" + (ss<10?"0":"") + ss, L("left"));
+    if (el >= total){
+      longBeep(); cue.textContent = "";
+      // recovery windows are measured from this moment (same clock as frames)
+      runCapture(ARGS.recovery_seconds || 65, performance.now());
+      return;
+    }
+    requestAnimationFrame(tick);
+  }
+  requestAnimationFrame(tick);
+}
+
+function showStep(r){
+  var w = r.windows || [0,0];
+  if (!r.ok || !w[0] || !w[1]){ stepIntro(L("step_fail")); return; }
+  var hrr = w[0] - w[1];
+  html('<div class="card dark"><span class="eyebrow">'+L("res_eb")+'</span><div class="res">'+
+    '<div class="tile" style="background:rgba(255,255,255,.05);border-color:rgba(148,163,255,.2)"><div class="k" style="color:#98A2C8">'+L("hr_end")+'</div><div class="v">'+w[0]+'<span>bpm</span></div></div>'+
+    '<div class="tile" style="background:rgba(255,255,255,.05);border-color:rgba(148,163,255,.2)"><div class="k" style="color:#98A2C8">'+L("hr_60")+'</div><div class="v">'+w[1]+'<span>bpm</span></div></div></div>'+
+    '<div class="tile" style="margin-top:10px;background:rgba(255,255,255,.05);border-color:rgba(148,163,255,.2)"><div class="k" style="color:#98A2C8">'+L("hrr")+'</div><div class="v">−'+hrr+'<span>bpm</span></div></div>'+
+    '<div class="row"><button class="btn ghost" id="again">'+L("retry")+'</button><button class="btn primary" id="use">'+L("use")+'</button></div></div>');
+  document.getElementById("again").onclick = function(){ stepIntro(); };
+  document.getElementById("use").onclick = function(){
+    setValue({kind:"step", at:Date.now(), camera:camMode, hrEnd:w[0], hr60:w[1], hrr60:hrr, quality:r.quality,
+              delayToFingerS:r.delayToFingerS, durationS:r.durationS, ibi:r.ibi,
+              protocol:{step_cm:20, metronome_bpm:ARGS.metronome_bpm||96, seconds:ARGS.step_seconds||180}});
+  };
+}
+
+function init(){
+  camMode = ARGS.camera === "front" ? "front" : "rear";
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia){ html('<div class="card"><p class="status bad">'+L("need_cam")+'</p></div>'); return; }
+  if (ARGS.mode === "step") stepIntro(); else restIntro();
+}
+})();
+</script>
+</body>
+</html>
