@@ -6,3 +6,4 @@ pandas
 supabase
 extra-streamlit-components>=0.1.71
 cryptography
+python-docx

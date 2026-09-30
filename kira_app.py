@@ -15,6 +15,8 @@ import io as _io, base64 as _b64
 import hmac, hashlib, time, unicodedata
 import logging as _logging
 import uuid as _uuid
+import re, uuid
+import dossier as _dossier
 
 # "Stay signed in" via a browser cookie (persists login across reloads / new tabs,
 # e.g. when returning from the external face scan). Degrades gracefully if missing.
@@ -525,7 +527,7 @@ st.markdown("""
 [data-testid="stSidebar"] { display: none; }
 
 .kira-hero {
-    background: linear-gradient(135deg, #0F766E 0%, #0C1727 100%);
+    background: linear-gradient(135deg, #4F46E5 0%, #050816 100%);
     border-radius: 20px;
     padding: 48px 40px;
     color: white;
@@ -541,14 +543,14 @@ st.markdown("""
     border-radius: 16px;
     padding: 24px 28px;
     margin-bottom: 20px;
-    box-shadow: 0 2px 12px rgba(15,118,110,0.07);
-    border: 1px solid rgba(15,118,110,0.08);
+    box-shadow: 0 2px 12px rgba(99,102,241,0.07);
+    border: 1px solid rgba(99,102,241,0.08);
 }
-.card h3 { font-size: 16px; font-weight: 600; margin: 0 0 16px; color: #172333; }
+.card h3 { font-size: 16px; font-weight: 600; margin: 0 0 16px; color: #0A1030; }
 
 .vital-badge {
-    background: #F5F7F9;
-    border: 1px solid #E7EBEF;
+    background: #F4F6FC;
+    border: 1px solid #E1E5F4;
     border-radius: 12px;
     padding: 14px 18px;
     min-width: 120px;
@@ -558,7 +560,7 @@ st.markdown("""
 .vital-badge.green { background: #EDFBF0; border-color: #A3E6B5; }
 .vital-badge.yellow { background: #FFFBEB; border-color: #FCD34D; }
 .vital-badge.red { background: #FEF2F2; border-color: #FCA5A5; }
-.vital-badge .vb-value { font-size: 22px; font-weight: 700; color: #172333; }
+.vital-badge .vb-value { font-size: 22px; font-weight: 700; color: #0A1030; }
 .vital-badge .vb-label { font-size: 11px; color: #6B7280; margin-top: 2px; }
 .vital-badge .vb-unit  { font-size: 10px; color: #9CA3AF; }
 
@@ -604,30 +606,30 @@ st.markdown("""
 .kira-step-circle {
     width: 32px; height: 32px; border-radius: 50%;
     display: flex; align-items: center; justify-content: center;
-    font-size: 13px; font-weight: 700; border: 2px solid #E7EBEF;
+    font-size: 13px; font-weight: 700; border: 2px solid #E1E5F4;
     background: white; color: #CBD5E1; position: relative; z-index: 1;
 }
-.kira-step.done   .kira-step-circle { background: #0C1727; border-color: #0C1727; color: white; }
-.kira-step.active .kira-step-circle { background: #0F766E; border-color: #0F766E; color: white; box-shadow: 0 0 0 4px rgba(15,118,110,.15); }
+.kira-step.done   .kira-step-circle { background: #050816; border-color: #050816; color: white; }
+.kira-step.active .kira-step-circle { background: #4F46E5; border-color: #4F46E5; color: white; box-shadow: 0 0 0 4px rgba(99,102,241,.15); }
 .kira-step-label { font-size: 10px; color: #94A3B8; text-align: center; letter-spacing: .02em; word-break: break-word; overflow-wrap: break-word; }
-.kira-step.done   .kira-step-label  { color: #0C1727; }
-.kira-step.active .kira-step-label  { color: #0F766E; font-weight: 600; }
+.kira-step.done   .kira-step-label  { color: #050816; }
+.kira-step.active .kira-step-label  { color: #4F46E5; font-weight: 600; }
 .kira-step-line {
-    flex: 1; height: 2px; background: #E7EBEF; margin-bottom: 18px;
+    flex: 1; height: 2px; background: #E1E5F4; margin-bottom: 18px;
 }
-.kira-step-line.done { background: #0C1727; }
+.kira-step-line.done { background: #050816; }
 
 .chip-row { display: flex; flex-wrap: wrap; gap: 8px; margin: 10px 0 16px; }
 .chip {
     padding: 6px 14px; border-radius: 20px; font-size: 13px; cursor: pointer;
-    border: 1.5px solid #BFE3DC; color: #0F766E; background: #EEF7F5;
+    border: 1.5px solid #DDE2F3; color: #4F46E5; background: #EEF1FB;
     transition: all .15s; user-select: none;
 }
-.chip.selected { background: #0C1727; border-color: #0C1727; color: white; }
+.chip.selected { background: #050816; border-color: #050816; color: white; }
 
 .wellness-wrap {
     display: flex; align-items: center; gap: 20px;
-    background: linear-gradient(135deg,#0F766E,#0C1727);
+    background: linear-gradient(135deg,#4F46E5,#050816);
     border-radius: 16px; padding: 20px 24px; margin-bottom: 20px; color: white;
 }
 .wellness-score { font-size: 48px; font-weight: 800; letter-spacing: -2px; }
@@ -660,10 +662,10 @@ st.markdown("""
     width: 100%; border-collapse: collapse;
     font-size: 12.5px; margin: 12px 0;
 }
-[data-testid="stMarkdownContainer"] thead th { background: #F5F7F9; font-weight: 600; }
+[data-testid="stMarkdownContainer"] thead th { background: #F4F6FC; font-weight: 600; }
 [data-testid="stMarkdownContainer"] th,
 [data-testid="stMarkdownContainer"] td {
-    border: 1px solid #E7EBEF; padding: 7px 9px;
+    border: 1px solid #E1E5F4; padding: 7px 9px;
     text-align: left; vertical-align: top;
     word-break: normal !important; overflow-wrap: break-word !important; hyphens: none;
 }
@@ -681,11 +683,11 @@ st.markdown("""
 }
 .stButton button:active { transform: scale(0.98); }
 .stButton button[kind="primary"] {
-    box-shadow: 0 4px 14px rgba(15,118,110,0.22) !important;
+    box-shadow: 0 4px 14px rgba(99,102,241,0.22) !important;
     border: none !important;
 }
 .stButton button[kind="secondary"] {
-    border: 1.5px solid #E7EBEF !important;
+    border: 1.5px solid #E1E5F4 !important;
     box-shadow: 0 1px 4px rgba(15,23,42,0.04) !important;
 }
 div[data-baseweb="input"], div[data-baseweb="textarea"], div[data-baseweb="select"] {
@@ -697,8 +699,8 @@ div[data-baseweb="input"], div[data-baseweb="textarea"], div[data-baseweb="selec
     border: 1.5px solid transparent !important;
 }
 .stTextInput input:focus, .stNumberInput input:focus, .stTextArea textarea:focus {
-    border-color: #0F766E !important;
-    box-shadow: 0 0 0 3px rgba(15,118,110,0.12) !important;
+    border-color: #4F46E5 !important;
+    box-shadow: 0 0 0 3px rgba(99,102,241,0.12) !important;
 }
 [data-testid="stExpander"] {
     border-radius: 16px !important;
@@ -711,45 +713,60 @@ div[data-baseweb="input"], div[data-baseweb="textarea"], div[data-baseweb="selec
 }
 /* Radio / checkbox accent — keep the same blue instead of Streamlit's default */
 .stRadio [data-baseweb="radio"] div:first-child, .stCheckbox [data-baseweb="checkbox"] div:first-child {
-    border-color: #0F766E !important;
+    border-color: #4F46E5 !important;
 }
 </style>
 """, unsafe_allow_html=True)
 
-# ── HAL 3 DESIGN LAYER ────────────────────────────────────────────────────────
-# Brings Asklepios in line with the Ashlar HAL 3 production look: navy + gold
-# brand frame, flat light-grey canvas, white bordered cards, navy primary
-# buttons, HAL-style chat bubbles and underline progress bar. Asklepios keeps
-# its own accent (clinical teal) so the two products read as one family but
-# are distinguishable at a glance. Pure CSS — no widget or logic changes.
+# ── ASHLAR DESIGN LAYER ───────────────────────────────────────────────────────
+# Brings Asklepios in line with ashlarassurance.com ("Ashlar HAL Edition"
+# design system): ink #050816 brand frames with indigo/cyan glow, paper
+# #F4F6FC canvas, white 22px cards, Sora display type, Inter body,
+# JetBrains Mono eyebrow pills, indigo→cyan gradient pill buttons and the
+# HAL chat-card layout. Pure CSS — no widget or logic changes.
 st.markdown("""
 <style>
+@import url('https://fonts.googleapis.com/css2?family=Sora:wght@600;700;800&family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;600&display=swap');
 :root{
-  --ask-navy:#0C1727; --ask-navy-2:#172333; --ask-bg:#F5F7F9; --ask-white:#FFFFFF;
-  --ask-border:#E7EBEF; --ask-text:#172333; --ask-muted:#687586;
-  --ask-accent:#0F766E; --ask-accent-2:#0B5F58; --ask-accent-soft:#E6F4F1;
-  --ask-gold:#C99A4A; --ask-gold-dark:#A9762E; --ask-good:#1A7A4C;
+  --ask-display:'Sora','Inter',system-ui,sans-serif; --ask-mono:'JetBrains Mono',ui-monospace,monospace;
+  --ask-grad:linear-gradient(135deg,#818CF8,#22D3EE);
+  --ask-glow:radial-gradient(120% 90% at 100% 0%, rgba(99,102,241,.35) 0%, rgba(99,102,241,0) 55%),
+             radial-gradient(90% 80% at 0% 100%, rgba(34,211,238,.16) 0%, rgba(34,211,238,0) 60%), #050816;
+  --ask-navy:#050816; --ask-navy-2:#0A1030; --ask-bg:#F4F6FC; --ask-white:#FFFFFF;
+  --ask-border:#E1E5F4; --ask-text:#0A1030; --ask-muted:#5A6388;
+  --ask-accent:#4F46E5; --ask-accent-2:#4338CA; --ask-accent-soft:#EEF1FB;
+  --ask-gold:#67E8F9; --ask-gold-dark:#4F46E5; --ask-good:#059669;
 }
 [data-testid="stAppViewContainer"]{ background: var(--ask-bg) !important; }
 [data-testid="stHeader"]{ background: transparent !important; }
 .main .block-container, [data-testid="stMainBlockContainer"]{ max-width: 980px; padding-top: 2.2rem !important; }
 
-/* Buttons — navy primary, quiet bordered secondary (HAL .btn-primary/.btn-secondary) */
+/* Headings in Sora, like the site */
+h1, h2, h3, h4, [data-testid="stMarkdownContainer"] h1, [data-testid="stMarkdownContainer"] h2,
+[data-testid="stMarkdownContainer"] h3, [data-testid="stMarkdownContainer"] h4{
+  font-family: var(--ask-display) !important; letter-spacing: -.02em; color: var(--ask-text);
+}
+
+/* Buttons — Ashlar gradient pill primary (.aa-el-btn-primary), quiet secondary */
 .stButton button[kind="primary"], .stFormSubmitButton button[kind="primary"],
+.stFormSubmitButton button[kind="primaryFormSubmit"], [data-testid="stBaseButton-primaryFormSubmit"],
 .stDownloadButton button[kind="primary"], .stLinkButton a[kind="primary"]{
-  background: var(--ask-navy) !important; color: #fff !important;
-  border: none !important; border-radius: 10px !important;
-  box-shadow: 0 6px 16px rgba(12,23,39,.16) !important;
+  background: var(--ask-grad) !important; color: #050816 !important;
+  border: none !important; border-radius: 999px !important; font-weight: 700 !important;
+  box-shadow: 0 10px 26px -10px rgba(79,70,229,.55) !important;
+  transition: transform .25s ease, box-shadow .25s ease !important;
 }
+.stButton button[kind="primary"] p, .stFormSubmitButton button p[data-testid], .stFormSubmitButton button[kind="primaryFormSubmit"] p, .stDownloadButton button[kind="primary"] p{ color:#050816 !important; font-weight:700 !important; }
 .stButton button[kind="primary"]:hover, .stFormSubmitButton button[kind="primary"]:hover{
-  background: var(--ask-navy-2) !important;
+  transform: translateY(-2px); box-shadow: 0 16px 34px -12px rgba(79,70,229,.6) !important;
 }
-.stButton button[kind="primary"]:disabled{ background:#AEB6C1 !important; box-shadow:none !important; }
+.stButton button[kind="primary"]:disabled{ background:#DDE2F3 !important; box-shadow:none !important; transform:none; }
+.stButton button[kind="primary"]:disabled p{ color:#98A2C8 !important; }
 .stButton button[kind="secondary"], .stDownloadButton button[kind="secondary"],
 .stFormSubmitButton button[kind="secondary"]{
   background: var(--ask-white) !important; color: var(--ask-text) !important;
-  border: 1px solid var(--ask-border) !important; border-radius: 10px !important;
-  box-shadow: none !important;
+  border: 1px solid var(--ask-border) !important; border-radius: 22px !important;
+  box-shadow: 0 1px 2px rgba(10,16,48,.04) !important;
 }
 .stButton button[kind="secondary"]:hover{
   border-color: var(--ask-accent) !important; color: var(--ask-accent) !important;
@@ -758,34 +775,34 @@ st.markdown("""
 
 /* Inputs */
 .stTextInput input, .stNumberInput input, .stTextArea textarea{
-  border-radius: 10px !important; background: var(--ask-white) !important;
+  border-radius: 12px !important; background: var(--ask-white) !important;
   border: 1px solid var(--ask-border) !important;
 }
-div[data-baseweb="input"], div[data-baseweb="textarea"], div[data-baseweb="select"]{ border-radius: 10px !important; }
+div[data-baseweb="input"], div[data-baseweb="textarea"], div[data-baseweb="select"]{ border-radius: 12px !important; }
 .stTextInput input:focus, .stNumberInput input:focus, .stTextArea textarea:focus{
-  border-color: var(--ask-accent) !important; box-shadow: 0 0 0 3px rgba(15,118,110,.12) !important;
+  border-color: var(--ask-accent) !important; box-shadow: 0 0 0 3px rgba(99,102,241,.12) !important;
 }
 
 /* Cards: bordered containers that carry a marker become white HAL cards */
 div[data-testid="stVerticalBlock"]:has(> div[data-testid="stElementContainer"] .ask-card-marker),
 div[data-testid="stVerticalBlock"]:has(> div[data-testid="stElementContainer"] .home-action-marker){
   background: var(--ask-white) !important; border-color: var(--ask-border) !important;
-  border-radius: 14px !important;
+  border-radius: 22px !important;
 }
 div[data-testid="stElementContainer"]:has(.ask-card-marker){ display:none !important; }
 /* Cards: bordered containers + expanders */
 [data-testid="stVerticalBlockBorderWrapper"]{
-  border-color: var(--ask-border) !important; border-radius: 14px !important;
+  border-color: var(--ask-border) !important; border-radius: 22px !important;
   background: var(--ask-white);
 }
 [data-testid="stExpander"]{
-  border: 1px solid var(--ask-border) !important; border-radius: 12px !important;
+  border: 1px solid var(--ask-border) !important; border-radius: 18px !important;
   background: var(--ask-white); box-shadow: none !important;
 }
 
 /* Chat — HAL bubbles: user = navy right, Asklepios = white bordered left */
 [data-testid="stChatMessage"]{
-  border-radius: 14px; padding: 12px 14px; margin: 8px 0; max-width: 88%;
+  border-radius: 18px; padding: 12px 14px; margin: 8px 0; max-width: 88%;
   background: var(--ask-white); border: 1px solid var(--ask-border);
   border-bottom-left-radius: 4px; margin-right: auto;
 }
@@ -798,7 +815,20 @@ div[data-testid="stElementContainer"]:has(.ask-card-marker){ display:none !impor
 [data-testid="stChatMessage"]:has([data-testid="stChatMessageAvatarUser"]) [data-testid="stMarkdownContainer"] *{
   color: #fff !important;
 }
-[data-testid="stChatMessageAvatarUser"]{ background: var(--ask-gold) !important; }
+[data-testid="stChatMessageAvatarUser"]{ background: var(--ask-grad) !important; color:#050816 !important; }
+[data-testid="stChatMessage"]:has([data-testid="stChatMessageAvatarUser"]){ width: fit-content; max-width: 80%; }
+/* Inline composer card */
+[data-testid="stForm"]:has(.ask-composer-marker){
+  background: var(--ask-white); border: 1.5px solid #C7CEF0 !important; border-radius: 22px;
+  padding: 12px 14px 8px; margin: 10px 0 16px; box-shadow: 0 18px 40px -26px rgba(79,70,229,.45);
+}
+[data-testid="stForm"]:has(.ask-composer-marker):focus-within{ border-color: var(--ask-accent) !important; box-shadow: 0 0 0 4px rgba(99,102,241,.12); }
+[data-testid="stForm"]:has(.ask-composer-marker) textarea{
+  border: none !important; background: transparent !important; box-shadow: none !important;
+  font-size: 15.5px !important; padding: 6px 4px !important;
+}
+[data-testid="stForm"]:has(.ask-composer-marker) div[data-baseweb="textarea"]{ border: none !important; background: transparent !important; }
+div[data-testid="stElementContainer"]:has(.ask-composer-marker){ display:none !important; }
 [data-testid="stChatInput"] > div{
   border-radius: 999px !important; border: 1px solid var(--ask-border) !important;
   background: var(--ask-white) !important;
@@ -833,14 +863,21 @@ div[data-testid="stElementContainer"]:has(.ask-card-marker){ display:none !impor
 .kira-step-line{ display:none; }
 
 /* Shared HAL building blocks used by the landing, home and triage screens */
-.ask-eyebrow{ color:var(--ask-gold); font-weight:700; font-size:11px; letter-spacing:.12em; text-transform:uppercase; }
-.ask-brand-row{ font-weight:700; letter-spacing:.08em; font-size:12px; color:#9AA7BD; }
+.ask-eyebrow{ display:inline-flex; align-items:center; width:fit-content; padding:6px 13px; border-radius:999px;
+  font-family:var(--ask-mono); font-weight:600; font-size:11.5px; letter-spacing:.12em; text-transform:uppercase;
+  color:#67E8F9; background:rgba(34,211,238,.07); border:1px solid rgba(34,211,238,.32); }
+.ask-eyebrow.light{ color:#4F46E5; background:rgba(99,102,241,.08); border-color:rgba(79,70,229,.3); }
+.ask-h2{ font-family:var(--ask-display); font-weight:700; font-size:34px; line-height:1.08; letter-spacing:-.03em; color:#0A1030; margin:14px 0 10px; }
+.ask-sub{ font-size:15.5px; line-height:1.6; color:#5A6388; max-width:640px; }
+@media (max-width:640px){ .ask-h2{ font-size:26px; } }
+.ask-brand-row{ font-family:var(--ask-display); font-weight:700; letter-spacing:.02em; font-size:15px; color:#FFFFFF; }
+.ask-brand-row b{ background:var(--ask-grad); -webkit-background-clip:text; background-clip:text; color:transparent; }
 .ask-trust{ list-style:none; padding:0; margin:0; display:flex; flex-direction:column; gap:10px; }
-.ask-trust li{ font-size:13px; color:#DFE4EE; display:flex; align-items:center; gap:10px; margin:0; }
+.ask-trust li{ font-size:13px; color:#E8ECFA; display:flex; align-items:center; gap:10px; margin:0; }
 .ask-dot{ width:6px; height:6px; border-radius:50%; background:var(--ask-gold); display:inline-block; flex-shrink:0; }
 .ask-avatar-dot{
   width:34px; height:34px; border-radius:50%; flex-shrink:0;
-  background:radial-gradient(circle at 35% 30%, #1F6F68, var(--ask-navy));
+  background:linear-gradient(135deg,#6366F1,#22D3EE); box-shadow:0 0 0 4px rgba(99,102,241,.14);
   display:flex; align-items:center; justify-content:center; font-size:15px;
 }
 .ask-online{ color:var(--ask-good); font-weight:400; font-size:11px; margin-left:4px; }
@@ -1016,10 +1053,10 @@ def render_psychology_card(lang="el", refs_override=None):
                          f'padding:5px 14px;border-radius:8px;font-size:13px;font-weight:700;'
                          f'text-decoration:none;margin-top:6px">📞 {num}</a>')
         else:
-            link_html = (f'<a href="{url}" target="_blank" style="display:inline-block;background:#EEF7F5;'
+            link_html = (f'<a href="{url}" target="_blank" style="display:inline-block;background:#EEF1FB;'
                          f'color:#4338CA;padding:5px 14px;border-radius:8px;font-size:12px;font-weight:700;'
                          f'text-decoration:none;margin-top:6px">↗ Άνοιγμα</a>' if lang == "el" else
-                         f'<a href="{url}" target="_blank" style="display:inline-block;background:#EEF7F5;'
+                         f'<a href="{url}" target="_blank" style="display:inline-block;background:#EEF1FB;'
                          f'color:#4338CA;padding:5px 14px;border-radius:8px;font-size:12px;font-weight:700;'
                          f'text-decoration:none;margin-top:6px">↗ Open</a>')
         cards_html += (
@@ -1058,7 +1095,7 @@ def render_psychology_card(lang="el", refs_override=None):
     st.markdown(f"""
 <style>
 .psych-card {{
-  background: white; border: 1px solid #BFE3DC; border-radius: 22px;
+  background: white; border: 1px solid #DDE2F3; border-radius: 22px;
   padding: 20px 22px; margin: 16px 0;
   font-family: 'Inter', system-ui, sans-serif;
   box-shadow: 0 2px 8px rgba(99,102,241,0.07);
@@ -1080,7 +1117,7 @@ def render_psychology_card(lang="el", refs_override=None):
   color: #6B7280; margin-bottom: 10px;
 }}
 .psych-ref {{
-  border: 1px solid #EEF7F5; border-radius: 10px; padding: 11px 13px;
+  border: 1px solid #EEF1FB; border-radius: 10px; padding: 11px 13px;
   margin-bottom: 8px; background: #F5F7FF;
 }}
 .psych-ref-title {{
@@ -1301,9 +1338,9 @@ def render_login_gate():
     if is_logged_in():
         return True
 
-    st.markdown(f'''<div style="background:rgba(15,118,110,0.06);border:1px solid rgba(15,118,110,0.15);border-radius:14px;padding:20px 22px;text-align:center;margin:10px 0">
+    st.markdown(f'''<div style="background:rgba(99,102,241,0.06);border:1px solid rgba(99,102,241,0.15);border-radius:14px;padding:20px 22px;text-align:center;margin:10px 0">
         <div style="font-size:34px;margin-bottom:6px">🔒</div>
-        <div style="font-size:16px;font-weight:700;color:#172333">{"Σύνδεση" if lang=="el" else "Sign in"}</div>
+        <div style="font-size:16px;font-weight:700;color:#0A1030">{"Σύνδεση" if lang=="el" else "Sign in"}</div>
         <div style="font-size:13px;color:#6B7280;margin-top:4px">{"Email + κωδικός μίας χρήσης. Χωρίς password." if lang=="el" else "Email + one-time code. No password."}</div>
     </div>''', unsafe_allow_html=True)
 
@@ -1452,28 +1489,28 @@ def render_ad_banner(lang):
     css = """
 <style>
 .ad-hero {
-  background: #F5F7F9;
+  background: #F4F6FC;
   border-radius: 28px; padding: 44px 32px 32px;
   margin: 12px 0 28px; text-align: center;
   font-family: 'Inter', system-ui, sans-serif;
-  border: 1px solid #E7EBEF;
+  border: 1px solid #E1E5F4;
 }
 .ad-pill {
   display: inline-flex; align-items: center; gap: 12px;
-  background: white; border: 1px solid #E7EBEF;
+  background: white; border: 1px solid #E1E5F4;
   border-radius: 999px; padding: 8px 18px;
   font-size: 11.5px; font-weight: 700; letter-spacing: 0.08em;
-  color: #0F766E; margin-bottom: 20px;
-  box-shadow: 0 1px 3px rgba(15,118,110,0.06);
+  color: #4F46E5; margin-bottom: 20px;
+  box-shadow: 0 1px 3px rgba(99,102,241,0.06);
 }
 .ad-pill .sep { color: #D1D5DB; font-weight: 400; }
 .ad-pill .gdpr { color: #10B981; letter-spacing: 0.04em; }
 .ad-title {
   font-size: 42px; font-weight: 800; line-height: 1.12;
-  letter-spacing: -1px; color: #172333; margin: 0 0 4px;
+  letter-spacing: -1px; color: #0A1030; margin: 0 0 4px;
 }
 .ad-title .word { display: inline-block; }
-.ad-title .accent { color: #0F766E; }
+.ad-title .accent { color: #4F46E5; }
 .ad-sub {
   font-size: 16px; color: #4B5563;
   max-width: 540px; margin: 16px auto 32px;
@@ -1486,16 +1523,16 @@ def render_ad_banner(lang):
   gap: 16px; margin: 32px 0 32px; flex-wrap: wrap;
 }
 .ad-card {
-  background: white; border: 1px solid #E7EBEF;
+  background: white; border: 1px solid #E1E5F4;
   border-radius: 22px; padding: 22px 18px;
   width: 200px; max-width: 230px; min-height: 150px;
-  box-shadow: 0 2px 10px rgba(15,118,110,0.05);
+  box-shadow: 0 2px 10px rgba(99,102,241,0.05);
   display: flex; flex-direction: column; align-items: flex-start;
   text-align: left;
 }
 .ad-card-icon {
   width: 42px; height: 42px; border-radius: 50%;
-  background: #E6F4F1; display: flex; align-items: center;
+  background: #EEF1FB; display: flex; align-items: center;
   justify-content: center; font-size: 19px; margin-bottom: 12px;
 }
 .ad-card-label {
@@ -1505,9 +1542,9 @@ def render_ad_banner(lang):
 
 /* Card 1: Chat bubble */
 .ad-bubble {
-  background: #F5F7F9; border-radius: 12px 12px 12px 4px;
+  background: #F4F6FC; border-radius: 12px 12px 12px 4px;
   padding: 11px 13px; font-size: 13px;
-  color: #172333; line-height: 1.45; font-style: italic;
+  color: #0A1030; line-height: 1.45; font-style: italic;
   font-weight: 500; width: 100%;
 }
 /* Card 2: Vitals readout */
@@ -1518,12 +1555,12 @@ def render_ad_banner(lang):
   padding: 8px 11px; font-size: 12.5px;
 }
 .ad-vital-row .lbl { color: #6B7280; font-weight: 600; letter-spacing: 0.02em; }
-.ad-vital-row .val { color: #172333; font-weight: 700; font-variant-numeric: tabular-nums; }
+.ad-vital-row .val { color: #0A1030; font-weight: 700; font-variant-numeric: tabular-nums; }
 /* Card 3: Report checklist */
 .ad-report { display: flex; flex-direction: column; gap: 7px; width: 100%; }
 .ad-report-line {
   display: flex; align-items: center; gap: 9px;
-  font-size: 13px; color: #172333; font-weight: 500;
+  font-size: 13px; color: #0A1030; font-weight: 500;
 }
 .ad-report-line .check {
   width: 18px; height: 18px; border-radius: 50%;
@@ -1533,7 +1570,7 @@ def render_ad_banner(lang):
 }
 .ad-arrow {
   display: flex; align-items: center;
-  font-size: 20px; color: #0F766E; font-weight: 700; opacity: 0.4;
+  font-size: 20px; color: #4F46E5; font-weight: 700; opacity: 0.4;
 }
 
 /* Trust badges — inline with dot separators */
@@ -1541,7 +1578,7 @@ def render_ad_banner(lang):
   display: flex; justify-content: center; align-items: center;
   gap: 10px; flex-wrap: wrap; font-size: 12.5px;
   color: #6B7280; font-weight: 500;
-  padding-top: 14px; border-top: 1px solid #E7EBEF;
+  padding-top: 14px; border-top: 1px solid #E1E5F4;
   margin-top: 16px;
 }
 .ad-trust .item { white-space: nowrap; }
@@ -1688,7 +1725,7 @@ def render_explainer_video(lang):
   font-family: 'Inter', system-ui, sans-serif;
 }}
 .exp-header .ttl {{
-  font-size: 18px; font-weight: 700; color: #172333;
+  font-size: 18px; font-weight: 700; color: #0A1030;
   letter-spacing: -0.01em;
 }}
 .exp-header .hint {{
@@ -1730,7 +1767,7 @@ def render_explainer_video(lang):
   color: #9CA3AF; text-transform: uppercase; margin-bottom: 6px;
 }}
 .exp-title {{
-  font-size: 15px; font-weight: 700; color: #172333;
+  font-size: 15px; font-weight: 700; color: #0A1030;
   line-height: 1.35; margin-bottom: 8px;
 }}
 .exp-sub {{
@@ -1769,8 +1806,8 @@ def render_login_screen():
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
 .ask-hero-nav{display:flex;align-items:center;justify-content:space-between;
   padding:10px 2px 14px;font-family:'Inter',system-ui,sans-serif;}
-.ask-hero-logo{font-size:17px;font-weight:800;color:#172333;}
-.ask-hero-logo span{color:#0F766E;}
+.ask-hero-logo{font-size:17px;font-weight:800;color:#0A1030;}
+.ask-hero-logo span{color:#4F46E5;}
 </style>
 """, unsafe_allow_html=True)
     lc1, lc2 = st.columns([5, 2])
@@ -1806,37 +1843,39 @@ def render_login_screen():
     st.markdown(f"""
 <style>
 div[data-testid="stHorizontalBlock"]:has(.ask-split-left){{
-  gap:0 !important; border-radius:20px; overflow:hidden; align-items:stretch;
-  box-shadow:0 20px 50px rgba(12,23,39,.18); margin:4px 0 24px;
+  gap:0 !important; border-radius:24px; overflow:hidden; align-items:stretch;
+  box-shadow:0 30px 70px -30px rgba(10,16,48,.55); border:1px solid rgba(148,163,255,.16); margin:4px 0 28px;
 }}
 div[data-testid="stHorizontalBlock"]:has(.ask-split-left) > div[data-testid="stColumn"]:first-child{{
-  background:#0C1727; padding:44px 40px 36px !important;
+  background:radial-gradient(120% 80% at 100% 0%, rgba(99,102,241,.38) 0%, rgba(99,102,241,0) 55%),
+             radial-gradient(90% 70% at 0% 100%, rgba(34,211,238,.16) 0%, rgba(34,211,238,0) 60%), #050816;
+  padding:44px 40px 36px !important;
 }}
 div[data-testid="stHorizontalBlock"]:has(.ask-split-left) > div[data-testid="stColumn"]:last-child{{
   background:#FFFFFF; padding:22px 24px 24px !important;
 }}
 .ask-split-left{{ direction:{_dir}; text-align:{_al}; font-family:'Inter',system-ui,sans-serif; }}
-.ask-split-h1{{ font-size:34px; line-height:1.1; font-weight:800; color:#FFFFFF;
-  letter-spacing:-.01em; margin:14px 0 18px; }}
-.ask-split-h1 span{{ color:#C99A4A !important; }}
-.ask-split-lead{{ font-size:14px; line-height:1.6; color:#C3CBDB; max-width:440px; margin:0 0 22px; }}
+.ask-split-h1{{ font-family:'Sora','Inter',system-ui,sans-serif; font-size:32px; line-height:1.08; font-weight:700; color:#FFFFFF;
+  letter-spacing:-.03em; margin:16px 0 18px; }}
+.ask-split-h1 span{{ color:#67E8F9 !important; }}
+.ask-split-lead{{ font-size:15px; line-height:1.6; color:#C3C9E6; max-width:440px; margin:0 0 22px; }}
 .ask-split-lead strong{{ color:#FFFFFF; }}
 .ask-modes{{ display:flex; flex-wrap:wrap; gap:8px; margin:0 0 24px; }}
 .ask-mode{{ padding:9px 15px; border-radius:999px; font-size:13px; font-weight:600; color:#FFFFFF;
   background:rgba(255,255,255,.06); border:1px solid rgba(255,255,255,.14); }}
-.ask-mode.on{{ background:#0F766E; border-color:#0F766E; }}
+.ask-mode.on{{ background:linear-gradient(135deg,#818CF8,#22D3EE); border-color:transparent; color:#050816; }}
 .ask-split-left .ask-trust{{ margin:0 0 26px; }}
 .ask-split-left .ask-needs{{ background:rgba(255,255,255,.05); border-color:rgba(255,255,255,.12); }}
 .ask-split-left .ask-needs-title{{ color:#FFFFFF; }}
-.ask-split-left .ask-needs-empty{{ color:#9AA7BD; }}
+.ask-split-left .ask-needs-empty{{ color:#98A2C8; }}
 .ask-card-head{{ display:flex; align-items:center; gap:10px; padding:0 0 14px;
-  border-bottom:1px solid #E7EBEF; direction:{_dir}; }}
-.ask-card-name{{ font-weight:700; font-size:14px; color:#172333; }}
-.ask-prog{{ display:flex; gap:6px; padding:10px 0 0; font-size:11px; color:#687586; margin-bottom:16px; }}
-.ask-prog div{{ flex:1; text-align:center; padding-bottom:6px; border-bottom:3px solid #E7EBEF; }}
-.ask-prog div.on{{ color:#0C1727; font-weight:700; border-color:#0F766E; }}
-.ask-bubble{{ max-width:92%; padding:12px 14px; border-radius:14px; border-bottom-left-radius:4px;
-  background:#FFFFFF; border:1px solid #E7EBEF; font-size:14px; line-height:1.5; color:#172333;
+  border-bottom:1px solid #E1E5F4; direction:{_dir}; }}
+.ask-card-name{{ font-family:'Sora','Inter',sans-serif; font-weight:700; font-size:15px; color:#0A1030; }}
+.ask-prog{{ display:flex; gap:6px; padding:12px 0 0; font-size:11px; color:#5A6388; margin-bottom:16px; font-family:'JetBrains Mono',ui-monospace,monospace; letter-spacing:.02em; }}
+.ask-prog div{{ flex:1; text-align:center; padding-bottom:6px; border-bottom:3px solid #E1E5F4; }}
+.ask-prog div.on{{ color:#050816; font-weight:700; border-color:#4F46E5; }}
+.ask-bubble{{ max-width:92%; padding:13px 15px; border-radius:18px; border-bottom-left-radius:6px;
+  background:#F4F6FC; border:1px solid #E1E5F4; font-size:14px; line-height:1.5; color:#0A1030;
   margin:0 0 14px; direction:{_dir}; text-align:{_al}; }}
 @media (max-width: 640px){{
   div[data-testid="stHorizontalBlock"]:has(.ask-split-left) > div[data-testid="stColumn"]:first-child{{ padding:30px 22px 26px !important; }}
@@ -1904,100 +1943,141 @@ div[data-testid="stHorizontalBlock"]:has(.ask-split-left) > div[data-testid="stC
                 st.session_state["_hero_seen"] = True
                 st.rerun()
 
-    # ── gov.gr QUICK ACCESS ───────────────────────────────────────────────────
+    # ── ASHLAR-STYLE LANDING SECTIONS ─────────────────────────────────────────
+    # Mirrors ashlarassurance.com: mono eyebrow pill + Sora H2, numbered "01"
+    # step cards, dark glow band with big Sora stats, white persona cards and
+    # pill links. Responsive grids replace the old 6-in-a-row strip that
+    # crushed labels on phones.
+    _al2 = "right" if rtl else "left"
+    st.markdown(f"""
+<style>
+.ask-sec{{ margin:10px 0 34px; direction:{_dir}; text-align:{_al2}; font-family:'Inter',system-ui,sans-serif; }}
+.ask-grid{{ display:grid; gap:14px; margin-top:22px; }}
+.ask-grid.g3{{ grid-template-columns:repeat(3,minmax(0,1fr)); }}
+.ask-step{{ background:#FFFFFF; border:1px solid #E1E5F4; border-radius:20px; padding:20px 20px 18px;
+  box-shadow:0 1px 2px rgba(10,16,48,.04); transition:transform .3s ease, box-shadow .3s ease; }}
+.ask-step:hover{{ transform:translateY(-4px); box-shadow:0 24px 50px -24px rgba(79,70,229,.35); }}
+.ask-step-top{{ display:flex; align-items:center; justify-content:space-between; margin-bottom:12px; }}
+.ask-num{{ font-family:'JetBrains Mono',ui-monospace,monospace; font-size:13px; font-weight:600; color:#4F46E5; }}
+.ask-step-ic{{ width:38px; height:38px; border-radius:12px; background:#EEF1FB; border:1px solid #DDE2F3;
+  display:flex; align-items:center; justify-content:center; font-size:18px; }}
+.ask-step h3{{ font-family:'Sora','Inter',sans-serif !important; font-size:16px !important; font-weight:700 !important;
+  color:#0A1030 !important; margin:0 0 6px !important; padding:0 !important; line-height:1.25 !important; letter-spacing:-.01em; }}
+.ask-step p{{ font-size:13.5px; color:#5A6388; line-height:1.55; margin:0; }}
+.ask-band{{ border-radius:24px; padding:34px 30px 30px; border:1px solid rgba(148,163,255,.16);
+  background:radial-gradient(120% 90% at 100% 0%, rgba(99,102,241,.34) 0%, rgba(99,102,241,0) 55%),
+             radial-gradient(90% 80% at 0% 100%, rgba(34,211,238,.14) 0%, rgba(34,211,238,0) 60%), #050816; }}
+.ask-band .ask-h2{{ color:#FFFFFF; }}
+.ask-band .ask-sub{{ color:#98A2C8; }}
+.ask-datum{{ background:rgba(255,255,255,.035); border:1px solid rgba(148,163,255,.16); border-radius:22px; padding:22px 22px 20px; }}
+.ask-datum-num{{ font-family:'Sora','Inter',sans-serif; font-weight:700; font-size:46px; letter-spacing:-.04em; line-height:1;
+  background:linear-gradient(135deg,#FFFFFF 30%,#A5B4FC); -webkit-background-clip:text; background-clip:text; color:transparent; }}
+.ask-datum p{{ font-size:13.5px; color:#98A2C8; line-height:1.5; margin:10px 0 0; }}
+.ask-persona{{ background:#FFFFFF; border:1px solid #E1E5F4; border-radius:22px; padding:22px; display:flex; flex-direction:column; gap:10px;
+  transition:transform .3s ease, box-shadow .3s ease; }}
+.ask-persona:hover{{ transform:translateY(-4px); box-shadow:0 24px 50px -24px rgba(79,70,229,.35); }}
+.ask-persona-ic{{ width:44px; height:44px; border-radius:14px; display:flex; align-items:center; justify-content:center; font-size:21px; }}
+.ask-persona h3{{ font-family:'Sora','Inter',sans-serif !important; font-size:18px !important; font-weight:700 !important; color:#0A1030 !important;
+  margin:4px 0 0 !important; padding:0 !important; letter-spacing:-.015em; }}
+.ask-persona p{{ font-size:14px; color:#5A6388; line-height:1.55; margin:0; flex:1; }}
+.ask-tag{{ display:inline-flex; width:fit-content; font-family:'JetBrains Mono',ui-monospace,monospace; font-size:10.5px; font-weight:600;
+  letter-spacing:.06em; text-transform:uppercase; padding:5px 10px; border-radius:999px; }}
+.ask-gov{{ background:#FFFFFF; border:1px solid #E1E5F4; border-radius:22px; padding:24px; }}
+.ask-gov-links{{ display:flex; flex-wrap:wrap; gap:8px; margin-top:16px; }}
+.ask-pill-link{{ display:inline-flex; align-items:center; gap:6px; padding:9px 14px; border-radius:999px; font-size:13px; font-weight:600;
+  color:#2D3558 !important; background:#EEF1FB; border:1px solid #DDE2F3; text-decoration:none !important; transition:all .2s ease; }}
+.ask-pill-link:hover{{ background:#E0E7FF; border-color:#A5B4FC; color:#4338CA !important; transform:translateY(-1px); }}
+.ask-note{{ font-size:12px; color:#7A83A8; margin-top:12px; }}
+@media (max-width: 900px){{ .ask-grid.g3{{ grid-template-columns:repeat(2,minmax(0,1fr)); }} }}
+@media (max-width: 560px){{
+  .ask-grid.g3{{ grid-template-columns:1fr; }}
+  .ask-grid.g3.steps{{ grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px; }}
+  .ask-step{{ padding:16px 14px 14px; border-radius:18px; }}
+  .ask-step h3{{ font-size:14.5px !important; }}
+  .ask-step p{{ font-size:12.5px; }}
+  .ask-band{{ padding:26px 18px 20px; }}
+  .ask-datum-num{{ font-size:40px; }}
+}}
+</style>
+""", unsafe_allow_html=True)
+
+    # 1) How it works — numbered step cards
+    _prof_lbl = t("stepper_profile").split(" ", 1)[1] if " " in t("stepper_profile") else t("name")
+    _rep_lbl  = t("stepper_report").split(" ", 1)[1] if " " in t("stepper_report") else "Report"
+    _steps_data = [
+        ("👤", _prof_lbl,          t("history")),
+        ("💬", t("triage_title"),  t("triage_sub")),
+        ("❤️", t("vitals_title"),  "HR, BP, SpO₂"),
+        ("🧬", t("hero_f3t"),      t("hero_f3s")),
+        ("🧠", "Triage AI",        "Claude + GPT-4o"),
+        ("📄", _rep_lbl,           "PubMed"),
+    ]
+    _steps_html = "".join(
+        f'<div class="ask-step"><div class="ask-step-top"><span class="ask-num">{i:02d}</span>'
+        f'<span class="ask-step-ic">{ic}</span></div><h3>{tt}</h3><p>{ss}</p></div>'
+        for i, (ic, tt, ss) in enumerate(_steps_data, start=1)
+    )
+    st.markdown(f"""
+<div class="ask-sec">
+  <span class="ask-eyebrow light">{t("hal_how_eyebrow")}</span>
+  <div class="ask-h2">{t("hero_how")}</div>
+  <div class="ask-grid g3 steps">{_steps_html}</div>
+</div>
+""", unsafe_allow_html=True)
+
+    # 2) Evidence — dark glow band with big numbers
+    _stats = [("88.9%", t("hero_s1l")), ("0%", t("hero_s2l")), ("2 AI", t("hero_s3l"))]
+    _stats_html = "".join(
+        f'<div class="ask-datum"><div class="ask-datum-num">{n}</div><p>{lbl}</p></div>' for n, lbl in _stats
+    )
+    st.markdown(f"""
+<div class="ask-sec ask-band">
+  <span class="ask-eyebrow">{t("hal_stats_eyebrow")}</span>
+  <div class="ask-h2">{t("hal_stats_h2")}</div>
+  <div class="ask-sub">{t("hal_stats_sub")}</div>
+  <div class="ask-grid g3">{_stats_html}</div>
+</div>
+""", unsafe_allow_html=True)
+
+    # 3) Who it's for — white persona cards
+    _aud = [
+        ("👨‍👩‍👧", "#EEF1FB", "#4F46E5", t("hero_aud1t"), t("hero_aud1d"), t("hero_aud1b")),
+        ("🤝",                "#ECFEFF", "#0E7490", t("hero_aud2t"), t("hero_aud2d"), t("hero_aud2b")),
+        ("👨‍⚕️",        "#ECFDF5", "#047857", t("hero_aud3t"), t("hero_aud3d"), t("hero_aud3b")),
+    ]
+    _aud_html = "".join(
+        f'<div class="ask-persona"><div class="ask-persona-ic" style="background:{bg};">{ic}</div>'
+        f'<h3>{tt}</h3><p>{dd}</p>'
+        f'<span class="ask-tag" style="background:{bg};color:{tc};">{badge}</span></div>'
+        for ic, bg, tc, tt, dd, badge in _aud
+    )
+    st.markdown(f"""
+<div class="ask-sec">
+  <span class="ask-eyebrow light">{t("hal_for_eyebrow")}</span>
+  <div class="ask-h2">{t("hero_for_whom")}</div>
+  <div class="ask-grid g3">{_aud_html}</div>
+</div>
+""", unsafe_allow_html=True)
+
+    # 4) gov.gr quick access — pill links
     _gov_links = [
         ("📂", "Ηλεκτρονικός Φάκελος Υγείας" if lang=="el" else "Health Record",
          "https://www.gov.gr/ipiresies/ugeia-kai-pronoia/phakelos-ugeias"),
-
-        ("👨\u200d⚕️", "Ιατροί ΕΟΠΥΥ" if lang=="el" else "EOPYY Doctors",
-         "https://www.eopyy.gov.gr"),
+        ("👨‍⚕️", "Ιατροί ΕΟΠΥΥ" if lang=="el" else "EOPYY Doctors", "https://www.eopyy.gov.gr"),
         ("📋", "ΑΜΚΑ" if lang=="el" else "AMKA",
          "https://www.gov.gr/ipiresies/apasxolisi-kai-syntaxiodotisi/amka"),
-        ("🔔", "ΕΟΔΥ" if lang=="el" else "EODY",
-         "https://eody.gov.gr"),
+        ("🔔", "ΕΟΔΥ" if lang=="el" else "EODY", "https://eody.gov.gr"),
     ]
-    _gov_btn_html = " ".join(
-        f'<a href="{url}" target="_blank" rel="noopener" style="'
-        f'display:inline-flex;align-items:center;gap:5px;background:white;'
-        f'border:1px solid #6EE7B7;border-radius:999px;padding:7px 13px;'
-        f'font-size:12px;font-weight:600;color:#065F46;text-decoration:none;'
-        f'margin:3px 2px;">{ic} {label}</a>'
+    _gov_html = "".join(
+        f'<a class="ask-pill-link" href="{url}" target="_blank" rel="noopener">{ic} {label} <span style="opacity:.55">↗</span></a>'
         for ic, label, url in _gov_links
     )
     st.markdown(f"""
-<div style="background:#F0FDF4;border:1.5px solid #A7F3D0;border-radius:16px;
-  padding:15px 17px;margin:0 0 18px;font-family:'Inter',system-ui,sans-serif;direction:{_dir};">
-  <div style="font-size:11px;font-weight:700;letter-spacing:0.1em;color:#065F46;
-    text-transform:uppercase;margin-bottom:11px;">{t("hero_gov_title")}</div>
-  <div style="line-height:2;">{_gov_btn_html}</div>
-  <div style="font-size:10.5px;color:#6B7280;margin-top:9px;">{t("hero_gov_note")}</div>
-</div>
-""", unsafe_allow_html=True)
-
-    # ── HOW IT WORKS ─────────────────────────────────────────────────────────
-    # NOTE: previously this truncated labels with hard character counts
-    # (text[:14]+"…") tuned by eyeballing the English strings. That cut Greek/
-    # Hindi/Urdu/Arabic words mid-glyph (e.g. "φωτογραφία" → "φω…") since other
-    # scripts don't share English's chars-per-pixel ratio. Now we pass the full
-    # text through and let CSS line-clamp (below) wrap/truncate visually,
-    # which adapts correctly to any language and any font.
-    _steps_data = [
-        ("1","👤", t("stepper_profile").split(" ",1)[1] if " " in t("stepper_profile") else t("name"), t("history")),
-        ("2","💬", t("triage_title"), t("triage_sub")),
-        ("3","❤️", t("vitals_title"), "HR, BP, SpO₂"),
-        ("4","🧬", t("hero_f3t"), t("hero_f3s")),
-        ("5","🧠", "Triage AI", "Claude + GPT-4o"),
-        ("6","📄", t("stepper_report").split(" ",1)[1] if " " in t("stepper_report") else "Report", "PubMed"),
-    ]
-    _arrow = f'<div style="flex:0 0 auto;align-self:flex-start;padding-top:14px;font-size:11px;color:#BFE3DC;">{"‹" if rtl else "›"}</div>'
-    _steps_html = _arrow.join(f"""<div style="flex:1 1 0;min-width:0;text-align:{_ta};padding:0 2px;">
-  <div style="width:28px;height:28px;border-radius:50%;background:#0F766E;color:white;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:12px;margin:0 auto 8px;">{n}</div>
-  <div style="font-size:20px;margin-bottom:5px;">{ic}</div>
-  <div style="font-size:12px;font-weight:700;color:#172333;margin-bottom:2px;line-height:1.25;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;word-break:break-word;">{tt}</div>
-  <div style="font-size:10px;color:#6B7280;line-height:1.35;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;word-break:break-word;">{ss}</div>
-</div>""" for n, ic, tt, ss in _steps_data)
-    st.markdown(f"""
-<div style="font-family:'Inter',system-ui,sans-serif;margin:0 0 20px;direction:{_dir};">
-  <div style="font-size:18px;font-weight:800;color:#172333;text-align:{_ta};margin-bottom:16px;">{t("hero_how")}</div>
-  <div style="display:flex;align-items:flex-start;gap:0;width:100%;flex-direction:{"row-reverse" if rtl else "row"};">{_steps_html}</div>
-</div>
-""", unsafe_allow_html=True)
-
-    # ── STATS BAND ────────────────────────────────────────────────────────────
-    st.markdown(f"""
-<div style="display:flex;border:1px solid #E7EBEF;border-radius:14px;overflow:hidden;
-  background:white;margin:0 0 20px;font-family:'Inter',system-ui,sans-serif;direction:{_dir};">
-  <div style="flex:1;text-align:{_ta};padding:13px 6px;border-{"left" if rtl else "right"}:1px solid #E7EBEF;">
-    <div style="font-size:19px;font-weight:800;color:#0F766E;">88.9%</div>
-    <div style="font-size:10.5px;color:#6B7280;margin-top:3px;line-height:1.3;">{t("hero_s1l")}</div>
-  </div>
-  <div style="flex:1;text-align:{_ta};padding:13px 6px;border-{"left" if rtl else "right"}:1px solid #E7EBEF;">
-    <div style="font-size:19px;font-weight:800;color:#0F766E;">0%</div>
-    <div style="font-size:10.5px;color:#6B7280;margin-top:3px;line-height:1.3;">{t("hero_s2l")}</div>
-  </div>
-  <div style="flex:1;text-align:{_ta};padding:13px 6px;">
-    <div style="font-size:19px;font-weight:800;color:#0F766E;">2 AI</div>
-    <div style="font-size:10.5px;color:#6B7280;margin-top:3px;line-height:1.3;">{t("hero_s3l")}</div>
-  </div>
-</div>
-""", unsafe_allow_html=True)
-
-    # ── FOR WHOM ─────────────────────────────────────────────────────────────
-    _aud = [
-        ("👨\u200d👩\u200d👧","#E6F4F1","#0F766E", t("hero_aud1t"), t("hero_aud1d"), t("hero_aud1b")),
-        ("🤝","#FFFBEB","#92400E", t("hero_aud2t"), t("hero_aud2d"), t("hero_aud2b")),
-        ("👨\u200d⚕️","#ECFDF5","#065F46", t("hero_aud3t"), t("hero_aud3d"), t("hero_aud3b")),
-    ]
-    _aud_cards = "".join(f"""<div style="flex:1 1 160px;background:white;border:1px solid #E7EBEF;border-radius:14px;padding:14px 14px 12px;direction:{_dir};text-align:{"right" if rtl else "left"};">
-  <div style="width:32px;height:32px;border-radius:50%;background:{bg};display:flex;align-items:center;justify-content:center;font-size:16px;margin-bottom:9px;{"margin-right:0;margin-left:auto;" if rtl else ""}">{ic}</div>
-  <div style="font-size:13px;font-weight:800;color:#172333;margin-bottom:4px;">{tt}</div>
-  <div style="font-size:11.5px;color:#4B5563;line-height:1.5;margin-bottom:7px;">{dd}</div>
-  <div style="display:inline-block;background:{bg};color:{tc};font-size:10px;font-weight:700;padding:2px 9px;border-radius:999px;">{badge}</div>
-</div>""" for ic, bg, tc, tt, dd, badge in _aud)
-    st.markdown(f"""
-<div style="font-family:'Inter',system-ui,sans-serif;margin:0 0 22px;">
-  <div style="font-size:18px;font-weight:800;color:#172333;text-align:{_ta};margin-bottom:16px;">{t("hero_for_whom")}</div>
-  <div style="display:flex;gap:10px;flex-wrap:wrap;flex-direction:{"row-reverse" if rtl else "row"};">{_aud_cards}</div>
+<div class="ask-sec ask-gov">
+  <span class="ask-eyebrow light">GOV.GR</span>
+  <div class="ask-h2" style="font-size:22px;margin-top:12px;">{t("hero_gov_title").replace("🔒","").strip()}</div>
+  <div class="ask-gov-links">{_gov_html}</div>
+  <div class="ask-note">{t("hero_gov_note")}</div>
 </div>
 """, unsafe_allow_html=True)
 
@@ -2029,7 +2109,7 @@ def render_admin_gate():
     st.markdown("""
 <div style="max-width:380px;margin:60px auto 0;text-align:center">
   <div style="font-size:34px;margin-bottom:8px">🔐</div>
-  <div style="font-size:18px;font-weight:800;color:#172333">Admin Panel</div>
+  <div style="font-size:18px;font-weight:800;color:#0A1030">Admin Panel</div>
   <div style="font-size:13px;color:#6B7280;margin-top:4px">Asklepios · Internal</div>
 </div>
 """, unsafe_allow_html=True)
@@ -2245,7 +2325,7 @@ def render_admin_panel():
     campaigns. Reached via ?admin=1, gated by render_admin_gate()."""
     st.markdown("""
 <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px">
-  <div style="font-size:22px;font-weight:800;color:#172333">🔐 Asklepios Admin</div>
+  <div style="font-size:22px;font-weight:800;color:#0A1030">🔐 Asklepios Admin</div>
 </div>
 """, unsafe_allow_html=True)
     if not _supabase_client():
@@ -2908,7 +2988,7 @@ T = {
     "el": {
         "title": "Asklepios",
         # ── HAL 3-style layout strings ──
-        "hal_brand": "ASKLEPIOS · AI ΝΟΣΗΛΕΥΤΗΣ",
+        "hal_brand": "⚕ Asklepios · <b>AI Νοσηλευτής</b>",
         "hal_eyebrow": "ΚΑΘΟΔΗΓΗΣΗ ΥΓΕΙΑΣ, ΜΕ ΤΕΚΜΗΡΙΑ",
         "hal_h1": "Γνώρισε τον Asklepios.<br>Κατάλαβε τα συμπτώματά σου<br>πριν αποφασίσεις.",
         "hal_lead": "Πες στον Asklepios, τον AI νοσηλευτή σου, τι σε απασχολεί. Οργανώνει τα συμπτώματά σου, τα ελέγχει με το PubMed και βάσεις φαρμάκων και ετοιμάζει μια αναφορά για τον γιατρό σου — χωρίς να αφήνει την AI να κάνει διάγνωση.",
@@ -2929,6 +3009,9 @@ T = {
         "hal_footer": "Ο Asklepios είναι εργαλείο υποστήριξης αποφάσεων για ενημερωτικούς σκοπούς. Δεν κάνει διάγνωση και δεν αντικαθιστά τον γιατρό σου. Σε επείγουσα ανάγκη καλέστε <b>166</b> (ΕΚΑΒ) ή <b>112</b>.",
         "hal_home_h1": "Πώς νιώθεις σήμερα;",
         "hal_home_lead": "Ο Asklepios οργανώνει τα συμπτώματα και τα ζωτικά σου και ετοιμάζει μια τεκμηριωμένη αναφορά για τον γιατρό σου.",
+        "hal_how_eyebrow": "ΠΩΣ ΛΕΙΤΟΥΡΓΕΙ", "hal_for_eyebrow": "ΓΙΑ ΠΟΙΟΝ ΕΙΝΑΙ", "hal_stats_eyebrow": "ΤΕΚΜΗΡΙΑ",
+        "hal_stats_h2": "Μετρημένο, όχι υποσχεμένο.",
+        "hal_stats_sub": "Ο Asklepios αξιολογείται σε δημοσιευμένα κλινικά σενάρια triage και κάθε εκτίμηση ελέγχεται από δεύτερο μοντέλο.",
         "hal_meds": "Φάρμακα", "hal_allergy": "Αλλεργία", "hal_pregnant": "Εγκυμοσύνη", "hal_caregiver": "Για άλλο άτομο",
         "subtitle": "Ο AI Νοσηλευτής σου",
         "tagline": "Έγκυρη ιατρική πληροφόρηση · Πάντα δίπλα σου",
@@ -2992,7 +3075,7 @@ T = {
         "nav_vitals": 'Ζωτικά',
         "nav_symptoms": 'Συμπτώματα',
         "nav_history": 'Ιστορικό',
-        "hero_h1": "Περίγραψε τι νιώθεις.<br><span style='color:#0F766E'>Λάβε κλινική εκτίμηση.</span>",
+        "hero_h1": "Περίγραψε τι νιώθεις.<br><span style='color:#4F46E5'>Λάβε κλινική εκτίμηση.</span>",
         "hero_sub": 'Τεκμηριωμένη αξιολόγηση με αναφορές PubMed + δεύτερη γνώμη GPT-4o. Για τον <strong>ιατρό</strong> σου.',
         "hero_f1t": 'Περιγραφή συμπτωμάτων',
         "hero_f1s": 'Μιλάς φυσικά — το AI ρωτά & οργανώνει',
@@ -3033,7 +3116,7 @@ T = {
     },
     "en": {
         # ── HAL 3-style layout strings ──
-        "hal_brand": "ASKLEPIOS · AI NURSE",
+        "hal_brand": "⚕ Asklepios · <b>AI Nurse</b>",
         "hal_eyebrow": "HEALTH GUIDANCE, WITH EVIDENCE",
         "hal_h1": "Meet Asklepios.<br>Understand your symptoms<br>before you act.",
         "hal_lead": "Tell Asklepios, your AI nurse, what's bothering you. It organises your symptoms, checks them against PubMed and drug databases, and prepares a report for your doctor — without letting AI make the diagnosis.",
@@ -3054,6 +3137,9 @@ T = {
         "hal_footer": "Asklepios is a decision-support tool for information purposes only. It does not diagnose and does not replace your doctor. In an emergency call <b>166</b> (EKAB) or <b>112</b>.",
         "hal_home_h1": "How are you feeling today?",
         "hal_home_lead": "Asklepios organises your symptoms and vitals and prepares an evidence-based report for your doctor.",
+        "hal_how_eyebrow": "HOW IT WORKS", "hal_for_eyebrow": "WHO IT'S FOR", "hal_stats_eyebrow": "EVIDENCE",
+        "hal_stats_h2": "Measured, not promised.",
+        "hal_stats_sub": "Asklepios is benchmarked on published clinical triage vignettes, and every assessment is cross-checked by a second model.",
         "hal_meds": "Meds", "hal_allergy": "Allergy", "hal_pregnant": "Pregnant", "hal_caregiver": "For someone else",
         "title": "Asklepios",
         "subtitle": "Your AI Nurse",
@@ -3118,7 +3204,7 @@ T = {
         "nav_vitals": 'Vitals',
         "nav_symptoms": 'Symptoms',
         "nav_history": 'History',
-        "hero_h1": "Describe what you feel.<br><span style='color:#0F766E'>Get a clinical assessment.</span>",
+        "hero_h1": "Describe what you feel.<br><span style='color:#4F46E5'>Get a clinical assessment.</span>",
         "hero_sub": 'Evidence-based assessment with PubMed references + GPT-4o second opinion. For your <strong>doctor</strong>.',
         "hero_f1t": 'Symptom description',
         "hero_f1s": 'Speak naturally — AI asks & organises',
@@ -3221,7 +3307,7 @@ T = {
         "nav_vitals": 'संकेत',
         "nav_symptoms": 'लक्षण',
         "nav_history": 'इतिहास',
-        "hero_h1": "बताएं आप क्या महसूस कर रहे हैं।<br><span style='color:#0F766E'>पाएं नैदानिक मूल्यांकन।</span>",
+        "hero_h1": "बताएं आप क्या महसूस कर रहे हैं।<br><span style='color:#4F46E5'>पाएं नैदानिक मूल्यांकन।</span>",
         "hero_sub": 'PubMed संदर्भों के साथ + GPT-4o दूसरी राय। आपके <strong>डॉक्टर</strong> के लिए।',
         "hero_f1t": 'लक्षणों का विवरण',
         "hero_f1s": 'स्वाभाविक रूप से बोलें — AI पूछता और व्यवस्थित करता है',
@@ -3324,7 +3410,7 @@ T = {
         "nav_vitals": 'علامات',
         "nav_symptoms": 'علامات',
         "nav_history": 'تاریخ',
-        "hero_h1": "بتائیں آپ کیا محسوس کر رہے ہیں۔<br><span style='color:#0F766E'>طبی تشخیص حاصل کریں۔</span>",
+        "hero_h1": "بتائیں آپ کیا محسوس کر رہے ہیں۔<br><span style='color:#4F46E5'>طبی تشخیص حاصل کریں۔</span>",
         "hero_sub": 'PubMed + GPT-4o دوسری رائے۔ آپ کے <strong>ڈاکٹر</strong> کے لیے۔',
         "hero_f1t": 'علامات کی وضاحت',
         "hero_f1s": 'قدرتی طریقے سے بولیں — AI پوچھتا اور منظم کرتا ہے',
@@ -3427,7 +3513,7 @@ T = {
         "nav_vitals": 'الحيوية',
         "nav_symptoms": 'الأعراض',
         "nav_history": 'التاريخ',
-        "hero_h1": "صف ما تشعر به.<br><span style='color:#0F766E'>احصل على تقييم طبي.</span>",
+        "hero_h1": "صف ما تشعر به.<br><span style='color:#4F46E5'>احصل على تقييم طبي.</span>",
         "hero_sub": 'تقييم مبني على الأدلة + رأي ثانٍ من GPT-4o. لـ<strong>طبيبك</strong>.',
         "hero_f1t": 'وصف الأعراض',
         "hero_f1s": 'تكلم بشكل طبيعي — AI يسأل وينظّم',
@@ -3530,7 +3616,7 @@ T = {
         "nav_vitals": 'লক্ষণ',
         "nav_symptoms": 'উপসর্গ',
         "nav_history": 'ইতিহাস',
-        "hero_h1": "বলুন আপনি কী অনুভব করছেন।<br><span style='color:#0F766E'>ক্লিনিক্যাল মূল্যায়ন পান।</span>",
+        "hero_h1": "বলুন আপনি কী অনুভব করছেন।<br><span style='color:#4F46E5'>ক্লিনিক্যাল মূল্যায়ন পান।</span>",
         "hero_sub": 'PubMed রেফারেন্স + GPT-4o দ্বিতীয় মতামত সহ প্রমাণ-ভিত্তিক মূল্যায়ন। আপনার <strong>ডাক্তারের</strong> জন্য।',
         "hero_f1t": 'লক্ষণের বিবরণ',
         "hero_f1s": 'স্বাভাবিকভাবে বলুন — AI জিজ্ঞেস করে ও সাজায়',
@@ -3620,7 +3706,7 @@ T = {
         "nav_vitals": 'Показатели',
         "nav_symptoms": 'Симптоми',
         "nav_history": 'История',
-        "hero_h1": "Опишете какво чувствате.<br><span style='color:#0F766E'>Получете клинична оценка.</span>",
+        "hero_h1": "Опишете какво чувствате.<br><span style='color:#4F46E5'>Получете клинична оценка.</span>",
         "hero_sub": 'Оценка, основана на доказателства с PubMed референции + второ мнение от GPT-4o. За вашия <strong>лекар</strong>.',
         "hero_f1t": 'Описание на симптомите',
         "hero_f1s": 'Говорете естествено — AI пита и организира',
@@ -3710,7 +3796,7 @@ T = {
         "nav_vitals": 'Vitale',
         "nav_symptoms": 'Simptome',
         "nav_history": 'Istoric',
-        "hero_h1": "Descrieți ce simțiți.<br><span style='color:#0F766E'>Obțineți o evaluare clinică.</span>",
+        "hero_h1": "Descrieți ce simțiți.<br><span style='color:#4F46E5'>Obțineți o evaluare clinică.</span>",
         "hero_sub": 'Evaluare bazată pe dovezi cu referințe PubMed + a doua opinie GPT-4o. Pentru <strong>medicul</strong> dumneavoastră.',
         "hero_f1t": 'Descrierea simptomelor',
         "hero_f1s": 'Vorbiți natural — AI întreabă și organizează',
@@ -3800,7 +3886,7 @@ T = {
         "nav_vitals": 'Vitale',
         "nav_symptoms": 'Simptoma',
         "nav_history": 'Historia',
-        "hero_h1": "Përshkruani çfarë ndiheni.<br><span style='color:#0F766E'>Merrni një vlerësim klinik.</span>",
+        "hero_h1": "Përshkruani çfarë ndiheni.<br><span style='color:#4F46E5'>Merrni një vlerësim klinik.</span>",
         "hero_sub": 'Vlerësim i bazuar në dëshmi me referenca PubMed + mendim i dytë GPT-4o. Për <strong>mjekun</strong> tuaj.',
         "hero_f1t": 'Përshkrimi i simptomave',
         "hero_f1s": 'Flisni natyrshëm — AI pyet dhe organizon',
@@ -3890,7 +3976,7 @@ T = {
         "nav_vitals": 'Показатели',
         "nav_symptoms": 'Симптомы',
         "nav_history": 'История',
-        "hero_h1": "Опишите, что вы чувствуете.<br><span style='color:#0F766E'>Получите клиническую оценку.</span>",
+        "hero_h1": "Опишите, что вы чувствуете.<br><span style='color:#4F46E5'>Получите клиническую оценку.</span>",
         "hero_sub": 'Оценка на основе доказательств с PubMed + второе мнение GPT-4o. Для вашего <strong>врача</strong>.',
         "hero_f1t": 'Описание симптомов',
         "hero_f1s": 'Говорите естественно — AI спрашивает и организует',
@@ -3980,7 +4066,7 @@ T = {
         "nav_vitals": '体征',
         "nav_symptoms": '症状',
         "nav_history": '历史',
-        "hero_h1": "描述您的感受。<br><span style='color:#0F766E'>获取临床评估。</span>",
+        "hero_h1": "描述您的感受。<br><span style='color:#4F46E5'>获取临床评估。</span>",
         "hero_sub": '基于证据的评估，含PubMed参考文献 + GPT-4o第二意见。为您的<strong>医生</strong>。',
         "hero_f1t": '症状描述',
         "hero_f1s": '自然说话 — AI询问并整理',
@@ -4070,7 +4156,7 @@ T = {
         "nav_vitals": 'الحيوية',
         "nav_symptoms": 'الأعراض',
         "nav_history": 'التاريخ',
-        "hero_h1": "قول شو حاسس فيه.<br><span style='color:#0F766E'>احصل على تقييم طبي.</span>",
+        "hero_h1": "قول شو حاسس فيه.<br><span style='color:#4F46E5'>احصل على تقييم طبي.</span>",
         "hero_sub": 'تقييم مبني على الأدلة + رأي ثانٍ من GPT-4o. لـ<strong>دكتورك</strong>.',
         "hero_f1t": 'وصف الأعراض',
         "hero_f1s": 'حكي طبيعي — AI بيسأل وبينظّم',
@@ -4160,7 +4246,7 @@ T = {
         "nav_vitals": 'חיוניים',
         "nav_symptoms": 'תסמינים',
         "nav_history": 'היסטוריה',
-        "hero_h1": "תאר מה אתה מרגיש.<br><span style='color:#0F766E'>קבל הערכה קלינית.</span>",
+        "hero_h1": "תאר מה אתה מרגיש.<br><span style='color:#4F46E5'>קבל הערכה קלינית.</span>",
         "hero_sub": 'הערכה מבוססת ראיות + חוות דעת שנייה מ-GPT-4o. ל<strong>רופא</strong> שלך.',
         "hero_f1t": 'תיאור תסמינים',
         "hero_f1s": 'דבר בטבעיות — AI שואל ומארגן',
@@ -4250,7 +4336,7 @@ T = {
         "nav_vitals": 'ਸੰਕੇਤ',
         "nav_symptoms": 'ਲੱਛਣ',
         "nav_history": 'ਇਤਿਹਾਸ',
-        "hero_h1": "ਦੱਸੋ ਤੁਸੀਂ ਕੀ ਮਹਿਸੂਸ ਕਰ ਰਹੇ ਹੋ।<br><span style='color:#0F766E'>ਕਲੀਨੀਕਲ ਮੁਲਾਂਕਣ ਪ੍ਰਾਪਤ ਕਰੋ।</span>",
+        "hero_h1": "ਦੱਸੋ ਤੁਸੀਂ ਕੀ ਮਹਿਸੂਸ ਕਰ ਰਹੇ ਹੋ।<br><span style='color:#4F46E5'>ਕਲੀਨੀਕਲ ਮੁਲਾਂਕਣ ਪ੍ਰਾਪਤ ਕਰੋ।</span>",
         "hero_sub": "PubMed + GPT-4o ਦੂਜੀ ਰਾਏ ਨਾਲ ਮੁਲਾਂਕਣ। ਤੁਹਾਡੇ <strong>ਡਾਕਟਰ</strong> ਲਈ।",
         "hero_f1t": "ਲੱਛਣਾਂ ਦਾ ਵਰਣਨ", "hero_f1s": "ਕੁਦਰਤੀ ਤੌਰ 'ਤੇ ਬੋਲੋ — AI ਪੁੱਛਦਾ ਹੈ",
         "hero_f2t": "ਮਹੱਤਵਪੂਰਨ ਸੰਕੇਤ", "hero_f2s": "HR, BP, SpO₂, ਤਾਪਮਾਨ",
@@ -4358,25 +4444,26 @@ def render_doc_header(title_el, title_en, *, icon="📋",
   display: flex; align-items: center; gap: 16px;
   padding: 18px 22px;
   background: white;
-  border: 1px solid #E7EBEF;
-  border-radius: 14px;
+  border: 1px solid #E1E5F4;
+  border-radius: 22px;
   margin: 4px 0 18px;
   font-family: 'Inter', system-ui, sans-serif;
   box-shadow: 0 1px 3px rgba(0,0,0,0.03);
 }}
 .dph-logo {{
   width: 46px; height: 46px; border-radius: 50%;
-  background: radial-gradient(circle at 35% 30%, #1F6F68, #0C1727);
+  background: linear-gradient(135deg, #EEF1FB, #E0F7FB); border: 1px solid #DDE2F3;
   display: flex; align-items: center; justify-content: center;
   font-size: 23px; flex-shrink: 0;
 }}
 .dph-text {{ flex: 1; min-width: 0; }}
 .dph-org {{
-  font-size: 9.5px; font-weight: 700; letter-spacing: 0.14em;
-  color: #A9762E; text-transform: uppercase; margin-bottom: 3px;
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 10px; font-weight: 600; letter-spacing: 0.12em;
+  color: #4F46E5; text-transform: uppercase; margin-bottom: 3px;
 }}
 .dph-title {{
-  font-size: 19px; font-weight: 800; color: #0C1727;
+  font-family: 'Sora','Inter',sans-serif; font-size: 19px; font-weight: 700; color: #0A1030; letter-spacing:-.02em;
   letter-spacing: -0.015em; line-height: 1.2;
 }}
 .dph-sub {{
@@ -4427,7 +4514,7 @@ def render_bottom_nav():
 
     tab_for_screen = {
         "home": "home", "intake": "triage", "vitals": "vitals",
-        "triage": "triage", "report": "history",
+        "triage": "triage", "report": "history", "dossier": "home",
     }
     active_tab = tab_for_screen.get(cur, "home")
 
@@ -4446,9 +4533,9 @@ def render_bottom_nav():
 /* Fix the stHorizontalBlock that contains .bn-marker to the TOP */
 div[data-testid="stHorizontalBlock"]:has(.bn-marker) {
   position: fixed; left: 0; right: 0; top: 0; bottom: auto; z-index: 999;
-  background: #0C1727; border-bottom: 1px solid #172333; border-top: none;
+  background: #050816; border-bottom: 1px solid #0A1030; border-top: none;
   padding: 0 8px;
-  box-shadow: 0 2px 14px rgba(12,23,39,0.22);
+  box-shadow: 0 2px 14px rgba(5,8,22,0.22);
   height: 52px;
   display: flex !important; align-items: center !important;
   flex-wrap: nowrap !important;
@@ -4464,7 +4551,7 @@ div[data-testid="stElementContainer"]:has(> div .bn-marker),
 div[data-testid="stElementContainer"]:has(.bn-marker) { display: none !important; }
 div[data-testid="stHorizontalBlock"]:has(.bn-marker) button {
   background: transparent !important; border: none !important; box-shadow: none !important;
-  color: #9AA7BD !important; font-weight: 700 !important; font-size: 10.5px !important;
+  color: #98A2C8 !important; font-weight: 700 !important; font-size: 10.5px !important;
   letter-spacing: .02em !important; border-radius: 0 !important;
   line-height: 1.3 !important; padding: 2px 2px !important; min-height: 0 !important;
   white-space: nowrap !important; width: 100% !important; height: 48px !important;
@@ -4474,13 +4561,13 @@ div[data-testid="stHorizontalBlock"]:has(.bn-marker) button {
 div[data-testid="stHorizontalBlock"]:has(.bn-marker) button p {
   text-align: center !important; width: 100%;
 }
-div[data-testid="stHorizontalBlock"]:has(.bn-marker) button p { color: #9AA7BD !important; }
+div[data-testid="stHorizontalBlock"]:has(.bn-marker) button p { color: #98A2C8 !important; }
 div[data-testid="stHorizontalBlock"]:has(.bn-marker) button:hover p { color: #FFFFFF !important; }
 div[data-testid="stHorizontalBlock"]:has(.bn-marker) button:hover {
   background: rgba(255,255,255,.06) !important; border-color: transparent !important;
 }
 div[data-testid="stHorizontalBlock"]:has(.bn-marker) button[kind="primary"] {
-  color: #FFFFFF !important; border-bottom: 3px solid #C99A4A !important;
+  color: #FFFFFF !important; border-bottom: 3px solid #67E8F9 !important;
   background: transparent !important; box-shadow: none !important;
 }
 div[data-testid="stHorizontalBlock"]:has(.bn-marker) button[kind="primary"] p {
@@ -5115,16 +5202,16 @@ def generate_html_report(profile, vitals, report_text, pubmed_refs, lang="el", r
             )
         lab_html = f'<h2>{_lf_title}</h2><div class="lf-list">{_lf_items}</div>'
     html_out=f"""<!DOCTYPE html><html lang="{lang}"><head><meta charset="UTF-8"><title>Asklepios Report — {name}</title>
-<style>*{{box-sizing:border-box;margin:0;padding:0}}body{{font-family:'Inter',sans-serif;font-size:13px;color:#172333;max-width:820px;margin:0 auto;padding:32px 40px}}
-.hdr{{display:flex;justify-content:space-between;align-items:center;border-bottom:3px solid #0F766E;padding-bottom:14px;margin-bottom:20px}}
-.hdr-logo{{font-size:22px;font-weight:800;color:#0F766E}}.hdr-date{{font-size:11px;color:#6B7280;text-align:right}}
-.patient{{background:linear-gradient(135deg,#0F766E,#0C1727);color:white;border-radius:12px;padding:18px 22px;margin-bottom:20px}}
+<style>*{{box-sizing:border-box;margin:0;padding:0}}body{{font-family:'Inter',sans-serif;font-size:13px;color:#0A1030;max-width:820px;margin:0 auto;padding:32px 40px}}
+.hdr{{display:flex;justify-content:space-between;align-items:center;border-bottom:3px solid #4F46E5;padding-bottom:14px;margin-bottom:20px}}
+.hdr-logo{{font-size:22px;font-weight:800;color:#4F46E5}}.hdr-date{{font-size:11px;color:#6B7280;text-align:right}}
+.patient{{background:linear-gradient(135deg,#4F46E5,#050816);color:white;border-radius:12px;padding:18px 22px;margin-bottom:20px}}
 .patient-name{{font-size:20px;font-weight:700;margin-bottom:4px}}.patient-meta{{font-size:12px;opacity:.8}}.patient-detail{{font-size:11px;opacity:.75;margin-top:10px;line-height:1.8}}
-h2{{font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:#0C1727;border-bottom:1px solid #E7EBEF;padding-bottom:5px;margin:20px 0 10px}}
-h3{{font-size:12.5px;font-weight:700;color:#0F766E;margin:14px 0 6px}}
+h2{{font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:#050816;border-bottom:1px solid #E1E5F4;padding-bottom:5px;margin:20px 0 10px}}
+h3{{font-size:12.5px;font-weight:700;color:#4F46E5;margin:14px 0 6px}}
 p{{margin:4px 0;line-height:1.65}}ul{{margin:6px 0 6px 18px}}li{{margin:3px 0;line-height:1.6}}
 table.vitals{{width:100%;border-collapse:collapse;margin:10px 0;font-size:12px}}
-table.vitals thead tr{{background:#0F766E;color:white}}table.vitals th,table.vitals td{{padding:7px 12px;text-align:left;border:1px solid #E7EBEF}}
+table.vitals thead tr{{background:#4F46E5;color:white}}table.vitals th,table.vitals td{{padding:7px 12px;text-align:left;border:1px solid #E1E5F4}}
 table.vitals tbody tr:nth-child(even){{background:#F8FAFF}}
 .emergency{{background:#DC2626;color:white;border-radius:8px;padding:12px 16px;font-weight:700;margin:16px 0}}
 .disclaimer{{background:#FFFBEB;border:1px solid #FCD34D;border-radius:8px;padding:10px 14px;font-size:11px;color:#92400E;margin:12px 0}}
@@ -5146,7 +5233,7 @@ table.vitals tbody tr:nth-child(even){{background:#F8FAFF}}
 .lf-row-num{{background:#D1FAE5;color:#065F46;font-size:10px;font-weight:700;width:18px;height:18px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center}}
 .lf-row-lbl{{font-size:12px;font-weight:700;color:#111827}}.lf-row-body{{font-size:11.5px;color:#374151;line-height:1.55}}
 @media print{{.recs-box{{-webkit-print-color-adjust:exact;print-color-adjust:exact}}.recs-grid{{grid-template-columns:1fr 1fr 1fr !important}}}}
-.hint{{text-align:center;margin:24px 0 0;font-size:12px;color:#94A3B8;border-top:1px dashed #E7EBEF;padding-top:14px}}
+.hint{{text-align:center;margin:24px 0 0;font-size:12px;color:#94A3B8;border-top:1px dashed #E1E5F4;padding-top:14px}}
 @media print{{body{{padding:16px}}.patient,.emergency{{-webkit-print-color-adjust:exact;print-color-adjust:exact}}@page{{margin:15mm}}}}</style></head><body>
 <div class="hdr"><div class="hdr-logo">🩺 Asklepios AI Nurse</div><div class="hdr-date">Κλινική Εκτίμηση<br>{ts}</div></div>
 <div class="patient"><div class="patient-name">{name}</div><div class="patient-meta">{age} ετών · {sex}</div>
@@ -5207,14 +5294,14 @@ body{{background:transparent;padding:0;font-size:14px;color:#1F2937}}
 .st-card h3{{font-size:12px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:#6B7280;margin-bottom:12px}}
 .st-row{{display:flex;gap:8px;align-items:flex-end;flex-wrap:wrap}}
 input[type=text],textarea{{width:100%;border:1px solid #D1D5DB;border-radius:8px;padding:8px 10px;font-size:13px;color:#1F2937;background:white}}
-input[type=text]:focus,textarea:focus{{outline:none;border-color:#0F766E;box-shadow:0 0 0 2px rgba(15,118,110,.10)}}
+input[type=text]:focus,textarea:focus{{outline:none;border-color:#4F46E5;box-shadow:0 0 0 2px rgba(99,102,241,.10)}}
 textarea{{resize:vertical;min-height:48px}}
-input[type=range]{{width:100%;accent-color:#0F766E}}
+input[type=range]{{width:100%;accent-color:#4F46E5}}
 .sev-row{{display:flex;align-items:center;gap:8px}}
 .sev-label{{font-size:11px;color:#6B7280;white-space:nowrap}}
-.sev-val{{font-size:18px;font-weight:700;color:#0F766E;min-width:24px;text-align:right}}
+.sev-val{{font-size:18px;font-weight:700;color:#4F46E5;min-width:24px;text-align:right}}
 .btn{{padding:9px 16px;border-radius:8px;border:none;cursor:pointer;font-weight:600;font-size:13px;transition:all .15s}}
-.btn-primary{{background:#0F766E;color:white}}.btn-primary:hover{{background:#0B5F58}}
+.btn-primary{{background:#4F46E5;color:white}}.btn-primary:hover{{background:#4338CA}}
 .btn-ghost{{background:#F3F4F6;color:#374151;border:1px solid #E5E7EB}}.btn-ghost:hover{{background:#E5E7EB}}
 .btn-danger{{background:#FEF2F2;color:#DC2626;border:1px solid #FCA5A5}}.btn-danger:hover{{background:#FEE2E2}}
 .entry{{border-bottom:1px solid #F3F4F6;padding:10px 0;display:flex;justify-content:space-between;align-items:flex-start;gap:8px}}
@@ -5377,34 +5464,34 @@ def render_home():
     st.markdown("""
 <style>
 .home-topbar { display:flex; align-items:center; justify-content:space-between; margin:4px 0 20px; }
-.home-brand { font-size:24px; font-weight:800; color:#172333; }
-.home-greeting { font-size:12.5px; color:#687586; font-weight:600; margin-top:2px; }
+.home-brand { font-size:24px; font-weight:800; color:#0A1030; }
+.home-greeting { font-size:12.5px; color:#5A6388; font-weight:600; margin-top:2px; }
 .home-avatar {
-  width:46px; height:46px; border-radius:50%; background:#0F766E;
+  width:46px; height:46px; border-radius:50%; background:#4F46E5;
   display:flex; align-items:center; justify-content:center;
   color:white; font-size:18px; font-weight:700;
-  box-shadow:0 4px 10px rgba(15,118,110,0.28); flex-shrink:0;
+  box-shadow:0 4px 10px rgba(99,102,241,0.28); flex-shrink:0;
 }
 .home-action-grid { display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:18px; }
 .home-action-icon {
-  width:52px; height:52px; border-radius:50%; background:#E6F4F1; margin:0 auto 12px;
+  width:52px; height:52px; border-radius:50%; background:#EEF1FB; margin:0 auto 12px;
   display:flex; align-items:center; justify-content:center; font-size:23px;
 }
-.home-action-icon.warm { background:#FBF3E6; }
-.home-action-label { font-size:14.5px; font-weight:700; color:#172333; line-height:1.3; }
-.home-group-title { font-size:15px; font-weight:800; color:#172333; margin-bottom:16px; }
+.home-action-icon.warm { background:#ECFEFF; }
+.home-action-label { font-size:14.5px; font-weight:700; color:#0A1030; line-height:1.3; }
+.home-group-title { font-size:15px; font-weight:800; color:#0A1030; margin-bottom:16px; }
 .home-vrow { display:flex; align-items:center; gap:13px; margin-bottom:16px; }
 .home-vrow:last-child { margin-bottom:0; }
 .home-vrow-icon {
-  width:38px; height:38px; border-radius:50%; background:#E6F4F1; flex-shrink:0;
+  width:38px; height:38px; border-radius:50%; background:#EEF1FB; flex-shrink:0;
   display:flex; align-items:center; justify-content:center; font-size:17px;
 }
 .home-vrow-body { flex:1; min-width:0; }
 .home-vrow-top { display:flex; justify-content:space-between; align-items:baseline; margin-bottom:6px; }
-.home-vrow-label { font-size:13.5px; font-weight:700; color:#172333; }
-.home-vrow-val { font-size:13px; font-weight:700; color:#0F766E; }
+.home-vrow-label { font-size:13.5px; font-weight:700; color:#0A1030; }
+.home-vrow-val { font-size:13px; font-weight:700; color:#4F46E5; }
 .home-vrow-bar { height:6px; background:#EAF0FB; border-radius:6px; overflow:hidden; }
-.home-vrow-bar-fill { height:100%; border-radius:6px; background:#0F766E; }
+.home-vrow-bar-fill { height:100%; border-radius:6px; background:#4F46E5; }
 .home-vrow-bar-fill.ok { background:#10B981; }
 .home-vrow-bar-fill.warn { background:#F59E0B; }
 .home-vrow-bar-fill.danger { background:#EF4444; }
@@ -5414,17 +5501,17 @@ def render_home():
 }
 .home-emergency strong { color:#991B1B; }
 .home-campaign-banner {
-  background: white; border: 1px solid #E7EBEF; border-radius: 18px;
+  background: white; border: 1px solid #E1E5F4; border-radius: 18px;
   padding: 14px 16px; margin-bottom: 16px;
   display: flex; align-items: center; gap: 12px;
-  box-shadow: 0 2px 8px rgba(15,118,110,0.06);
+  box-shadow: 0 2px 8px rgba(99,102,241,0.06);
   text-decoration: none;
 }
 .home-campaign-banner img {
   width: 44px; height: 44px; border-radius: 12px; object-fit: cover; flex-shrink: 0;
 }
-.home-campaign-banner .cb-title { font-size:13.5px; font-weight:700; color:#172333; }
-.home-campaign-banner .cb-sub { font-size:11.5px; color:#687586; margin-top:1px; }
+.home-campaign-banner .cb-title { font-size:13.5px; font-weight:700; color:#0A1030; }
+.home-campaign-banner .cb-sub { font-size:11.5px; color:#5A6388; margin-top:1px; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -5486,15 +5573,17 @@ def render_home():
     st.markdown(f"""
 <style>
 .home-hal-banner {{
-  background:#0C1727; border-radius:18px; padding:26px 26px 22px; margin:4px 0 18px;
-  box-shadow:0 14px 34px rgba(12,23,39,.16); font-family:'Inter',system-ui,sans-serif;
+  background:radial-gradient(120% 90% at 100% 0%, rgba(99,102,241,.38) 0%, rgba(99,102,241,0) 55%),
+             radial-gradient(90% 80% at 0% 100%, rgba(34,211,238,.16) 0%, rgba(34,211,238,0) 60%), #050816;
+  border:1px solid rgba(148,163,255,.16); border-radius:24px; padding:28px 28px 24px; margin:4px 0 18px;
+  box-shadow:0 30px 70px -34px rgba(10,16,48,.6); font-family:'Inter',system-ui,sans-serif;
   direction:{"rtl" if _rtl_home else "ltr"}; text-align:{"right" if _rtl_home else "left"};
 }}
 .home-hal-top {{ display:flex; align-items:center; justify-content:space-between; gap:12px; }}
-.home-hal-banner .home-avatar {{ background:#C99A4A; box-shadow:none; }}
-.home-hal-greet {{ color:#9AA7BD; font-size:13px; font-weight:600; margin-top:16px; }}
-.home-hal-h1 {{ color:#FFFFFF; font-size:28px; font-weight:800; line-height:1.15; letter-spacing:-.01em; margin:4px 0 10px; }}
-.home-hal-lead {{ color:#C3CBDB; font-size:13.5px; line-height:1.6; max-width:520px; margin:0 0 16px; }}
+.home-hal-banner .home-avatar {{ background:linear-gradient(135deg,#818CF8,#22D3EE); color:#050816; box-shadow:none; }}
+.home-hal-greet {{ color:#98A2C8; font-size:13px; font-weight:600; margin-top:16px; }}
+.home-hal-h1 {{ font-family:'Sora','Inter',sans-serif; color:#FFFFFF; font-size:32px; font-weight:700; line-height:1.1; letter-spacing:-.03em; margin:4px 0 10px; }}
+.home-hal-lead {{ color:#C3C9E6; font-size:13.5px; line-height:1.6; max-width:520px; margin:0 0 16px; }}
 .home-hal-banner .ask-trust {{ flex-direction:row; flex-wrap:wrap; gap:8px 18px; }}
 @media (max-width: 640px) {{ .home-hal-h1 {{ font-size:23px; }} .home-hal-banner {{ padding:22px 18px 18px; }} }}
 </style>
@@ -5502,7 +5591,7 @@ def render_home():
   <div class="home-hal-top">
     <div>
       <div class="ask-brand-row">{t("hal_brand")}</div>
-      <div class="ask-eyebrow" style="margin-top:8px;">{t("hal_eyebrow")}</div>
+      <div class="ask-eyebrow" style="margin-top:12px;">{t("hal_eyebrow")}</div>
     </div>
     <div class="home-avatar" title="{_avatar_title}" style="font-size:{'18px' if (name and initial != '?') else '22px'};">{_avatar_content}</div>
   </div>
@@ -5522,12 +5611,12 @@ def render_home():
         _exp_title = t("home_explainer_title")
         _exp_body  = t("home_explainer_body")
         st.markdown(f"""
-<div style="background:#EEF7F5;border:1px solid #BFE3DC;border-radius:14px;
+<div style="background:#EEF1FB;border:1px solid #DDE2F3;border-radius:14px;
   padding:13px 16px;margin:0 0 16px;font-family:'Inter',system-ui,sans-serif;
   display:flex;gap:12px;align-items:flex-start;">
   <span style="font-size:22px;flex-shrink:0;margin-top:1px;">💡</span>
   <div>
-    <div style="font-size:13.5px;font-weight:700;color:#172333;margin-bottom:3px;">{_exp_title}</div>
+    <div style="font-size:13.5px;font-weight:700;color:#0A1030;margin-bottom:3px;">{_exp_title}</div>
     <div style="font-size:12.5px;color:#4B5563;line-height:1.5;">{_exp_body}</div>
   </div>
 </div>
@@ -5545,7 +5634,7 @@ def render_home():
 <style>
 div[data-testid="stVerticalBlock"]:has(> div[data-testid="stElementContainer"] .home-action-marker) button {
   background: transparent !important; border: none !important; box-shadow: none !important;
-  color: #172333 !important; font-weight: 700 !important; font-size: 14.5px !important;
+  color: #0A1030 !important; font-weight: 700 !important; font-size: 14.5px !important;
   padding: 4px 0 0 !important; line-height: 1.3 !important;
 }
 </style>
@@ -5572,6 +5661,38 @@ div[data-testid="stVerticalBlock"]:has(> div[data-testid="stElementContainer"] .
             _lbl2 = t("home_vitals_btn")
             if st.button(_lbl2, key="home_go_vitals", use_container_width=True):
                 _go("vitals")
+
+    # ── Doctor dossier entry — the feature doctors react to most ─────────
+    st.markdown(f"""
+<style>
+div[data-testid="stVerticalBlock"]:has(> div[data-testid="stElementContainer"] .home-dossier-marker) button {{
+  background: linear-gradient(135deg,#818CF8,#22D3EE) !important; color:#050816 !important; border:none !important;
+  border-radius:999px !important; font-weight:700 !important; min-height:46px !important;
+}}
+div[data-testid="stVerticalBlock"]:has(> div[data-testid="stElementContainer"] .home-dossier-marker) button p {{ color:#050816 !important; font-weight:700 !important; }}
+div[data-testid="stVerticalBlock"]:has(> div[data-testid="stElementContainer"] .home-dossier-marker) {{
+  background: radial-gradient(120% 90% at 100% 0%, rgba(99,102,241,.36) 0%, rgba(99,102,241,0) 55%),
+              radial-gradient(90% 80% at 0% 100%, rgba(34,211,238,.14) 0%, rgba(34,211,238,0) 60%), #050816 !important;
+  border-color: rgba(148,163,255,.2) !important; border-radius:22px !important;
+}}
+</style>""", unsafe_allow_html=True)
+    with st.container(border=True):
+        st.markdown(
+            '<div class="home-dossier-marker"></div>'
+            '<div style="padding:4px 4px 2px;">'
+            f'<span class="ask-eyebrow">{"ΝΕΟ · ΓΙΑ ΤΟ ΡΑΝΤΕΒΟΥ" if el else "NEW · FOR YOUR APPOINTMENT"}</span>'
+            '<div style="font-family:\'Sora\',\'Inter\',sans-serif;color:#fff;font-size:20px;font-weight:700;letter-spacing:-.02em;margin:12px 0 6px;">'
+            f'📁 {"Φάκελος εξετάσεων για τον γιατρό" if el else "Exam dossier for your doctor"}</div>'
+            '<div style="color:#C3C9E6;font-size:13.5px;line-height:1.55;margin-bottom:10px;">'
+            + ("Ανέβασε αξονικές, υπέρηχους, ΗΚΓ, αιματολογικές — ο Asklepios τις οργανώνει σε ένα έγγραφο Word/PDF με όλες τις τιμές, ημερομηνίες και φάρμακα."
+               if el else
+               "Upload CT scans, ultrasounds, ECGs, blood tests — Asklepios organises them into one Word/PDF document with every value, date and medication.")
+            + '</div></div>',
+            unsafe_allow_html=True,
+        )
+        if st.button(("Φτιάξε τον φάκελο →" if el else "Build the dossier →"), key="home_go_dossier", use_container_width=True):
+            st.session_state.screen = "dossier"
+            st.rerun()
 
     # ── Intro video (A2E avatar) ─────────────────────────────────────────
     # Pre-generated ONCE offline via a2e_intro_video.py (not at runtime — we
@@ -5650,6 +5771,300 @@ def render_history():
                         st.write(art["body"])
                 if art.get("url"):
                     st.markdown(f"[{'Πλήρες άρθρο →' if lang=='el' else 'Full article →'}]({art['url']})")
+
+
+# ── DOCTOR DOSSIER ("Φάκελος για τον γιατρό") ─────────────────────────────────
+# Collects every exam the user has (PDF / phone photos) into one doctor-facing
+# summary in the format doctors respond to: patient header, medication table,
+# one section per exam with its tables and recorded conclusion, and a short
+# "points worth mentioning" list. Transcription only — see dossier.py.
+def _dossier_state():
+    if "dossier" not in st.session_state:
+        p = st.session_state.profile or {}
+        meds = [{"time": "", "drug": m.strip(), "dose": ""}
+                for m in str(p.get("meds_raw") or "").split(",") if m.strip()]
+        st.session_state.dossier = {
+            "purpose": "", "patient": {
+                "name": p.get("name", ""), "amka": "", "age": str(p.get("age", "") or ""),
+                "sex": p.get("sex", ""), "history": p.get("history", ""),
+                "allergies": p.get("allergies", ""), "dx": "",
+            },
+            "meds": meds, "exams": [], "points": [], "symptoms": "",
+            "done_files": [], "doc_names": {}, "errors": [],
+            "docx": None, "html": None, "built_at": None,
+        }
+    return st.session_state.dossier
+
+
+def _dossier_step(n, title, sub=""):
+    st.markdown(
+        f'<div style="display:flex;align-items:baseline;gap:10px;margin:6px 0 2px;">'
+        f'<span style="font-family:\'JetBrains Mono\',monospace;font-size:12.5px;font-weight:600;color:#4F46E5;">{n:02d}</span>'
+        f'<span style="font-family:\'Sora\',\'Inter\',sans-serif;font-size:18px;font-weight:700;color:#0A1030;letter-spacing:-.015em;">{title}</span></div>'
+        + (f'<div style="font-size:13px;color:#5A6388;margin:0 0 10px 30px;">{sub}</div>' if sub else ""),
+        unsafe_allow_html=True,
+    )
+
+
+def _rows_from_editor(df, ncols):
+    out = []
+    try:
+        for r in df.fillna("").astype(str).values.tolist():
+            r = (r + [""] * ncols)[:ncols]
+            if any(x.strip() for x in r):
+                out.append(r)
+    except Exception:
+        pass
+    return out
+
+
+def render_dossier():
+    import pandas as _pd
+    lang = st.session_state.lang
+    el = (lang == "el")
+    D = _dossier_state()
+    render_doc_header(
+        "Φάκελος εξετάσεων για τον γιατρό", "Exam dossier for your doctor", icon="📁",
+        sub_el="Όλες οι εξετάσεις σε ένα καθαρό έγγραφο — έτοιμο για το ραντεβού",
+        sub_en="All your exams in one clean document — ready for the appointment",
+    )
+    st.markdown(f"""
+<div style="background:radial-gradient(120% 90% at 100% 0%, rgba(99,102,241,.34) 0%, rgba(99,102,241,0) 55%),#050816;
+  border:1px solid rgba(148,163,255,.16);border-radius:22px;padding:20px 22px;margin:0 0 18px;color:#C3C9E6;font-size:14px;line-height:1.6;">
+  <span class="ask-eyebrow">{"ΠΩΣ ΛΕΙΤΟΥΡΓΕΙ" if el else "HOW IT WORKS"}</span>
+  <div style="font-family:'Sora','Inter',sans-serif;color:#fff;font-size:20px;font-weight:700;letter-spacing:-.02em;margin:12px 0 6px;">
+    {"Ανέβασε τις εξετάσεις — ο Asklepios τις οργανώνει." if el else "Upload your exams — Asklepios organises them."}</div>
+  {"Φωτογραφίες ή PDF από αξονικές, υπέρηχους, ΗΚΓ, αιματολογικές… Ο Asklepios <b style='color:#fff'>αντιγράφει</b> τις τιμές όπως είναι γραμμένες, "
+   "τις βάζει σε πίνακες ανά εξέταση με ημερομηνία και κέντρο, και φτιάχνει ένα έγγραφο Word/PDF για τον γιατρό σου. "
+   "Δεν κάνει ερμηνεία ή διάγνωση — εσύ ελέγχεις και διορθώνεις τα πάντα πριν το κατεβάσεις."
+   if el else
+   "Photos or PDFs of CT scans, ultrasounds, ECGs, blood tests… Asklepios <b style='color:#fff'>copies</b> the values exactly as printed, "
+   "puts them in tables per exam with date and centre, and builds a Word/PDF document for your doctor. "
+   "No interpretation or diagnosis — you review and correct everything before downloading."}
+</div>""", unsafe_allow_html=True)
+
+    # ── 01 Patient ────────────────────────────────────────────────────────
+    with st.container(border=True):
+        st.markdown('<div class="ask-card-marker"></div>', unsafe_allow_html=True)
+        _dossier_step(1, "Στοιχεία ασθενούς" if el else "Patient details",
+                      "Εμφανίζονται στην κορυφή του εγγράφου." if el else "Shown at the top of the document.")
+        pt = D["patient"]
+        c1, c2, c3 = st.columns([2.2, 1, 1.2])
+        with c1: pt["name"] = st.text_input("Ονοματεπώνυμο" if el else "Full name", pt.get("name", ""), key="dos_name")
+        with c2: pt["age"] = st.text_input("Ηλικία" if el else "Age", pt.get("age", ""), key="dos_age")
+        with c3: pt["sex"] = st.text_input("Φύλο" if el else "Sex", pt.get("sex", ""), key="dos_sex")
+        c4, c5 = st.columns([1, 2])
+        with c4: pt["amka"] = st.text_input("ΑΜΚΑ (προαιρετικό)" if el else "AMKA (optional)", pt.get("amka", ""), key="dos_amka")
+        with c5: pt["dx"] = st.text_input("Διάγνωση / λόγος επίσκεψης" if el else "Diagnosis / reason for visit",
+                                          pt.get("dx", ""), key="dos_dx",
+                                          placeholder="π.χ. Στένωση αορτικής βαλβίδας" if el else "e.g. Aortic valve stenosis")
+        pt["history"] = st.text_input("Γνωστό ιστορικό" if el else "Known history", pt.get("history", ""), key="dos_hist",
+                                      placeholder="π.χ. Υπέρταση, Hashimoto, χολοκυστεκτομή" if el else "e.g. Hypertension, thyroiditis")
+        pt["allergies"] = st.text_input("Αλλεργίες" if el else "Allergies", pt.get("allergies", ""), key="dos_all")
+        D["purpose"] = st.text_input("Τίτλος εγγράφου (προαιρετικό)" if el else "Document subtitle (optional)",
+                                     D.get("purpose", ""), key="dos_purpose",
+                                     placeholder="π.χ. Προεγχειρητικός έλεγχος" if el else "e.g. Pre-operative work-up")
+
+    # ── 02 Medication ────────────────────────────────────────────────────
+    with st.container(border=True):
+        st.markdown('<div class="ask-card-marker"></div>', unsafe_allow_html=True)
+        _dossier_step(2, "Τρέχουσα φαρμακευτική αγωγή" if el else "Current medication",
+                      "Πρόσθεσε γραμμές ή φωτογράφισε τη συνταγή / τα κουτιά." if el
+                      else "Add rows, or photograph the prescription / pill boxes.")
+        _mcols = {"time": ("Ώρα" if el else "Time"), "drug": ("Φάρμακο" if el else "Medication"),
+                  "dose": ("Δοσολογία" if el else "Dose")}
+        _mdf = _pd.DataFrame(D["meds"] or [{"time": "", "drug": "", "dose": ""}], columns=["time", "drug", "dose"])
+        _med_ed = st.data_editor(
+            _mdf, num_rows="dynamic", use_container_width=True, hide_index=True, key=f"dos_meds_{len(D['meds'])}",
+            column_config={k: st.column_config.TextColumn(v) for k, v in _mcols.items()},
+        )
+        D["meds"] = [{"time": r[0], "drug": r[1], "dose": r[2]} for r in _rows_from_editor(_med_ed, 3) if r[1].strip()]
+        with st.expander("📷 " + ("Διάβασε τα φάρμακα από φωτογραφία" if el else "Read medication from a photo")):
+            _mf = st.file_uploader("rx", type=["jpg", "jpeg", "png", "heic", "heif", "webp", "pdf"],
+                                   key="dos_rx", label_visibility="collapsed")
+            if _mf is not None and st.button(("✨ Ανάγνωση φαρμάκων" if el else "✨ Read medication"),
+                                             key="dos_rx_go", type="primary"):
+                if not get_claude_key():
+                    st.error("Claude API key not set.")
+                elif _rate_limit_gate("dossier_meds"):
+                    with st.spinner("Asklepios " + ("διαβάζει τη συνταγή…" if el else "is reading the prescription…")):
+                        _new = _dossier.extract_meds(get_claude_key(), _mf.getvalue(), _mf.type or "", _mf.name, lang,
+                                                     heic_convert=convert_heic_human if HEIC_OK else None,
+                                                     downscale=_downscale_for_vision, log=log_event)
+                    if _new:
+                        D["meds"] = D["meds"] + _new
+                        st.rerun()
+                    else:
+                        st.warning("Δεν βρέθηκαν φάρμακα στη φωτογραφία." if el else "No medication found in the photo.")
+
+    # ── 03 Exams ──────────────────────────────────────────────────────────
+    with st.container(border=True):
+        st.markdown('<div class="ask-card-marker"></div>', unsafe_allow_html=True)
+        _dossier_step(3, "Εξετάσεις" if el else "Examinations",
+                      ("PDF ή φωτογραφίες — όσα αρχεία θέλεις. Πολλές σελίδες της ίδιας εξέτασης ενώνονται αυτόματα."
+                       if el else "PDFs or photos — as many as you like. Pages of the same exam are merged automatically."))
+        _files = st.file_uploader("exams", type=["pdf", "jpg", "jpeg", "png", "heic", "heif", "webp"],
+                                  accept_multiple_files=True, key=f"dos_files_{len(D['done_files'])}",
+                                  label_visibility="collapsed")
+        _pending = []
+        for f in _files or []:
+            _fid = hashlib.sha256(f.getvalue()).hexdigest()[:16]
+            if _fid not in D["done_files"]:
+                _pending.append((f, _fid))
+        if _pending:
+            _lbl = (f"✨ Ανάλυση {len(_pending)} αρχείου" if len(_pending) == 1 else f"✨ Ανάλυση {len(_pending)} αρχείων") if el \
+                else f"✨ Analyse {len(_pending)} file{'s' if len(_pending) > 1 else ''}"
+            st.caption("⏳ " + ("Μπορεί να πάρει 20–60 δευτερόλεπτα. Κράτα την οθόνη ανοιχτή." if el
+                               else "This can take 20–60 seconds. Keep the screen on."))
+            if st.button(_lbl, type="primary", use_container_width=True, key="dos_extract"):
+                if not get_claude_key():
+                    st.error("Claude API key not set.")
+                elif _rate_limit_gate("dossier_extract"):
+                    with st.spinner("Asklepios " + ("διαβάζει τις εξετάσεις…" if el else "is reading your exams…")):
+                        _res = _dossier.extract_many(
+                            get_claude_key(), [(f.getvalue(), f.type or "", f.name) for f, _ in _pending], lang,
+                            heic_convert=convert_heic_human if HEIC_OK else None,
+                            downscale=_downscale_for_vision, log=log_event)
+                    _new_exams, D["errors"] = [], []
+                    for (f, fid), r in zip(_pending, _res):
+                        if r["ok"]:
+                            D["done_files"].append(fid)
+                            _new_exams.extend(r["exams"])
+                            if r.get("patient_name"):
+                                D["doc_names"][f.name] = r["patient_name"]
+                            if not r["exams"]:
+                                D["errors"].append(f"{f.name}: " + ("δεν βρέθηκε ιατρική εξέταση" if el else "no medical exam found"))
+                        else:
+                            D["errors"].append(f"{f.name}: {r['error']}")
+                    for e in _new_exams:
+                        e["id"] = uuid.uuid4().hex[:8]
+                    D["exams"] = _dossier.merge_exams(D["exams"] + _new_exams)
+                    for e in D["exams"]:
+                        e.setdefault("id", uuid.uuid4().hex[:8])
+                    D["docx"] = D["html"] = None
+                    st.rerun()
+        for _err in D.get("errors") or []:
+            st.warning("⚠️ " + _err)
+
+        # Name-on-document check (catches a relative's exam mixed in by mistake)
+        _pn = (D["patient"].get("name") or "").strip()
+        if _pn:
+            _toks = {w.lower() for w in re.findall(r"\w+", _pn) if len(w) > 2}
+            for _fn, _dn in (D.get("doc_names") or {}).items():
+                _dt = {w.lower() for w in re.findall(r"\w+", str(_dn)) if len(w) > 2}
+                if _dt and _toks and not (_toks & _dt):
+                    st.warning(("🔎 Το όνομα στο «{f}» είναι «{n}» — έλεγξε ότι είναι του ίδιου ασθενούς."
+                                if el else "🔎 The name on “{f}” is “{n}” — check it belongs to the same patient.")
+                               .format(f=_fn, n=_dn))
+
+        if D["exams"]:
+            st.markdown(f'<div style="font-size:13px;color:#5A6388;margin:8px 0 6px;">'
+                        f'{"✅ " + str(len(D["exams"])) + (" εξετάσεις — άνοιξε για έλεγχο και διόρθωση:" if el else " exams — open to review and correct:")}</div>',
+                        unsafe_allow_html=True)
+        _remove = None
+        for _i, e in enumerate(D["exams"]):
+            _eid = e["id"]
+            _head = " · ".join(x for x in [e.get("exam_title"), e.get("date")] if x)
+            with st.expander(f"📄 {_i+1:02d} · {_head}", expanded=False):
+                m1, m2 = st.columns([2, 1])
+                with m1: e["exam_title"] = st.text_input("Εξέταση" if el else "Exam", e.get("exam_title") or "", key=f"dx_t_{_eid}")
+                with m2: e["date"] = st.text_input("Ημερομηνία" if el else "Date", e.get("date") or "", key=f"dx_d_{_eid}")
+                m3, m4 = st.columns(2)
+                with m3: e["facility"] = st.text_input("Κέντρο" if el else "Centre", e.get("facility") or "", key=f"dx_f_{_eid}")
+                with m4: e["clinician"] = st.text_input("Ιατρός" if el else "Doctor", e.get("clinician") or "", key=f"dx_c_{_eid}")
+                if e.get("source_note"):
+                    e["source_note"] = st.text_input("Σημείωση πηγής" if el else "Source note", e["source_note"], key=f"dx_s_{_eid}")
+                for _si, sec in enumerate(e.get("sections") or []):
+                    if sec.get("title"):
+                        st.markdown(f"**{sec['title']}**")
+                    if sec.get("description"):
+                        st.caption(sec["description"])
+                    if sec.get("rows"):
+                        _cols = sec.get("columns") or ["Παράμετρος", "Τιμή"]
+                        _df = _pd.DataFrame(sec["rows"], columns=[f"c{k}" for k in range(len(_cols))])
+                        _ed = st.data_editor(
+                            _df, num_rows="dynamic", use_container_width=True, hide_index=True,
+                            key=f"dx_sec_{_eid}_{_si}",
+                            column_config={f"c{k}": st.column_config.TextColumn(c) for k, c in enumerate(_cols)},
+                        )
+                        sec["rows"] = _rows_from_editor(_ed, len(_cols))
+                if e.get("conclusion"):
+                    st.markdown("**" + ("Συμπέρασμα (όπως καταγράφηκε)" if el else "Conclusion (as recorded)") + "**")
+                    _cdf = _pd.DataFrame([[c.get("item", ""), c.get("detail", "")] for c in e["conclusion"]], columns=["c0", "c1"])
+                    _ced = st.data_editor(_cdf, num_rows="dynamic", use_container_width=True, hide_index=True,
+                                          key=f"dx_con_{_eid}",
+                                          column_config={"c0": st.column_config.TextColumn("Εύρημα" if el else "Finding"),
+                                                         "c1": st.column_config.TextColumn("Λεπτομέρειες" if el else "Details")})
+                    e["conclusion"] = [{"item": r[0], "detail": r[1]} for r in _rows_from_editor(_ced, 2)]
+                if st.button("🗑 " + ("Αφαίρεση εξέτασης" if el else "Remove exam"), key=f"dx_rm_{_eid}"):
+                    _remove = _eid
+        if _remove:
+            D["exams"] = [x for x in D["exams"] if x["id"] != _remove]
+            D["docx"] = D["html"] = None
+            st.rerun()
+
+    # ── 04 Build ──────────────────────────────────────────────────────────
+    with st.container(border=True):
+        st.markdown('<div class="ask-card-marker"></div>', unsafe_allow_html=True)
+        _dossier_step(4, "Δημιουργία εγγράφου" if el else "Build the document",
+                      "Word για επεξεργασία, ή σελίδα έτοιμη για εκτύπωση / PDF." if el
+                      else "Word to edit, or a page ready to print / save as PDF.")
+        _has_chat = any(m["role"] == "user" for m in st.session_state.triage_chat)
+        _inc_sym = st.checkbox(("Πρόσθεσε σύνοψη των συμπτωμάτων από τη συζήτηση με τον Asklepios" if el
+                                else "Add a summary of the symptoms from your chat with Asklepios"),
+                               value=_has_chat, disabled=not _has_chat, key="dos_inc_sym")
+        _inc_pts = st.checkbox(("Πρόσθεσε «Σημεία που ίσως αξίζει να αναφερθούν» (χωρίς ερμηνεία)" if el
+                                else "Add “Points that may be worth mentioning” (no interpretation)"),
+                               value=True, key="dos_inc_pts")
+        _can = bool(D["exams"]) or bool(D["meds"])
+        if st.button(("📄 Δημιουργία φακέλου" if el else "📄 Build dossier"), type="primary",
+                     use_container_width=True, disabled=not _can, key="dos_build"):
+            # No cooldown gate here: building normally follows the (gated)
+            # extraction within seconds, and it's two small text calls.
+            if True:
+                with st.spinner("Asklepios " + ("ετοιμάζει τον φάκελο…" if el else "is preparing the dossier…")):
+                    _key = get_claude_key()
+                    D["symptoms"] = (_dossier.summarize_symptoms(_key, st.session_state.triage_chat, lang, log=log_event)
+                                     if (_inc_sym and _key) else "")
+                    D["points"] = (_dossier.points_worth_mentioning(
+                        _key, D["patient"], D["meds"],
+                        [{k: v for k, v in e.items() if k not in ("id", "files")} for e in D["exams"]],
+                        lang, log=log_event) if (_inc_pts and _key and D["exams"]) else [])
+                    _payload = {k: D[k] for k in ("purpose", "patient", "meds", "exams", "points", "symptoms")}
+                    D["docx"] = _dossier.build_docx(_payload, lang)
+                    D["html"] = _dossier.build_html(_payload, lang)
+                    D["built_at"] = datetime.now().strftime("%d%m%Y_%H%M")
+                st.rerun()
+        if not _can:
+            st.caption("Ανέβασε τουλάχιστον μία εξέταση ή πρόσθεσε φάρμακα." if el
+                       else "Upload at least one exam or add medication.")
+        if D.get("docx"):
+            _base = re.sub(r"[^\w]+", "_", (D["patient"].get("name") or "Asklepios").strip())[:40] or "Asklepios"
+            st.success("✅ " + ("Ο φάκελος είναι έτοιμος." if el else "Your dossier is ready."))
+            d1, d2 = st.columns(2)
+            with d1:
+                st.download_button("⬇️ Word (.docx)", D["docx"], file_name=f"{_base}_exams_{D['built_at']}.docx",
+                                   mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                                   use_container_width=True, type="primary", key="dos_dl_docx")
+            with d2:
+                st.download_button("🖨 " + ("Σελίδα για εκτύπωση / PDF" if el else "Printable page / PDF"),
+                                   D["html"].encode("utf-8"), file_name=f"{_base}_exams_{D['built_at']}.html",
+                                   mime="text/html", use_container_width=True, key="dos_dl_html")
+            st.caption("💡 " + ("Άνοιξε τη σελίδα και πάτα «Εκτύπωση / Αποθήκευση ως PDF» για να τη στείλεις στον γιατρό."
+                               if el else "Open the page and press “Print / Save as PDF” to send it to your doctor."))
+            with st.expander("👁 " + ("Προεπισκόπηση" if el else "Preview"), expanded=True):
+                st.iframe(D["html"], height=760)
+
+    c_b, c_n = st.columns([1, 2])
+    with c_b:
+        if st.button(t("back"), key="dos_back"):
+            st.session_state.screen = "home"; st.rerun()
+    with c_n:
+        if st.button("🗑 " + ("Καθαρισμός φακέλου" if el else "Clear dossier"), key="dos_clear", use_container_width=True):
+            st.session_state.pop("dossier", None)
+            st.rerun()
+    st.caption("🔒 " + ("Τα αρχεία στέλνονται μόνο για ανάγνωση και δεν αποθηκεύονται. Ο φάκελος χάνεται όταν κλείσεις την καρτέλα — κατέβασέ τον."
+                        if el else "Files are sent only to be read and are not stored. The dossier is lost when you close the tab — download it."))
 
 
 def render_intake():
@@ -5767,11 +6182,11 @@ def render_vitals():
         kira_url=_secret("ASKLEPIOS_URL","https://asklepiosainurse.up.railway.app")
         scan_link=f"{facescan_url}?kira_url={urllib.parse.quote(kira_url)}"
         _save_session_for_external_nav()
-        st.markdown(f'''<div style="background:linear-gradient(135deg,#0F766E,#0C1727);border-radius:16px;padding:28px;text-align:center;color:white;margin:8px 0">
+        st.markdown(f'''<div style="background:linear-gradient(135deg,#4F46E5,#050816);border-radius:16px;padding:28px;text-align:center;color:white;margin:8px 0">
             <div style="font-size:40px;margin-bottom:8px">📷</div>
             <div style="font-size:18px;font-weight:700;margin-bottom:8px">{"Σάρωση Προσώπου rPPG" if lang=="el" else "rPPG Face Scan"}</div>
             <div style="font-size:13px;opacity:0.8;margin-bottom:16px">{"Μέτρηση καρδιακού ρυθμού & αναπνοής σε 30 δευτερόλεπτα μέσω κάμερας" if lang=="el" else "Measure heart rate & breathing in 60 seconds via camera"}</div>
-            <a href="{scan_link}" target="_blank" style="background:white;color:#0F766E;padding:12px 28px;border-radius:8px;font-weight:700;text-decoration:none;font-size:14px">
+            <a href="{scan_link}" target="_blank" style="background:white;color:#4F46E5;padding:12px 28px;border-radius:8px;font-weight:700;text-decoration:none;font-size:14px">
                 {"Έναρξη Σάρωσης →" if lang=="el" else "Start Scan →"}
             </a>
         </div>''', unsafe_allow_html=True)
@@ -5965,20 +6380,20 @@ Use a certified upper-arm cuff device, note systolic/diastolic values
             badge   = f"<div style='background:{color};color:white;padding:6px 14px;border-radius:20px;font-size:13px;font-weight:700'>{label}</div>"
 
         st.markdown(f"""
-<div style="background:rgba(15,118,110,0.06);border:1px solid rgba(15,118,110,0.15);border-radius:14px;padding:18px 20px;">
+<div style="background:rgba(99,102,241,0.06);border:1px solid rgba(99,102,241,0.15);border-radius:14px;padding:18px 20px;">
   <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
     <div>
-      <div style="font-size:13px;font-weight:700;color:#172333">🩺 {title}</div>
+      <div style="font-size:13px;font-weight:700;color:#0A1030">🩺 {title}</div>
       <div style="font-size:11px;color:#6B7280;margin-top:2px">{subtitle}</div>
     </div>
     {badge}
   </div>
   <div style="display:flex;gap:16px;margin-bottom:10px">
-    <div style="background:white;border:1px solid #E7EBEF;border-radius:10px;padding:10px 16px;flex:1;text-align:center">
+    <div style="background:white;border:1px solid #E1E5F4;border-radius:10px;padding:10px 16px;flex:1;text-align:center">
       <div style="font-size:11px;color:#6B7280">{"Εκτιμ. Συστολική" if lang=="el" else "Est. Systolic"}</div>
       <div style="font-size:20px;font-weight:700;color:{color}">{sbp_disp} <span style="font-size:12px;font-weight:400">{unit}</span></div>
     </div>
-    <div style="background:white;border:1px solid #E7EBEF;border-radius:10px;padding:10px 16px;flex:1;text-align:center">
+    <div style="background:white;border:1px solid #E1E5F4;border-radius:10px;padding:10px 16px;flex:1;text-align:center">
       <div style="font-size:11px;color:#6B7280">{"Εκτιμ. Διαστολική" if lang=="el" else "Est. Diastolic"}</div>
       <div style="font-size:20px;font-weight:700;color:{color}">{dbp_disp} <span style="font-size:12px;font-weight:400">{unit}</span></div>
     </div>
@@ -6013,8 +6428,8 @@ def render_vitals_summary():
     for i,(key,val,unit,col) in enumerate(badges):
         icon,label,_=LABELS.get(key,("","",""))
         with cols[i]:
-            bg={"green":"#EDFBF0","yellow":"#FFFBEB","red":"#FEF2F2"}.get(col,"#F5F7F9")
-            brd={"green":"#A3E6B5","yellow":"#FCD34D","red":"#FCA5A5"}.get(col,"#E7EBEF")
+            bg={"green":"#EDFBF0","yellow":"#FFFBEB","red":"#FEF2F2"}.get(col,"#F4F6FC")
+            brd={"green":"#A3E6B5","yellow":"#FCD34D","red":"#FCA5A5"}.get(col,"#E1E5F4")
             st.markdown(f'<div style="background:{bg};border:1px solid {brd};border-radius:12px;padding:12px;text-align:center"><div style="font-size:18px">{icon}</div><div style="font-size:20px;font-weight:700">{val}</div><div style="font-size:10px;color:#6B7280">{unit}</div><div style="font-size:11px;color:#374151">{label}</div></div>',unsafe_allow_html=True)
     if st.session_state.vitals_analysis:
         with st.expander("📋 Ανάλυση ζωτικών" if st.session_state.lang=="el" else "📋 Vitals analysis"):
@@ -6428,7 +6843,7 @@ def render_chat_card_header():
         st.markdown(
             f'<div style="display:flex;align-items:center;gap:10px;">'
             f'<div class="ask-avatar-dot">🩺</div>'
-            f'<div style="font-weight:700;font-size:15px;color:#172333;">Asklepios '
+            f'<div style="font-weight:700;font-size:15px;color:#0A1030;">Asklepios '
             f'<span class="ask-online">{t("hal_online")}</span></div></div>',
             unsafe_allow_html=True,
         )
@@ -6458,7 +6873,7 @@ def render_triage():
     with st.container(border=True):
         st.markdown('<div class="ask-card-marker"></div>', unsafe_allow_html=True)
         render_chat_card_header()
-        st.markdown('<div style="border-top:1px solid #E7EBEF;margin:10px 0 12px;"></div>',
+        st.markdown('<div style="border-top:1px solid #E1E5F4;margin:10px 0 12px;"></div>',
                     unsafe_allow_html=True)
         render_case_panel(p)
     render_vitals_summary()
@@ -6504,6 +6919,68 @@ def render_triage():
     for msg in st.session_state.triage_chat:
         with st.chat_message(msg["role"], avatar="🩺" if msg["role"]=="assistant" else None):
             st.markdown(msg["content"])
+    # ── Inline composer ──────────────────────────────────────────────────────
+    # Sits directly under the latest message (HAL chat-card style) instead of
+    # st.chat_input, which Streamlit pins to the bottom of the viewport — on
+    # several phones/browsers it ended up off-screen or visually detached from
+    # the conversation, so users couldn't find where to type.
+    _first_turn = not st.session_state.triage_chat
+    with st.form("triage_composer", clear_on_submit=True, border=False):
+        st.markdown('<div class="ask-composer-marker"></div>', unsafe_allow_html=True)
+        _compose = st.text_area(
+            t("triage_placeholder"), key="triage_compose_text",
+            placeholder=(t("triage_placeholder") if _first_turn else
+                         ("Γράψε την απάντησή σου στον Asklepios…" if st.session_state.lang=="el"
+                          else "Type your answer to Asklepios…")),
+            height=(110 if _first_turn else 84), label_visibility="collapsed",
+        )
+        _cc1, _cc2 = st.columns([3, 1.3], vertical_alignment="center")
+        with _cc1:
+            st.caption("⌨️ " + ("Ctrl/⌘ + Enter για αποστολή · 🎤 φωνή πιο κάτω"
+                               if st.session_state.lang=="el" else
+                               "Ctrl/⌘ + Enter to send · 🎤 voice below"))
+        with _cc2:
+            _send = st.form_submit_button(("Αποστολή ➤" if st.session_state.lang=="el" else "Send ➤"),
+                                          type="primary", use_container_width=True)
+    user_input = _compose.strip() if (_send and _compose and _compose.strip()) else None
+    _gate_ok = True
+    _auto_reply = st.session_state.pop("_scan_reply_pending", False)
+    _voice_reply = st.session_state.pop("_voice_send_pending", False)
+    if user_input or _auto_reply or _voice_reply:
+        if user_input:
+            st.session_state.pop("photo_added", None)
+            st.session_state.pop("lab_added", None)
+            st.session_state.triage_chat.append({"role":"user","content":user_input})
+        _gate_ok = _rate_limit_gate("triage_chat")
+    if (user_input or _auto_reply or _voice_reply) and _gate_ok:
+        if user_input:
+            # Echo the just-sent message while Asklepios is answering
+            with st.chat_message("user"):
+                st.markdown(user_input)
+        with st.spinner("Asklepios " + ("γράφει…" if st.session_state.lang=="el" else "is typing…")):
+            pp=p.get
+            _flags = []
+            if pp("pregnancy"):
+                _flags.append("ΕΓΚΥΟΣ — πρόσεξε αντενδείξεις φαρμάκων/εξετάσεων κατηγορίας D/X" if st.session_state.lang=="el"
+                              else "PREGNANT — flag drug/test contraindications (Category D/X)")
+            if pp("for_whom") == "other":
+                _flags.append("Αξιολόγηση από φροντιστή για άλλο άτομο" if st.session_state.lang=="el"
+                              else "Caregiver-mode: user is asking on behalf of another person")
+            _age_v = pp("age", 0) or 0
+            if _age_v < 18:
+                _flags.append(f"ΠΑΙΔΙΑΤΡΙΚΟΣ ΑΣΘΕΝΗΣ (ηλικία {_age_v}) — χρησιμοποίησε παιδιατρικές δόσεις/όρια"
+                              if st.session_state.lang=="el" else
+                              f"PEDIATRIC PATIENT (age {_age_v}) — use pediatric dosing/ranges")
+            _flags_str = (" | ".join(_flags) + " | ") if _flags else ""
+            profile_ctx=f"Patient: {pp('name')}, {pp('age')}yo {pp('sex')}, {_flags_str}Hx: {pp('history','none')}, Allergies: {pp('allergies','none')}, Meds: {pp('meds_raw','none')}"
+            vitals_ctx="Vitals: "+", ".join(f"{k}={val}" for k,val in st.session_state.vitals.items()) if st.session_state.vitals else "Vitals: not provided"
+            system_ctx=kira_system()+f"\n\n{profile_ctx}\n{vitals_ctx}"
+            reply=claude([{"role":m["role"],"content":m["content"]} for m in st.session_state.triage_chat],system=system_ctx,max_tokens=1500)
+            if reply and reply.strip() and reply.strip()[-1] not in ".!?»)": reply=reply.rstrip()+" ..."
+            # Code-level safety backstop — independent of whether the model
+            # actually followed the prompt-level "red flags → 166/112" rule.
+            _set_emergency_from_text(reply)
+        st.session_state.triage_chat.append({"role":"assistant","content":reply}); st.rerun()
     # Context-aware vitals: suggest the SPECIFIC measurement that fits the symptoms.
     # Scan button appears only for the cardiac category (camera → heart rate only).
     _lang = st.session_state.lang
@@ -6528,7 +7005,7 @@ def render_triage():
                 _ku = _secret("ASKLEPIOS_URL","https://asklepiosainurse.up.railway.app")
                 _link = f"{_fs}?kira_url={urllib.parse.quote(_ku)}"
                 _save_session_for_external_nav()
-                st.markdown(f'<a href="{_link}" target="_blank" style="display:block;text-align:center;padding:8px;border-radius:8px;background:#0F766E;color:white;text-decoration:none;font-weight:600;font-size:13px">📷 {"Σάρωση" if _lang=="el" else "Scan"}</a>', unsafe_allow_html=True)
+                st.markdown(f'<a href="{_link}" target="_blank" style="display:block;text-align:center;padding:8px;border-radius:8px;background:#4F46E5;color:white;text-decoration:none;font-weight:600;font-size:13px">📷 {"Σάρωση" if _lang=="el" else "Scan"}</a>', unsafe_allow_html=True)
             _ci += 1
         with _cols[_ci]:
             if st.button(("Όχι τώρα" if _lang=="el" else "Not now"), key="nudge_off", use_container_width=True):
@@ -6713,13 +7190,13 @@ def render_triage():
                         "✅ Copy and paste into chat ↓")
             st.iframe(f"""<!DOCTYPE html><html><head><style>
 body{{margin:0;padding:0;font-family:system-ui,sans-serif;background:transparent}}
-#wrap{{display:flex;align-items:flex-start;gap:10px;background:#F0F4FF;border:1px solid #BFE3DC;border-radius:10px;padding:10px 14px;flex-wrap:wrap}}
-#mic{{background:none;border:2px solid #0F766E;border-radius:50%;width:38px;height:38px;font-size:18px;cursor:pointer;color:#0F766E;flex-shrink:0;transition:all .2s}}
-#mic.active{{background:#0F766E;color:white;box-shadow:0 0 0 4px rgba(15,118,110,.15)}}
+#wrap{{display:flex;align-items:flex-start;gap:10px;background:#F0F4FF;border:1px solid #DDE2F3;border-radius:10px;padding:10px 14px;flex-wrap:wrap}}
+#mic{{background:none;border:2px solid #4F46E5;border-radius:50%;width:38px;height:38px;font-size:18px;cursor:pointer;color:#4F46E5;flex-shrink:0;transition:all .2s}}
+#mic.active{{background:#4F46E5;color:white;box-shadow:0 0 0 4px rgba(99,102,241,.15)}}
 #status{{font-size:12px;color:#6B7280;flex:1;padding-top:10px}}
-#result{{display:none;width:100%;background:white;border:1px solid #BFE3DC;border-radius:8px;padding:8px 12px;font-size:14px;color:#1F2937;line-height:1.5;margin-top:6px;word-break:break-word}}
-#copy{{display:none;background:#0F766E;color:white;border:none;border-radius:8px;padding:8px 18px;font-weight:700;cursor:pointer;font-size:13px;margin-top:6px}}
-#copy:hover{{background:#0B5F58}}
+#result{{display:none;width:100%;background:white;border:1px solid #DDE2F3;border-radius:8px;padding:8px 12px;font-size:14px;color:#1F2937;line-height:1.5;margin-top:6px;word-break:break-word}}
+#copy{{display:none;background:#4F46E5;color:white;border:none;border-radius:8px;padding:8px 18px;font-weight:700;cursor:pointer;font-size:13px;margin-top:6px}}
+#copy:hover{{background:#4338CA}}
 </style></head><body>
 <div id="wrap">
   <button id="mic" onclick="toggleVoice()">🎙️</button>
@@ -6793,93 +7270,6 @@ function copyText(){{
         if st.button(t("generate_report"),type="primary",use_container_width=True,disabled=not enabled):
             st.session_state.screen="report"; st.rerun()
 
-    # ── "Write here" indicator — shown when no conversation yet ──────────────
-    if not st.session_state.triage_chat:
-        _write_lbl = {
-            "el": "✍️ Γράψε εδώ τα συμπτώματά σου ↓",
-            "en": "✍️ Write your symptoms here ↓",
-            "hi": "✍️ यहाँ अपने लक्षण लिखें ↓",
-            "ur": "✍️ یہاں اپنی علامات لکھیں ↓",
-            "ar": "✍️ اكتب أعراضك هنا ↓",
-            "he": "✍️ כתוב כאן את הסימפטומים שלך ↓",
-            "zh": "✍️ 在此写下您的症状 ↓",
-            "lb": "✍️ اكتب أعراضك هنا ↓",
-            "bg": "✍️ Напишете тук симптомите си ↓",
-            "ro": "✍️ Scrieți simptomele dvs. aici ↓",
-            "al": "✍️ Shkruani këtu simptomat tuaja ↓",
-            "ru": "✍️ Напишите здесь свои симптомы ↓",
-            "bn": "✍️ এখানে আপনার লক্ষণ লিখুন ↓",
-            "pa": "✍️ ਇੱਥੇ ਆਪਣੇ ਲੱਛਣ ਲਿਖੋ ↓",
-        }.get(st.session_state.lang, "✍️ Write your symptoms here ↓")
-        st.markdown(f"""
-<div style="text-align:center;font-size:13px;font-weight:700;color:#0F766E;
-  background:#EEF7F5;border:1px solid #BFE3DC;border-radius:10px;
-  padding:8px 16px;margin:8px 0 4px;font-family:'Inter',system-ui,sans-serif;
-  {"direction:rtl;" if is_rtl() else ""}">
-  {_write_lbl}
-</div>
-""", unsafe_allow_html=True)
-
-    # ── Mobile chat-input viewport fix ───────────────────────────────────────
-    # st.chat_input renders fixed to the bottom of the browser viewport. Inside
-    # mobile webviews (in-app browsers, PWA wrappers) this can misbehave: when
-    # the on-screen keyboard opens, some mobile browsers don't update the CSS
-    # viewport height, so the fixed input either sits underneath the keyboard
-    # or gets pushed out past the visible area, forcing the user to hunt/scroll
-    # for it. Using the dynamic-viewport unit (100dvh) instead of the static
-    # one keeps the input pinned to the *visually visible* bottom edge, and the
-    # safe-area inset avoids it being clipped on notched devices.
-    st.markdown("""
-<style>
-[data-testid="stChatInput"] {
-  position: sticky;
-  bottom: 0;
-  z-index: 999;
-  padding-bottom: env(safe-area-inset-bottom, 0px);
-  background: var(--background-color, #F5F7F9);
-}
-@supports (height: 100dvh) {
-  [data-testid="stAppViewContainer"] {
-    min-height: 100dvh;
-  }
-}
-</style>
-""", unsafe_allow_html=True)
-
-    user_input=st.chat_input(t("triage_placeholder"),key="triage_input")
-    _auto_reply = st.session_state.pop("_scan_reply_pending", False)
-    _voice_reply = st.session_state.pop("_voice_send_pending", False)
-    if user_input or _auto_reply or _voice_reply:
-        if user_input:
-            st.session_state.pop("photo_added", None)
-            st.session_state.pop("lab_added", None)
-            st.session_state.triage_chat.append({"role":"user","content":user_input})
-        if not _rate_limit_gate("triage_chat"):
-            return
-        with st.spinner("Asklepios..."):
-            pp=p.get
-            _flags = []
-            if pp("pregnancy"):
-                _flags.append("ΕΓΚΥΟΣ — πρόσεξε αντενδείξεις φαρμάκων/εξετάσεων κατηγορίας D/X" if st.session_state.lang=="el"
-                              else "PREGNANT — flag drug/test contraindications (Category D/X)")
-            if pp("for_whom") == "other":
-                _flags.append("Αξιολόγηση από φροντιστή για άλλο άτομο" if st.session_state.lang=="el"
-                              else "Caregiver-mode: user is asking on behalf of another person")
-            _age_v = pp("age", 0) or 0
-            if _age_v < 18:
-                _flags.append(f"ΠΑΙΔΙΑΤΡΙΚΟΣ ΑΣΘΕΝΗΣ (ηλικία {_age_v}) — χρησιμοποίησε παιδιατρικές δόσεις/όρια"
-                              if st.session_state.lang=="el" else
-                              f"PEDIATRIC PATIENT (age {_age_v}) — use pediatric dosing/ranges")
-            _flags_str = (" | ".join(_flags) + " | ") if _flags else ""
-            profile_ctx=f"Patient: {pp('name')}, {pp('age')}yo {pp('sex')}, {_flags_str}Hx: {pp('history','none')}, Allergies: {pp('allergies','none')}, Meds: {pp('meds_raw','none')}"
-            vitals_ctx="Vitals: "+", ".join(f"{k}={val}" for k,val in st.session_state.vitals.items()) if st.session_state.vitals else "Vitals: not provided"
-            system_ctx=kira_system()+f"\n\n{profile_ctx}\n{vitals_ctx}"
-            reply=claude([{"role":m["role"],"content":m["content"]} for m in st.session_state.triage_chat],system=system_ctx,max_tokens=1500)
-            if reply and reply.strip() and reply.strip()[-1] not in ".!?»)": reply=reply.rstrip()+" ..."
-            # Code-level safety backstop — independent of whether the model
-            # actually followed the prompt-level "red flags → 166/112" rule.
-            _set_emergency_from_text(reply)
-        st.session_state.triage_chat.append({"role":"assistant","content":reply}); st.rerun()
     # Report-language selector: ask only the clinically relevant question.
     # The UI stays in the chosen app language. The report is generated in that
     # same language by default. If the user wants a Greek copy for a Greek
@@ -6997,16 +7387,16 @@ def _render_recs_card(recs, lang, refs=None):
 <style>
 .pnoe-recs {{
   background: white;
-  border: 1px solid #E7EBEF;
+  border: 1px solid #E1E5F4;
   border-radius: 22px;
   padding: 24px 24px 22px;
   margin: 18px 0;
   font-family: 'Inter', system-ui, sans-serif;
-  box-shadow: 0 2px 10px rgba(15,118,110,0.05);
+  box-shadow: 0 2px 10px rgba(99,102,241,0.05);
 }}
 .pnoe-recs-title {{
   font-size: 13.5px; font-weight: 800; letter-spacing: 0.01em;
-  color: #172333;
+  color: #0A1030;
   border-bottom: 1px solid #EEF1FC;
   padding-bottom: 14px; margin-bottom: 16px;
 }}
@@ -7274,14 +7664,14 @@ def _render_health_pillars(profile, vitals, status_map, report_text, lang):
     st.markdown(f"""
 <style>
 .hp-card {{
-  background: white; border: 1px solid #E7EBEF; border-radius: 22px;
+  background: white; border: 1px solid #E1E5F4; border-radius: 22px;
   padding: 24px 24px 22px; margin: 18px 0;
   font-family: 'Inter', system-ui, sans-serif;
-  box-shadow: 0 2px 10px rgba(15,118,110,0.05);
+  box-shadow: 0 2px 10px rgba(99,102,241,0.05);
 }}
 .hp-title {{
   font-size: 13.5px; font-weight: 800; letter-spacing: 0.01em;
-  color: #172333;
+  color: #0A1030;
   border-bottom: 1px solid #EEF1FC; padding-bottom: 14px; margin-bottom: 14px;
 }}
 .hp-overall {{
@@ -7463,14 +7853,14 @@ def render_emergency_resources(lang):
     st.markdown(f"""
 <style>
 .er-card {{
-  background: white; border: 1px solid #E7EBEF; border-radius: 22px;
+  background: white; border: 1px solid #E1E5F4; border-radius: 22px;
   padding: 24px 24px 22px; margin: 18px 0;
   font-family: 'Inter', system-ui, sans-serif;
-  box-shadow: 0 2px 10px rgba(15,118,110,0.05);
+  box-shadow: 0 2px 10px rgba(99,102,241,0.05);
 }}
 .er-title {{
   font-size: 13.5px; font-weight: 800; letter-spacing: 0.01em;
-  color: #172333;
+  color: #0A1030;
   border-bottom: 1px solid #EEF1FC; padding-bottom: 14px; margin-bottom: 4px;
 }}
 .er-subtitle {{
@@ -7514,7 +7904,7 @@ def render_emergency_resources(lang):
 }}
 .er-partner-row:first-of-type {{ border-top: none; padding-top: 0; }}
 .er-partner-info {{ flex: 1; min-width: 0; }}
-.er-partner-name {{ font-size: 13px; font-weight: 700; color: #172333; }}
+.er-partner-name {{ font-size: 13px; font-weight: 700; color: #0A1030; }}
 .er-partner-meta {{ font-size: 11px; color: #92400E; margin-top: 1px; }}
 .er-partner-actions {{ display: flex; gap: 6px; flex-shrink: 0; }}
 .er-partner-btn {{
@@ -7539,8 +7929,8 @@ def render_emergency_resources(lang):
   transition: all 0.15s;
 }}
 .er-link:hover {{
-  background: white; border-color: #0F766E; text-decoration: none; color: inherit;
-  transform: translateY(-1px); box-shadow: 0 2px 6px rgba(15,118,110,0.10);
+  background: white; border-color: #4F46E5; text-decoration: none; color: inherit;
+  transform: translateY(-1px); box-shadow: 0 2px 6px rgba(99,102,241,0.10);
 }}
 .er-link-title {{ font-size: 13.5px; font-weight: 700; color: #1F2937; margin-bottom: 3px; }}
 .er-link-sub {{ font-size: 11px; color: #6B7280; }}
@@ -7556,11 +7946,11 @@ def render_emergency_resources(lang):
 .er-maps-btn {{
   flex: 1; min-width: 140px;
   display: inline-block; padding: 9px 14px;
-  background: white; border: 1px solid #BFE3DC; border-radius: 8px;
-  color: #0F766E; font-size: 12.5px; font-weight: 600;
+  background: white; border: 1px solid #DDE2F3; border-radius: 8px;
+  color: #4F46E5; font-size: 12.5px; font-weight: 600;
   text-decoration: none; text-align: center;
 }}
-.er-maps-btn:hover {{ background: #EFF6FF; color: #0F766E; text-decoration: none; }}
+.er-maps-btn:hover {{ background: #EFF6FF; color: #4F46E5; text-decoration: none; }}
 
 .er-gov-section {{
   margin-top: 20px; padding-top: 16px; border-top: 1px solid #E5E7EB;
@@ -8023,23 +8413,23 @@ Rewrite ONLY the "{_plan_hdr}" section, grounding it in what these specific abst
 <style>
 .report-card {{
   background: white;
-  border: 1px solid #E7EBEF;
+  border: 1px solid #E1E5F4;
   border-radius: 22px;
   padding: 24px 24px 22px;
   margin: 6px 0 16px;
   font-family: 'Inter', system-ui, sans-serif;
-  box-shadow: 0 2px 10px rgba(15,118,110,0.05);
+  box-shadow: 0 2px 10px rgba(99,102,241,0.05);
 }}
 .report-card-title {{
   font-size: 13.5px; font-weight: 800; letter-spacing: 0.01em;
-  color: #172333;
+  color: #0A1030;
   padding-bottom: 14px; margin-bottom: 16px;
   border-bottom: 1px solid #EEF1FC;
   display: flex; align-items: center; gap: 10px;
 }}
 .report-card-title .rct-icon {{
   width: 32px; height: 32px; border-radius: 50%;
-  background: #E6F4F1; flex-shrink: 0;
+  background: #EEF1FB; flex-shrink: 0;
   display: flex; align-items: center; justify-content: center;
   font-size: 15px;
 }}
@@ -8060,20 +8450,20 @@ Rewrite ONLY the "{_plan_hdr}" section, grounding it in what these specific abst
   font-size: 13.5px; line-height: 1.55;
 }}
 .aller-box {{ background: #FEF2F2; border: 1px solid #FECACA; }}
-.meds-box  {{ background: #E6F4F1; border: 1px solid #BFE3DC; }}
+.meds-box  {{ background: #EEF1FB; border: 1px solid #DDE2F3; }}
 .aller-box .am-lbl, .meds-box .am-lbl {{
   font-size: 10.5px; font-weight: 700; letter-spacing: 0.12em;
   text-transform: uppercase; margin-bottom: 8px;
 }}
 .aller-box .am-lbl {{ color: #991B1B; }}
-.meds-box  .am-lbl {{ color: #0F766E; }}
+.meds-box  .am-lbl {{ color: #4F46E5; }}
 .aller-box .am-val {{ color: #7F1D1D; font-weight: 500; }}
-.meds-box  .am-val {{ color: #172333; font-weight: 500; }}
+.meds-box  .am-val {{ color: #0A1030; font-weight: 500; }}
 
 /* Clinical Assessment section header (separates patient info from Claude content) */
 .assessment-section-header {{
-  background: #F5F7F9;
-  border: 1px solid #E7EBEF;
+  background: #F4F6FC;
+  border: 1px solid #E1E5F4;
   border-radius: 16px;
   padding: 16px 20px;
   margin: 16px 0 14px;
@@ -8082,30 +8472,30 @@ Rewrite ONLY the "{_plan_hdr}" section, grounding it in what these specific abst
 }}
 .assessment-section-header .ash-icon {{
   width: 38px; height: 38px; border-radius: 50%;
-  background: #E6F4F1; flex-shrink: 0;
+  background: #EEF1FB; flex-shrink: 0;
   display: flex; align-items: center; justify-content: center;
   font-size: 18px;
 }}
 .assessment-section-header .ash-title {{
   font-size: 12.5px; font-weight: 800; letter-spacing: 0.08em;
-  color: #0F766E; text-transform: uppercase;
+  color: #4F46E5; text-transform: uppercase;
 }}
 
 /* Style markdown section headers inside the Claude report so each section
  * ("ΚΥΡΙΟ ΠΑΡΑΠΟΝΟ", "ΙΣΤΟΡΙΚΟ", "ΕΚΤΙΜΗΣΗ" ...) reads like a medical report block */
 [data-testid="stMarkdownContainer"] h1,
 [data-testid="stMarkdownContainer"] h2 {{
-  color: #0F766E !important;
+  color: #4F46E5 !important;
   font-size: 14px !important;
   font-weight: 700 !important;
   text-transform: uppercase !important;
   letter-spacing: 0.10em !important;
-  border-bottom: 1.5px solid #E7EBEF !important;
+  border-bottom: 1.5px solid #E1E5F4 !important;
   padding-bottom: 6px !important;
   margin: 22px 0 12px !important;
 }}
 [data-testid="stMarkdownContainer"] h3 {{
-  color: #0F766E !important;
+  color: #4F46E5 !important;
   font-size: 13.5px !important;
   font-weight: 700 !important;
   margin: 16px 0 8px !important;
@@ -8182,12 +8572,12 @@ Rewrite ONLY the "{_plan_hdr}" section, grounding it in what these specific abst
             )
         st.markdown(
             f'<style>'
-            f'.pf-card{{background:white;border:1px solid #E7EBEF;border-radius:22px;padding:24px 24px 22px;margin:18px 0;font-family:Inter,system-ui,sans-serif;box-shadow:0 2px 10px rgba(15,118,110,0.05)}}'
-            f'.pf-title{{font-size:13.5px;font-weight:800;letter-spacing:0.01em;color:#172333;border-bottom:1px solid #EEF1FC;padding-bottom:14px;margin-bottom:16px}}'
+            f'.pf-card{{background:white;border:1px solid #E1E5F4;border-radius:22px;padding:24px 24px 22px;margin:18px 0;font-family:Inter,system-ui,sans-serif;box-shadow:0 2px 10px rgba(99,102,241,0.05)}}'
+            f'.pf-title{{font-size:13.5px;font-weight:800;letter-spacing:0.01em;color:#0A1030;border-bottom:1px solid #EEF1FC;padding-bottom:14px;margin-bottom:16px}}'
             f'.pf-item{{padding:14px 0;border-bottom:1px solid #F3F4F6}}'
             f'.pf-item:last-child{{border-bottom:none;padding-bottom:0}}'
             f'.pf-head{{display:flex;align-items:center;gap:10px;margin-bottom:8px}}'
-            f'.pf-num{{background:#E6F4F1;color:#0F766E;font-size:11px;font-weight:700;width:24px;height:24px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0}}'
+            f'.pf-num{{background:#EEF1FB;color:#4F46E5;font-size:11px;font-weight:700;width:24px;height:24px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0}}'
             f'.pf-label{{font-size:13.5px;font-weight:700;color:#111827}}'
             f'.pf-body{{font-size:13px;color:#374151;line-height:1.6}}'
             f'.pf-body strong{{color:#1F2937}}'
@@ -8218,8 +8608,8 @@ Rewrite ONLY the "{_plan_hdr}" section, grounding it in what these specific abst
             )
         st.markdown(
             f'<style>'
-            f'.lf-card{{background:white;border:1px solid #E7EBEF;border-radius:22px;padding:24px 24px 22px;margin:18px 0;font-family:Inter,system-ui,sans-serif;box-shadow:0 2px 10px rgba(15,118,110,0.05)}}'
-            f'.lf-title{{font-size:13.5px;font-weight:800;letter-spacing:0.01em;color:#172333;border-bottom:1px solid #EEF1FC;padding-bottom:14px;margin-bottom:16px}}'
+            f'.lf-card{{background:white;border:1px solid #E1E5F4;border-radius:22px;padding:24px 24px 22px;margin:18px 0;font-family:Inter,system-ui,sans-serif;box-shadow:0 2px 10px rgba(99,102,241,0.05)}}'
+            f'.lf-title{{font-size:13.5px;font-weight:800;letter-spacing:0.01em;color:#0A1030;border-bottom:1px solid #EEF1FC;padding-bottom:14px;margin-bottom:16px}}'
             f'.lf-item{{padding:14px 0;border-bottom:1px solid #F3F4F6}}'
             f'.lf-item:last-child{{border-bottom:none;padding-bottom:0}}'
             f'.lf-head{{display:flex;align-items:center;gap:10px;margin-bottom:8px}}'
@@ -8434,6 +8824,11 @@ Rewrite ONLY the "{_plan_hdr}" section, grounding it in what these specific abst
         msg="\n".join(wa_lines)
         wa_url="https://wa.me/?text="+urllib.parse.quote(msg)
         st.markdown(f'<a href="{wa_url}" target="_blank" style="display:block;text-align:center;padding:8px;border-radius:8px;text-decoration:none;font-weight:600;font-size:13px;color:white;background:#25D366">WhatsApp</a>',unsafe_allow_html=True)
+    # Doctor dossier — all exams + this assessment in one document for the doctor
+    if st.button(("📁 Φτιάξε φάκελο με όλες τις εξετάσεις για τον γιατρό →" if lang=="el"
+                  else "📁 Build a dossier with all exams for your doctor →"),
+                 key="report_go_dossier", use_container_width=True):
+        st.session_state.screen = "dossier"; st.rerun()
 
 # ── COOKIE MANAGER (once) — persistent login + in-progress profile draft ──────
 if _STX_OK and auth_enabled():
@@ -8650,6 +9045,7 @@ elif screen=="vitals": render_vitals()
 elif screen=="triage": render_triage()
 elif screen=="report": render_report()
 elif screen=="history": render_history()
+elif screen=="dossier": render_dossier()
 else: render_home()
 
 # HAL 3-style footer disclaimer on every in-app screen
