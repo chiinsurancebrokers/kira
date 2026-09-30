@@ -1266,14 +1266,140 @@ def _save_session_for_external_nav():
     can restore it. Single-use, deleted immediately after restore."""
     if not (auth_enabled() and is_logged_in() and st.session_state.profile.get("name")):
         return
-    payload = {
-        "profile":         st.session_state.profile,
-        "lang":            st.session_state.lang,
-        "triage_chat":     st.session_state.triage_chat,
-        "medications":     st.session_state.medications,
-        "vitals_analysis": st.session_state.vitals_analysis,
-    }
+    # Same encrypted v2 payload as the autosave, so the face-scan round-trip and
+    # "continue where you left off" share one draft row.
+    if st.session_state.get("_ext_nav_saved"):
+        return
+    payload = json.loads(json.dumps(_assessment_payload(), default=str))
+    payload["saved_at"] = time.time()
     save_draft(st.session_state.get("auth_user", ""), payload)
+    st.session_state["_ext_nav_saved"] = True
+
+
+# ── CONTINUE-WHERE-YOU-LEFT-OFF (encrypted autosave for signed-in users) ─────
+# Leaving the page (refresh, closing the tab, phone killing the browser) used to
+# lose the whole assessment. For signed-in users the in-progress assessment is
+# now kept as ONE Fernet-encrypted draft row (the same `drafts` table the GDPR
+# page already erases), written only when something actually changed, offered
+# back on the next visit ("Continue" / "Start again"), and dropped after
+# RESUME_MAX_DAYS or when the user starts again.
+RESUME_MAX_DAYS = 7
+_AUTOSAVE_KEYS = ("profile", "lang", "triage_chat", "medications", "vitals", "vitals_analysis",
+                  "photo_findings", "lab_findings", "report", "report_pubmed", "report_gpt",
+                  "report_recs", "report_recs_refs")
+
+def _assessment_payload():
+    d = st.session_state.get("dossier")
+    return {
+        "v": 2,
+        **{k: st.session_state.get(k) for k in _AUTOSAVE_KEYS},
+        "triage_emergency": bool(st.session_state.get("triage_emergency")),
+        "screen": st.session_state.get("screen", "home"),
+        "dossier": ({k: v for k, v in d.items() if k not in ("docx", "html")} if d else None),
+    }
+
+def _autosave_assessment(force=False):
+    """Save the encrypted draft if the assessment changed since the last save."""
+    if not (auth_enabled() and is_logged_in()):
+        return
+    if st.session_state.get("_resume_offer"):
+        return  # never overwrite a saved assessment the user hasn't decided about yet
+    d = st.session_state.get("dossier") or {}
+    if not (st.session_state.get("triage_chat") or d.get("exams") or st.session_state.get("report")):
+        return
+    payload = _assessment_payload()
+    try:
+        sig = hashlib.sha256(json.dumps(payload, ensure_ascii=False, sort_keys=True, default=str).encode()).hexdigest()
+    except Exception:
+        return
+    if not force and sig == st.session_state.get("_autosave_sig"):
+        return
+    payload["saved_at"] = time.time()
+    save_draft(st.session_state.get("auth_user", ""), json.loads(json.dumps(payload, default=str)))
+    st.session_state["_autosave_sig"] = sig
+
+def _apply_saved_assessment(dr):
+    for k in _AUTOSAVE_KEYS:
+        if k in dr and dr[k] is not None:
+            st.session_state[k] = dr[k]
+    if dr.get("triage_emergency"):
+        st.session_state["triage_emergency"] = True
+    if dr.get("dossier"):
+        _dd = dict(dr["dossier"]); _dd["docx"] = None; _dd["html"] = None
+        st.session_state["dossier"] = _dd
+    _scr = dr.get("screen") or "triage"
+    if _scr not in ("home", "vitals", "triage", "report", "history", "dossier"):
+        _scr = "triage"
+    if _scr == "report" and not dr.get("report"):
+        _scr = "triage"
+    st.session_state.screen = _scr
+
+def _ago(ts):
+    try:
+        mins = int((time.time() - float(ts)) / 60)
+    except Exception:
+        return ""
+    el = st.session_state.get("lang", "el") == "el"
+    if mins < 60:
+        _m = max(mins, 1)
+        return ((f"πριν από {_m} λεπτ{'ό' if _m==1 else 'ά'}") if el else f"{_m} min ago")
+    hrs = mins // 60
+    if hrs < 24:
+        return (f"πριν από {hrs} ώρ{'α' if hrs==1 else 'ες'}" if el else f"{hrs} h ago")
+    days = hrs // 24
+    return (f"πριν από {days} μέρ{'α' if days==1 else 'ες'}" if el else f"{days} day{'s' if days>1 else ''} ago")
+
+def _restore_extras(dr):
+    """Extra fields carried by the v2 draft that the older restore paths don't
+    know about (photo/lab findings, dossier, emergency flag). Vitals are left
+    alone on purpose — the face-scan return brings fresh ones."""
+    if not isinstance(dr, dict) or dr.get("v") != 2:
+        return
+    for k in ("photo_findings", "lab_findings"):
+        if dr.get(k):
+            st.session_state[k] = dr[k]
+    if dr.get("triage_emergency"):
+        st.session_state["triage_emergency"] = True
+    if dr.get("dossier"):
+        _dd = dict(dr["dossier"]); _dd["docx"] = None; _dd["html"] = None
+        st.session_state["dossier"] = _dd
+
+def render_resume_offer():
+    dr = st.session_state.get("_resume_offer")
+    if not dr:
+        return
+    el = st.session_state.get("lang", "el") == "el"
+    _first = next((m.get("content", "") for m in (dr.get("triage_chat") or []) if m.get("role") == "user"), "")
+    _first = (_first[:80] + "…") if len(_first) > 80 else _first
+    _n = len(dr.get("triage_chat") or [])
+    _nex = len(((dr.get("dossier") or {}).get("exams")) or [])
+    bits = []
+    if _n: bits.append(f"{_n} " + ("μηνύματα" if el else "messages"))
+    if dr.get("report"): bits.append("αναφορά έτοιμη" if el else "report ready")
+    if _nex: bits.append(f"{_nex} " + ("εξετάσεις στον φάκελο" if el else "exams in the dossier"))
+    bits.append(_ago(dr.get("saved_at")))
+    import html as _h
+    st.markdown(f"""
+<div style="background:#FFFFFF;border:1.5px solid #C7CEF0;border-radius:22px;padding:18px 20px 8px;margin:0 0 10px;
+  box-shadow:0 18px 40px -26px rgba(79,70,229,.45);">
+  <span class="ask-eyebrow light">{"ΣΥΝΕΧΕΙΑ" if el else "CONTINUE"}</span>
+  <div style="font-family:'Sora','Inter',sans-serif;font-size:19px;font-weight:700;color:#0A1030;letter-spacing:-.02em;margin:10px 0 4px;">
+    ↩️ {"Συνέχισε από εκεί που σταμάτησες" if el else "Pick up where you left off"}</div>
+  <div style="font-size:13.5px;color:#5A6388;line-height:1.55;">
+    {("«" + _h.escape(_first) + "» · ") if _first else ""}{" · ".join(_h.escape(b) for b in bits if b)}</div>
+</div>""", unsafe_allow_html=True)
+    c1, c2 = st.columns([1.4, 1])
+    with c1:
+        if st.button(("Συνέχεια ➤" if el else "Continue ➤"), type="primary", use_container_width=True, key="resume_yes"):
+            _apply_saved_assessment(dr)
+            st.session_state.pop("_resume_offer", None)
+            st.session_state["_autosave_sig"] = None
+            st.rerun()
+    with c2:
+        if st.button(("Νέα αρχή" if el else "Start fresh"), use_container_width=True, key="resume_no"):
+            delete_draft(st.session_state.get("auth_user", ""))
+            st.session_state.pop("_resume_offer", None)
+            st.rerun()
 
 
 def send_otp(email):
@@ -2386,9 +2512,11 @@ def render_privacy_page():
             "σε δικό μας server ή βάση δεδομένων. Ζουν μόνο στη μνήμη του browser / στο session "
             "όσο διαρκεί η επίσκεψη. Χάνονται αυτόματα όταν κλείσεις την καρτέλα ή πατήσεις "
             "«Διαγραφή δεδομένων μου».\n"
-            "- **Συνομιλία triage & αναφορά**: ζουν μόνο στο session του browser σου, εκτός αν έχεις "
-            "λογαριασμό και έχει αποθηκευτεί πρόχειρο (π.χ. πριν τη σάρωση προσώπου σε νέα καρτέλα) — "
-            "οπότε είναι κρυπτογραφημένα (Fernet) και διαγράφονται με το κουμπί παρακάτω.\n"
+            "- **Συνομιλία triage, αναφορά & φάκελος εξετάσεων**: αν είσαι συνδεδεμένος/η, η τρέχουσα "
+            "εκτίμηση κρατιέται **κρυπτογραφημένη** (Fernet) ώστε να συνεχίσεις αν κλείσεις τη σελίδα. "
+            "Κρατάμε μόνο την τελευταία εκτίμηση, για έως 7 ημέρες· σβήνεται με «Νέα αρχή» ή με το "
+            "κουμπί παρακάτω. Τα ίδια τα αρχεία (φωτογραφίες/PDF) δεν αποθηκεύονται ποτέ — μόνο το "
+            "κείμενο που προέκυψε από την ανάλυσή τους.\n"
             "- **Λογαριασμός (email, τελευταία σύνδεση, γλώσσα)**: κρατούνται όσο υπάρχει ο "
             "λογαριασμός σου, διαγράφονται με το κουμπί παρακάτω.\n"
             "- **Feedback (βαθμολογία/σχόλιο)**: μπορεί να περιλαμβάνει το email σου αν το έστειλες "
@@ -2416,9 +2544,10 @@ def render_privacy_page():
             "Florence-2 pre-analysis) for analysis and **never written** to our server or database. "
             "They live only in your browser's memory / session for the duration of your visit and "
             "are gone as soon as you close the tab or click \"Delete my data\".\n"
-            "- **Triage chat & report text**: live only in your browser session, unless you have an "
-            "account and a draft has been saved (e.g. before the external face-scan round-trip) — in "
-            "which case it is Fernet-encrypted and deleted by the button below.\n"
+            "- **Triage chat, report & exam dossier**: when you are signed in, your current assessment "
+            "is kept **encrypted** (Fernet) so you can continue if you close the page. Only the latest "
+            "assessment is kept, for up to 7 days; it is erased by \"Start fresh\" or the button below. "
+            "The files themselves (photos/PDFs) are never stored — only the text extracted from them.\n"
             "- **Account (email, last-seen, language)**: kept only while your account exists, "
             "deleted by the button below.\n"
             "- **Feedback (rating/comment)**: may include your email if submitted while logged in — "
@@ -4764,8 +4893,8 @@ def demographic_bp_risk(age, bmi, hr, weight=None, height=None):
 
 KIRA_SYSTEM_EL = """Είσαι ο Asklepios — AI νοσηλευτής για Έλληνες χρήστες. Είσαι κλινικά ακριβής, άμεσος και υποστηρικτικός.
 Ρόλος: Τριάζ συμπτωμάτων (μία ερώτηση κάθε φορά), ερμηνεία ζωτικών, φάρμακα, ελληνικό σύστημα υγείας (ΕΟΠΥΥ, ΕΟΔΥ, ΕΟΦ).
-Φωτογραφία: Αν το σύμπτωμα είναι οπτικό (δέρμα/εξάνθημα, μάτι, τραύμα/πληγή, στόμα/λαιμός, νύχια, ορατή αλλοίωση), αφού κάνεις την αρχική σου εκτίμηση πρότεινε στον χρήστη να ανεβάσει φωτογραφία από την επιλογή «📷 Ανάλυση φωτογραφίας» πιο κάτω, για πιο ακριβή εκτίμηση. Για μη-οπτικά συμπτώματα (π.χ. πονοκέφαλος, ζάλη) ΜΗΝ ζητάς φωτογραφία. Η φωτογραφία είναι ΠΡΟΑΙΡΕΤΙΚΗ: αν ο χρήστης δεν ανεβάσει ή δεν θέλει, ΣΥΝΕΧΙΣΕ κανονικά την εκτίμηση χωρίς να σταματάς, να περιμένεις ή να επιμένεις.
-Κανόνες: Πάντα συστήνεις επαγγελματία. Κόκκινες σημαίες → 166/112. Όταν έχεις αρκετά: "Έχω αρκετά στοιχεία — μπορούμε να δημιουργήσουμε πλήρη αναφορά." Μία ερώτηση κάθε φορά.
+Φωτογραφία: Αν το σύμπτωμα είναι οπτικό (δέρμα/εξάνθημα, μάτι, τραύμα/πληγή, στόμα/λαιμός, νύχια, ορατή αλλοίωση), αφού κάνεις την αρχική σου εκτίμηση πρότεινε στον χρήστη να ανεβάσει φωτογραφία από την επιλογή «📷 Φωτογραφία» κάτω από το πλαίσιο μηνύματος, για πιο ακριβή εκτίμηση. Για μη-οπτικά συμπτώματα (π.χ. πονοκέφαλος, ζάλη) ΜΗΝ ζητάς φωτογραφία. Η φωτογραφία είναι ΠΡΟΑΙΡΕΤΙΚΗ: αν ο χρήστης δεν ανεβάσει ή δεν θέλει, ΣΥΝΕΧΙΣΕ κανονικά την εκτίμηση χωρίς να σταματάς, να περιμένεις ή να επιμένεις.
+Κανόνες: Πάντα συστήνεις επαγγελματία. Κόκκινες σημαίες → 166/112. Όταν έχεις αρκετά: γράψε "Έχω αρκετά στοιχεία — μπορούμε να δημιουργήσουμε πλήρη αναφορά." και πες στον χρήστη να πατήσει το κουμπί «Δημιουργία πλήρους αναφοράς» που θα εμφανιστεί ακριβώς από κάτω· τελείωσε αυτό το μήνυμα με το σύμβολο [[READY]] (ο χρήστης δεν το βλέπει). ΜΗΝ γράφεις εσύ αναφορά, σύνοψη αναφοράς ή αποχαιρετισμό μέσα στη συζήτηση — η επίσημη αναφορά δημιουργείται από το κουμπί. Μία ερώτηση κάθε φορά.
 Ζωτικά: Αν τα συμπτώματα είναι καρδιακά/αυτόνομα (αίσθημα παλμών, ταχυπαλμία, πόνος/σφίξιμο στο στήθος, δύσπνοια, ζάλη, λιποθυμία, κρύος ιδρώτας/εφίδρωση), πρότεινε ήπια στον χρήστη να μετρήσει ζωτικά (καρδιακός ρυθμός/πίεση) — ΠΡΟΑΙΡΕΤΙΚΟ, συνέχισε κανονικά αν δεν το κάνει.
 Triage — κανόνας NON-EMERGENCY: Σύστηνε επίσκεψη σε γιατρό (όχι self-care) όταν ισχύει ΟΠΟΙΟΔΗΠΟΤΕ από τα παρακάτω:
   • Χρειάζεται συνταγογραφούμενο φάρμακο (αντιβιοτικό, steroid, antifungal κλπ.)
@@ -4776,8 +4905,8 @@ Triage — κανόνας NON-EMERGENCY: Σύστηνε επίσκεψη σε γ
 
 KIRA_SYSTEM_EN = """You are Asklepios — an AI nurse for users in Greece. Clinically accurate, direct, supportive.
 Role: Symptom triage (one question at a time), vitals interpretation, medications, Greek health system (EOPYY, EODY, EOF).
-Photo: If the symptom is visual (skin/rash, eye, wound, mouth/throat, nails, any visible lesion), after giving your initial assessment, invite the user to upload a photo via the "📷 Photo analysis" option below for a more accurate assessment. For non-visual symptoms (e.g. headache, dizziness) do NOT ask for a photo. The photo is OPTIONAL: if the user doesn't upload one or declines, CONTINUE the assessment normally — do not stop, wait, or insist.
-Rules: Always recommend a professional. Red flags → 166/112. When ready: "I have enough information — we can generate a full clinical report." One question at a time.
+Photo: If the symptom is visual (skin/rash, eye, wound, mouth/throat, nails, any visible lesion), after giving your initial assessment, invite the user to upload a photo via the "📷 Photo" option under the message box for a more accurate assessment. For non-visual symptoms (e.g. headache, dizziness) do NOT ask for a photo. The photo is OPTIONAL: if the user doesn't upload one or declines, CONTINUE the assessment normally — do not stop, wait, or insist.
+Rules: Always recommend a professional. Red flags → 166/112. When ready: write "I have enough information — we can generate a full clinical report." and tell the user to press the "Create the full report" button that will appear right below; end that message with the token [[READY]] (hidden from the user). Do NOT write a report, report summary or sign-off inside the chat yourself — the official report is created by the button. One question at a time.
 Vitals: If the symptoms are cardiac/autonomic (palpitations, racing heart, chest pain/tightness, shortness of breath, dizziness, fainting, cold sweat/sweating), gently suggest the user measure vitals (heart rate/blood pressure) — OPTIONAL, continue normally if they don't.
 Triage — NON-EMERGENCY rule: Recommend seeing a doctor (not self-care) when ANY of the following apply:
   • A prescription medication is needed (antibiotic, steroid, antifungal, etc.)
@@ -6063,8 +6192,8 @@ def render_dossier():
         if st.button("🗑 " + ("Καθαρισμός φακέλου" if el else "Clear dossier"), key="dos_clear", use_container_width=True):
             st.session_state.pop("dossier", None)
             st.rerun()
-    st.caption("🔒 " + ("Τα αρχεία στέλνονται μόνο για ανάγνωση και δεν αποθηκεύονται. Ο φάκελος χάνεται όταν κλείσεις την καρτέλα — κατέβασέ τον."
-                        if el else "Files are sent only to be read and are not stored. The dossier is lost when you close the tab — download it."))
+    st.caption("🔒 " + ("Τα αρχεία στέλνονται μόνο για ανάγνωση και δεν αποθηκεύονται. Αν είσαι συνδεδεμένος/η, οι τιμές που διαβάστηκαν κρατιούνται κρυπτογραφημένες έως 7 ημέρες για να συνεχίσεις."
+                        if el else "Files are sent only to be read and are not stored. When signed in, the extracted values are kept encrypted for up to 7 days so you can continue."))
 
 
 def render_intake():
@@ -6795,6 +6924,9 @@ def _reset_assessment():
         st.session_state.pop(_k, None)
     st.session_state["fb_rating"] = ""
     st.session_state["fb_sent"] = False
+    st.session_state["_autosave_sig"] = None
+    if auth_enabled() and is_logged_in():
+        delete_draft(st.session_state.get("auth_user", ""))
 
 
 def render_case_panel(p):
@@ -6877,7 +7009,8 @@ def render_triage():
                     unsafe_allow_html=True)
         render_case_panel(p)
     render_vitals_summary()
-    st.markdown(f'<div class="disclaimer">{_html_bold(t("disclaimer_main"))}</div>',unsafe_allow_html=True)
+    if not st.session_state.triage_chat:
+        st.markdown(f'<div class="disclaimer">{_html_bold(t("disclaimer_main"))}</div>',unsafe_allow_html=True)
     # Live emergency banner — shown immediately once the code-level safety gate
     # (_set_emergency_from_text) has detected a red flag in any assistant reply
     # this session, not only at the end when the final report is generated.
@@ -6915,35 +7048,390 @@ def render_triage():
             if st.button("➤ " + t("triage_send_selected"), type="primary"):
                 msg = t("triage_main_symptoms") + ", ".join(st.session_state.symptom_chips)
                 st.session_state.triage_chat.append({"role":"user","content":msg}); st.session_state.symptom_chips=[]; st.rerun()
-    st.divider()
     for msg in st.session_state.triage_chat:
         with st.chat_message(msg["role"], avatar="🩺" if msg["role"]=="assistant" else None):
             st.markdown(msg["content"])
-    # ── Inline composer ──────────────────────────────────────────────────────
-    # Sits directly under the latest message (HAL chat-card style) instead of
-    # st.chat_input, which Streamlit pins to the bottom of the viewport — on
-    # several phones/browsers it ended up off-screen or visually detached from
-    # the conversation, so users couldn't find where to type.
-    _first_turn = not st.session_state.triage_chat
-    with st.form("triage_composer", clear_on_submit=True, border=False):
-        st.markdown('<div class="ask-composer-marker"></div>', unsafe_allow_html=True)
-        _compose = st.text_area(
-            t("triage_placeholder"), key="triage_compose_text",
-            placeholder=(t("triage_placeholder") if _first_turn else
-                         ("Γράψε την απάντησή σου στον Asklepios…" if st.session_state.lang=="el"
-                          else "Type your answer to Asklepios…")),
-            height=(110 if _first_turn else 84), label_visibility="collapsed",
-        )
-        _cc1, _cc2 = st.columns([3, 1.3], vertical_alignment="center")
-        with _cc1:
-            st.caption("⌨️ " + ("Ctrl/⌘ + Enter για αποστολή · 🎤 φωνή πιο κάτω"
-                               if st.session_state.lang=="el" else
-                               "Ctrl/⌘ + Enter to send · 🎤 voice below"))
-        with _cc2:
-            _send = st.form_submit_button(("Αποστολή ➤" if st.session_state.lang=="el" else "Send ➤"),
-                                          type="primary", use_container_width=True)
-    user_input = _compose.strip() if (_send and _compose and _compose.strip()) else None
+    # Confirmation after a photo was added — guide the user to keep answering
+    if st.session_state.get("photo_added"):
+        last_q = next((m["content"] for m in reversed(st.session_state.triage_chat) if m["role"]=="assistant"), "")
+        if st.session_state.lang=="el":
+            st.success("✅ Η ανάλυση της εικόνας προστέθηκε στην εκτίμηση. Συνέχισε απαντώντας στην τελευταία ερώτηση του Asklepios παρακάτω.")
+        else:
+            st.success("✅ The image analysis was added to the assessment. Continue by answering Asklepios's last question below.")
+        if last_q:
+            st.info(("🩺 Τελευταία ερώτηση: " if st.session_state.lang=="el" else "🩺 Last question: ") + last_q)
+    # Same confirmation pattern for lab results — keeps the user on track
+    if st.session_state.get("lab_added"):
+        last_q = next((m["content"] for m in reversed(st.session_state.triage_chat) if m["role"]=="assistant"), "")
+        if st.session_state.lang=="el":
+            st.success("✅ Η ανάλυση των εξετάσεων προστέθηκε στην εκτίμηση. Συνέχισε απαντώντας στον Asklepios.")
+        else:
+            st.success("✅ The lab analysis was added to the assessment. Continue chatting with Asklepios.")
+    ready_phrases=["έχω αρκετά στοιχεία","μπορούμε να δημιουργήσουμε","i have enough information","we can generate","full clinical report","πλήρη αναφορά"]
+    last_kira=next((m["content"].lower() for m in reversed(st.session_state.triage_chat) if m["role"]=="assistant"),"")
+    _last_asst = next((m for m in reversed(st.session_state.triage_chat) if m["role"]=="assistant"), None)
+    triage_ready = bool(_last_asst and (_last_asst.get("ready") or any(ph in last_kira for ph in ready_phrases)))
+    _n_user = sum(1 for m in st.session_state.triage_chat if m["role"]=="user")
+    enabled = triage_ready or len(st.session_state.triage_chat) >= 6
+    _lang = st.session_state.lang
+    _relv = _relevant_vitals()
+    _suggest_vitals = bool(not triage_ready and any(m["role"]=="assistant" for m in st.session_state.triage_chat)
+                           and not st.session_state.vitals and _relv
+                           and not st.session_state.get("_vitals_nudge_off"))
+
+    # ═════════════════════════════════════════════════════════════════════
+    # ACTION ZONE — one clear next step at a time:
+    #   • while Asklepios is still asking → the message box (+ optional tools)
+    #   • once it has enough → a single "your report is ready to create" card
+    # ═════════════════════════════════════════════════════════════════════
+    user_input = None
     _gate_ok = True
+    _el = (st.session_state.lang == "el")
+    _asst_spoke = any(m["role"]=="assistant" for m in st.session_state.triage_chat)
+    if triage_ready and not st.session_state.get("_add_more"):
+        st.markdown(f"""
+<div style="background:radial-gradient(120% 90% at 100% 0%, rgba(99,102,241,.36) 0%, rgba(99,102,241,0) 55%),
+  radial-gradient(90% 80% at 0% 100%, rgba(34,211,238,.14) 0%, rgba(34,211,238,0) 60%),#050816;
+  border:1px solid rgba(148,163,255,.2);border-radius:22px;padding:22px 22px 16px;margin:14px 0 10px;">
+  <span class="ask-eyebrow">{"ΕΠΟΜΕΝΟ ΒΗΜΑ" if _el else "NEXT STEP"}</span>
+  <div style="font-family:'Sora','Inter',sans-serif;color:#fff;font-size:21px;font-weight:700;letter-spacing:-.02em;margin:12px 0 6px;">
+    ✅ {"Ο Asklepios έχει αρκετά στοιχεία" if _el else "Asklepios has enough information"}</div>
+  <div style="color:#C3C9E6;font-size:14px;line-height:1.6;">
+    {"Η επίσημη αναφορά περιλαμβάνει την εκτίμηση, πιθανές αιτίες, κόκκινες σημαίες, πλάνο και βιβλιογραφία PubMed — σε μορφή που μπορείς να δείξεις στον γιατρό σου."
+     if _el else
+     "The official report includes the assessment, possible causes, red flags, a plan and PubMed references — in a format you can show your doctor."}
+  </div>
+</div>""", unsafe_allow_html=True)
+        # Report-language selector: ask only the clinically relevant question.
+        # The UI stays in the chosen app language. The report is generated in that
+        # same language by default. If the user wants a Greek copy for a Greek
+        # doctor, they tick this — the report is then generated in Greek regardless
+        # of the UI language (useful for non-Greek-speaking users living in Greece).
+        _lang = st.session_state.lang
+        if _lang != "el":
+            _also_greek = st.checkbox(
+                "📋 Δημιούργησε την αναφορά και στα **Ελληνικά** (για να τη δείξεις σε Έλληνα ιατρό)",
+                value=st.session_state.get("report_also_greek", False),
+                key="report_also_greek_cb",
+            )
+            if _also_greek != st.session_state.get("report_also_greek", False):
+                st.session_state["report_also_greek"] = _also_greek
+        if st.button(("📄 Δημιουργία πλήρους αναφοράς" if _el else "📄 Create the full report"),
+                     type="primary", use_container_width=True, key="triage_make_report"):
+            st.session_state.pop("_add_more", None)
+            st.session_state.screen = "report"; st.rerun()
+        if st.button(("➕ Θέλω να προσθέσω κάτι ακόμα" if _el else "➕ I want to add something"),
+                     use_container_width=True, key="triage_add_more"):
+            st.session_state["_add_more"] = True; st.rerun()
+    else:
+        # ── Inline composer ──────────────────────────────────────────────────────
+        # Sits directly under the latest message (HAL chat-card style) instead of
+        # st.chat_input, which Streamlit pins to the bottom of the viewport — on
+        # several phones/browsers it ended up off-screen or visually detached from
+        # the conversation, so users couldn't find where to type.
+        _first_turn = not st.session_state.triage_chat
+        with st.form("triage_composer", clear_on_submit=True, border=False):
+            st.markdown('<div class="ask-composer-marker"></div>', unsafe_allow_html=True)
+            _compose = st.text_area(
+                t("triage_placeholder"), key="triage_compose_text",
+                placeholder=(t("triage_placeholder") if _first_turn else
+                             ("Γράψε την απάντησή σου στον Asklepios…" if st.session_state.lang=="el"
+                              else "Type your answer to Asklepios…")),
+                height=(110 if _first_turn else 84), label_visibility="collapsed",
+            )
+            _cc1, _cc2 = st.columns([3, 1.3], vertical_alignment="center")
+            with _cc1:
+                st.caption(("Μία απάντηση κάθε φορά · Ctrl/⌘+Enter" if st.session_state.lang=="el"
+                            else "One answer at a time · Ctrl/⌘+Enter"))
+            with _cc2:
+                _send = st.form_submit_button(("Αποστολή ➤" if st.session_state.lang=="el" else "Send ➤"),
+                                              type="primary", use_container_width=True)
+        user_input = _compose.strip() if (_send and _compose and _compose.strip()) else None
+        _gate_ok = True
+
+        # ── Optional additions, one at a time, right under the message box ──
+        _tool_opts = {}
+        if _suggest_vitals:
+            _tool_opts["vitals"] = ("❤️ Μετρήσεις ·" if _el else "❤️ Vitals ·") + (" προτείνεται" if _el else " suggested")
+        _tool_opts["voice"] = ("🎤 Φωνή" if _el else "🎤 Voice")
+        if _asst_spoke and _visual_relevant():
+            _tool_opts["photo"] = ("📷 Φωτογραφία" if _el else "📷 Photo")
+        if _asst_spoke:
+            _tool_opts["lab"] = ("🧪 Εξετάσεις" if _el else "🧪 Lab results")
+        _tool = st.segmented_control(
+            ("Πρόσθεσε (προαιρετικό)" if _el else "Add (optional)"),
+            options=list(_tool_opts.keys()), format_func=lambda k: _tool_opts[k],
+            selection_mode="single", key="triage_tool",
+        )
+        if _tool == "vitals":
+            _names = ", ".join(dict.fromkeys(c["el" if _lang=="el" else "en"] for c in _relv))
+            _show_scan = any(c["scan"] for c in _relv)
+            with st.container(border=True):
+                st.markdown("🩺 " + (f"Με βάση όσα περιγράφεις, θα βοηθούσε να μετρηθεί: **{_names}**."
+                                    if _lang=="el" else
+                                    f"Based on what you describe, it would help to measure: **{_names}**."))
+                _cols = st.columns(3 if _show_scan else 2)
+                with _cols[0]:
+                    if st.button(("✏️ Καταχώρηση" if _lang=="el" else "✏️ Enter values"), key="nudge_manual", use_container_width=True, type="primary"):
+                        st.session_state.screen = "vitals"; st.rerun()
+                _ci = 1
+                if _show_scan:
+                    with _cols[_ci]:
+                        _fs = _secret("FACESCAN_URL","https://asklepiosnurse.netlify.app")
+                        _ku = _secret("ASKLEPIOS_URL","https://asklepiosainurse.up.railway.app")
+                        _link = f"{_fs}?kira_url={urllib.parse.quote(_ku)}"
+                        _save_session_for_external_nav()
+                        st.link_button("📷 " + ("Σάρωση" if _lang=="el" else "Scan"), _link, use_container_width=True)
+                    _ci += 1
+                with _cols[_ci]:
+                    if st.button(("Όχι τώρα" if _lang=="el" else "Not now"), key="nudge_off", use_container_width=True):
+                        st.session_state["_vitals_nudge_off"] = True
+                        st.session_state.pop("triage_tool", None); st.rerun()
+        # Photo analysis appears only after an initial assessment AND only when the
+        # complaint is something visible (skin, eye, wound, throat, nails...). For
+        # non-visual issues (e.g. chest pain) a photo adds nothing, so it stays hidden.
+        if _tool == "photo":
+            _pf_list = st.session_state.get("photo_findings") or []
+            _has_photo = isinstance(_pf_list, list) and len(_pf_list) > 0
+            # Label adapts so the user knows multiple uploads are allowed.
+            # Collapsed by default once a photo has been added — keeps the chat
+            # uncluttered but the option remains one click away.
+            _exp_label = (("📷 Ανέβασε άλλη φωτογραφία (αν χρειαστεί)"
+                           if _has_photo else
+                           "📷 Ανάλυση φωτογραφίας (προαιρετικό)")
+                          if st.session_state.lang=="el" else
+                          ("📷 Upload another photo (if needed)"
+                           if _has_photo else
+                           "📷 Photo analysis (optional)"))
+            with st.container(border=True):
+                if _has_photo:
+                    st.caption("💡 " + (f"Έχουν προστεθεί {len(_pf_list)} φωτογραφία/ες. "
+                                        "Ανέβασε νέα μόνο αν ο Asklepios το ζητήσει "
+                                        "ή αν θέλεις άλλη πλευρά / άλλο σημείο."
+                                        if st.session_state.lang=="el" else
+                                        f"{len(_pf_list)} photo(s) already added. "
+                                        "Upload a new one only if Asklepios asks "
+                                        "or you want a different angle/area."))
+                else:
+                    st.caption("💡 " + ("Προαιρετικό. Αν ο Asklepios χρειαστεί φωτογραφία για ορατό σύμπτωμα, "
+                                        "θα στο αναφέρει — αλλά μπορείς να ανεβάσεις και προληπτικά."
+                                        if st.session_state.lang=="el" else
+                                        "Optional. If Asklepios needs a photo for a visible symptom, "
+                                        "it will say so — but you can also upload proactively."))
+                render_photo_scan()
+        # Physiotherapy card — surfaces proactively as soon as the conversation
+        # (Physio and psychology cards removed — no dedicated API available.)
+        # Lab analysis — always available once Asklepios has started talking, since
+        # blood/hormonal/urinalysis results help for ANY complaint, not just visual.
+        if _tool == "lab":
+            _lf_list = st.session_state.get("lab_findings") or []
+            _has_lab = isinstance(_lf_list, list) and len(_lf_list) > 0
+            _lab_label = (("🧪 Ανέβασε άλλες εξετάσεις (αν χρειάζεται)"
+                           if _has_lab else
+                           "🧪 Ανάλυση εξετάσεων (αιματολογικά, ορμονολογικά, ούρα) — προαιρετικό")
+                          if st.session_state.lang=="el" else
+                          ("🧪 Upload more lab tests (if needed)"
+                           if _has_lab else
+                           "🧪 Lab analysis (blood, hormonal, urinalysis) — optional"))
+            with st.container(border=True):
+                if _has_lab:
+                    st.caption("💡 " + (f"{len(_lf_list)} αρχείο/α εξετάσεων έχουν προστεθεί. "
+                                        "Ανέβασε άλλο αν έχεις περισσότερες εξετάσεις."
+                                        if st.session_state.lang=="el" else
+                                        f"{len(_lf_list)} lab file(s) added. "
+                                        "Upload another if you have more tests."))
+                else:
+                    st.caption("💡 " + ("Ανέβασε εργαστηριακές εξετάσεις (PDF ή φωτογραφία) "
+                                        "και ο Asklepios θα τις ερμηνεύσει ΜΕΣΑ στο πλαίσιο των συμπτωμάτων σου."
+                                        if st.session_state.lang=="el" else
+                                        "Upload lab tests (PDF or photo) and Asklepios will "
+                                        "interpret them WITHIN the context of your symptoms."))
+                render_lab_analysis()
+        # ── Voice input ───────────────────────────────────────────────────────────
+        # Always shown — Tab 1 (Web Speech API) needs no API key at all.
+        # Tab 2 (Whisper) needs Groq or OpenAI key.
+        # Critical for 60+ demographic: IOBE data shows this group has the highest
+        # unmet healthcare needs and lowest digital comfort.
+        _voice_lbl = t("voice_input_label")
+        if _tool == "voice":
+            # Web Speech API — uses st.iframe (HTML string mode)
+            _has_stt = bool(get_groq_key() or get_openai_key())
+            _whisper_tab_lbl = ("🎙️ Whisper AI (Ελληνικά ✓)"
+                                if _has_stt else
+                                "🎙️ Whisper AI (απαιτεί OPENAI_API_KEY)")
+            _wsapi_tab_lbl = ("🌐 Browser (δωρεάν, Chrome/Safari)"
+                              if st.session_state.lang=="el" else
+                              "🌐 Browser (free, Chrome/Safari)")
+            _v_tab1, _v_tab2 = st.tabs([_whisper_tab_lbl, _wsapi_tab_lbl])
+
+            # ── Tab 1: st.audio_input + Whisper ──────────────────────────────────
+            with _v_tab1:
+                if not _has_stt:
+                    st.info("💡 " + ("Πρόσθεσε `OPENAI_API_KEY` ή `GROQ_API_KEY` στα Railway env vars για να ενεργοποιήσεις το Whisper."
+                                     if st.session_state.lang=="el" else
+                                     "Add `OPENAI_API_KEY` or `GROQ_API_KEY` to Railway env vars to enable Whisper."))
+                else:
+                    st.caption("💡 " + ("Πάτησε το μικρόφωνο, μίλα φυσικά, σταμάτα. Η ηχογράφηση δεν αποθηκεύεται."
+                                        if st.session_state.lang=="el" else
+                                        "Press the microphone, speak naturally, stop. Audio is not stored."))
+                    _audio = st.audio_input(
+                        ("Πες τι νιώθεις" if st.session_state.lang=="el" else "Say what you feel"),
+                        key=f"voice_input_widget_{st.session_state.get('_voice_widget_counter', 0)}",
+                        label_visibility="collapsed",
+                    )
+                    # Track by hash so the same audio isn't transcribed twice across reruns
+                    if _audio is not None:
+                        _audio_bytes = _audio.getvalue()
+                        _audio_hash = hashlib.sha256(_audio_bytes).hexdigest()[:16]
+                        if st.session_state.get("_voice_last_hash") != _audio_hash:
+                            with st.spinner("🎙️ " + ("Μεταγραφή με Whisper..." if st.session_state.lang=="el"
+                                                      else "Transcribing with Whisper...")):
+                                text, _ = transcribe_audio(
+                                    _audio_bytes, lang=st.session_state.lang,
+                                    mime="audio/webm", filename="voice.webm",
+                                )
+                            st.session_state["_voice_last_hash"] = _audio_hash
+                            if text and not text.startswith("⚠️"):
+                                st.session_state["_voice_transcript"] = text
+                                st.rerun()
+                            else:
+                                st.error(text or "—")
+                    # Transcript review + confirm (never auto-submit — Whisper can mishear)
+                    _pending = st.session_state.get("_voice_transcript")
+                    if _pending:
+                        st.success("📝 " + ("Μεταγραφή — διόρθωσε αν χρειαστεί:" if st.session_state.lang=="el"
+                                            else "Transcription — edit if needed:"))
+                        _edited = st.text_area("transcript_edit", value=_pending,
+                                               label_visibility="collapsed", height=80,
+                                               key="voice_edit_area")
+                        _vc1, _vc2 = st.columns([3, 1])
+                        with _vc1:
+                            if st.button(("✓ Αποστολή στον Asklepios" if st.session_state.lang=="el"
+                                          else "✓ Send to Asklepios"),
+                                         type="primary", use_container_width=True, key="voice_send"):
+                                _msg = _edited.strip() or _pending
+                                st.session_state.triage_chat.append({"role":"user","content":_msg})
+                                st.session_state.pop("photo_added", None)
+                                st.session_state.pop("lab_added", None)
+                                st.session_state.pop("_voice_transcript", None)
+                                st.session_state.pop("_voice_last_hash", None)
+                                # Increment counter → new key on next render → fresh widget, no error
+                                st.session_state["_voice_widget_counter"] = st.session_state.get("_voice_widget_counter", 0) + 1
+                                st.session_state["_voice_send_pending"] = True
+                                st.rerun()
+                        with _vc2:
+                            if st.button(("🗑️ Ακύρωση" if st.session_state.lang=="el" else "🗑️ Cancel"),
+                                         use_container_width=True, key="voice_cancel"):
+                                st.session_state.pop("_voice_transcript", None)
+                                st.session_state.pop("_voice_last_hash", None)
+                                # Increment counter → fresh widget so user can record again
+                                st.session_state["_voice_widget_counter"] = st.session_state.get("_voice_widget_counter", 0) + 1
+                                st.rerun()
+
+            # ── Tab 2: Web Speech API — browser-native, no API key, Greek support ─
+            # Same pattern as HAL project. Works on Chrome/Safari.
+            # Result shown below the widget for the user to copy → paste into chat.
+            with _v_tab2:
+                _ws_lang = "el-GR" if st.session_state.lang=="el" else "en-US"
+                _ws_hint = ("Μίλα φυσικά — το κείμενο εμφανίζεται αυτόματα."
+                            if st.session_state.lang=="el" else
+                            "Speak naturally — text appears automatically.")
+                _ws_copy_lbl = "📋 Αντιγραφή" if st.session_state.lang=="el" else "📋 Copy"
+                _ws_not_sup = ("Δεν υποστηρίζεται — χρησιμοποίησε Chrome ή Safari"
+                               if st.session_state.lang=="el" else
+                               "Not supported — use Chrome or Safari")
+                _ws_listening = "🔴 Ακούω..." if st.session_state.lang=="el" else "🔴 Listening..."
+                _ws_idle = ("Πάτησε 🎙️ για ηχογράφηση" if st.session_state.lang=="el"
+                            else "Press 🎙️ to record")
+                _ws_done = ("✅ Αντίγραψε και επικόλλησε στο chat ↓"
+                            if st.session_state.lang=="el" else
+                            "✅ Copy and paste into chat ↓")
+                st.iframe(f"""<!DOCTYPE html><html><head><style>
+    body{{margin:0;padding:0;font-family:system-ui,sans-serif;background:transparent}}
+    #wrap{{display:flex;align-items:flex-start;gap:10px;background:#F0F4FF;border:1px solid #DDE2F3;border-radius:10px;padding:10px 14px;flex-wrap:wrap}}
+    #mic{{background:none;border:2px solid #4F46E5;border-radius:50%;width:38px;height:38px;font-size:18px;cursor:pointer;color:#4F46E5;flex-shrink:0;transition:all .2s}}
+    #mic.active{{background:#4F46E5;color:white;box-shadow:0 0 0 4px rgba(99,102,241,.15)}}
+    #status{{font-size:12px;color:#6B7280;flex:1;padding-top:10px}}
+    #result{{display:none;width:100%;background:white;border:1px solid #DDE2F3;border-radius:8px;padding:8px 12px;font-size:14px;color:#1F2937;line-height:1.5;margin-top:6px;word-break:break-word}}
+    #copy{{display:none;background:#4F46E5;color:white;border:none;border-radius:8px;padding:8px 18px;font-weight:700;cursor:pointer;font-size:13px;margin-top:6px}}
+    #copy:hover{{background:#4338CA}}
+    </style></head><body>
+    <div id="wrap">
+      <button id="mic" onclick="toggleVoice()">🎙️</button>
+      <div id="status">{_ws_idle}</div>
+      <div id="result"></div>
+      <button id="copy" onclick="copyText()">{_ws_copy_lbl}</button>
+    </div>
+    <script>
+    var recognition,listening=false,transcript="";
+    function toggleVoice(){{
+      if(!("webkitSpeechRecognition"in window||"SpeechRecognition"in window)){{
+        document.getElementById("status").textContent="{_ws_not_sup}";return;
+      }}
+      if(listening){{recognition.stop();return;}}
+      recognition=new(window.SpeechRecognition||window.webkitSpeechRecognition)();
+      recognition.lang="{_ws_lang}";recognition.interimResults=true;recognition.continuous=false;
+      recognition.onstart=function(){{
+        listening=true;
+        document.getElementById("mic").classList.add("active");
+        document.getElementById("status").textContent="{_ws_listening}";
+        document.getElementById("result").style.display="none";
+        document.getElementById("copy").style.display="none";
+      }};
+      recognition.onresult=function(e){{
+        transcript=Array.from(e.results).map(r=>r[0].transcript).join("");
+        document.getElementById("result").textContent=transcript;
+        document.getElementById("result").style.display="block";
+      }};
+      recognition.onend=function(){{
+        listening=false;
+        document.getElementById("mic").classList.remove("active");
+        if(transcript){{
+          document.getElementById("status").textContent="{_ws_done}";
+          document.getElementById("copy").style.display="inline-block";
+        }}else{{
+          document.getElementById("status").textContent="{_ws_idle}";
+        }}
+      }};
+      recognition.onerror=function(e){{
+        listening=false;
+        document.getElementById("mic").classList.remove("active");
+        document.getElementById("status").textContent="Error: "+e.error;
+      }};
+      recognition.start();
+    }}
+    function copyText(){{
+      if(!transcript)return;
+      navigator.clipboard.writeText(transcript).then(function(){{
+        var b=document.getElementById("copy");
+        b.textContent="✅ OK!";
+        setTimeout(function(){{b.textContent="{_ws_copy_lbl}";}},2000);
+      }});
+    }}
+    </script></body></html>""", height=100)
+                st.caption("↑ " + ("Αντίγραψε το κείμενο και επικόλλησέ το στο chat παρακάτω."
+                                    if st.session_state.lang=="el" else
+                                    "Copy the text and paste it into the chat below."))
+
+        # Progress / what happens next
+        if _asst_spoke:
+            _pct = min(100, int(_n_user / 5 * 100))
+            st.markdown(
+                f'<div style="margin:14px 2px 4px;font-size:12.5px;color:#5A6388;">'
+                f'{"Ο Asklepios θα σου κάνει λίγες ακόμα ερωτήσεις — όταν έχει αρκετά, εδώ θα εμφανιστεί το κουμπί για την επίσημη αναφορά." if _el else "Asklepios will ask a few more questions — when it has enough, the button for the official report will appear here."}'
+                f'<div style="height:6px;background:#E1E5F4;border-radius:6px;margin-top:8px;overflow:hidden;">'
+                f'<div style="height:100%;width:{_pct}%;background:linear-gradient(90deg,#818CF8,#22D3EE);border-radius:6px;"></div></div></div>',
+                unsafe_allow_html=True)
+        if enabled and not triage_ready:
+            if st.button(("📄 Δημιουργία αναφοράς τώρα" if _el else "📄 Create the report now"),
+                         use_container_width=True, key="triage_report_now"):
+                st.session_state.screen = "report"; st.rerun()
+        elif triage_ready and st.session_state.get("_add_more"):
+            if st.button(("✅ Έτοιμο — δημιουργία πλήρους αναφοράς" if _el else "✅ Done — create the full report"),
+                         type="primary", use_container_width=True, key="triage_report_after_add"):
+                st.session_state.pop("_add_more", None)
+                st.session_state.screen = "report"; st.rerun()
+
     _auto_reply = st.session_state.pop("_scan_reply_pending", False)
     _voice_reply = st.session_state.pop("_voice_send_pending", False)
     if user_input or _auto_reply or _voice_reply:
@@ -6976,316 +7464,18 @@ def render_triage():
             vitals_ctx="Vitals: "+", ".join(f"{k}={val}" for k,val in st.session_state.vitals.items()) if st.session_state.vitals else "Vitals: not provided"
             system_ctx=kira_system()+f"\n\n{profile_ctx}\n{vitals_ctx}"
             reply=claude([{"role":m["role"],"content":m["content"]} for m in st.session_state.triage_chat],system=system_ctx,max_tokens=1500)
-            if reply and reply.strip() and reply.strip()[-1] not in ".!?»)": reply=reply.rstrip()+" ..."
+            # Machine-readable "I have enough" marker (see system prompt) — stripped
+            # from what the user sees, stored as a flag on the message instead.
+            _ready_flag = bool(reply) and ("[[READY]]" in reply)
+            reply = (reply or "").replace("[[READY]]", "").rstrip()
+            if reply and reply.strip() and reply.strip()[-1] not in ".!?»);;:…*_)💙": reply=reply.rstrip()+" ..."
             # Code-level safety backstop — independent of whether the model
             # actually followed the prompt-level "red flags → 166/112" rule.
             _set_emergency_from_text(reply)
-        st.session_state.triage_chat.append({"role":"assistant","content":reply}); st.rerun()
-    # Context-aware vitals: suggest the SPECIFIC measurement that fits the symptoms.
-    # Scan button appears only for the cardiac category (camera → heart rate only).
-    _lang = st.session_state.lang
-    _relv = _relevant_vitals()
-    if (any(m["role"]=="assistant" for m in st.session_state.triage_chat)
-            and not st.session_state.vitals
-            and _relv
-            and not st.session_state.get("_vitals_nudge_off")):
-        _names = ", ".join(dict.fromkeys(c["el" if _lang=="el" else "en"] for c in _relv))
-        _show_scan = any(c["scan"] for c in _relv)
-        st.warning("🩺 " + (f"Με βάση όσα περιγράφεις, θα βοηθούσε να μετρηθεί: {_names}. Θες να το κάνεις τώρα;"
-                            if _lang=="el" else
-                            f"Based on what you describe, it would help to measure: {_names}. Want to do it now?"))
-        _cols = st.columns(3 if _show_scan else 2)
-        with _cols[0]:
-            if st.button(("✏️ Καταχώρηση" if _lang=="el" else "✏️ Enter values"), key="nudge_manual", use_container_width=True):
-                st.session_state.screen = "vitals"; st.rerun()
-        _ci = 1
-        if _show_scan:
-            with _cols[_ci]:
-                _fs = _secret("FACESCAN_URL","https://asklepiosnurse.netlify.app")
-                _ku = _secret("ASKLEPIOS_URL","https://asklepiosainurse.up.railway.app")
-                _link = f"{_fs}?kira_url={urllib.parse.quote(_ku)}"
-                _save_session_for_external_nav()
-                st.markdown(f'<a href="{_link}" target="_blank" style="display:block;text-align:center;padding:8px;border-radius:8px;background:#4F46E5;color:white;text-decoration:none;font-weight:600;font-size:13px">📷 {"Σάρωση" if _lang=="el" else "Scan"}</a>', unsafe_allow_html=True)
-            _ci += 1
-        with _cols[_ci]:
-            if st.button(("Όχι τώρα" if _lang=="el" else "Not now"), key="nudge_off", use_container_width=True):
-                st.session_state["_vitals_nudge_off"] = True; st.rerun()
-    # Photo analysis appears only after an initial assessment AND only when the
-    # complaint is something visible (skin, eye, wound, throat, nails...). For
-    # non-visual issues (e.g. chest pain) a photo adds nothing, so it stays hidden.
-    if any(m["role"]=="assistant" for m in st.session_state.triage_chat) and _visual_relevant():
-        _pf_list = st.session_state.get("photo_findings") or []
-        _has_photo = isinstance(_pf_list, list) and len(_pf_list) > 0
-        # Label adapts so the user knows multiple uploads are allowed.
-        # Collapsed by default once a photo has been added — keeps the chat
-        # uncluttered but the option remains one click away.
-        _exp_label = (("📷 Ανέβασε άλλη φωτογραφία (αν χρειαστεί)"
-                       if _has_photo else
-                       "📷 Ανάλυση φωτογραφίας (προαιρετικό)")
-                      if st.session_state.lang=="el" else
-                      ("📷 Upload another photo (if needed)"
-                       if _has_photo else
-                       "📷 Photo analysis (optional)"))
-        with st.expander(_exp_label, expanded=not _has_photo):
-            if _has_photo:
-                st.caption("💡 " + (f"Έχουν προστεθεί {len(_pf_list)} φωτογραφία/ες. "
-                                    "Ανέβασε νέα μόνο αν ο Asklepios το ζητήσει "
-                                    "ή αν θέλεις άλλη πλευρά / άλλο σημείο."
-                                    if st.session_state.lang=="el" else
-                                    f"{len(_pf_list)} photo(s) already added. "
-                                    "Upload a new one only if Asklepios asks "
-                                    "or you want a different angle/area."))
-            else:
-                st.caption("💡 " + ("Προαιρετικό. Αν ο Asklepios χρειαστεί φωτογραφία για ορατό σύμπτωμα, "
-                                    "θα στο αναφέρει — αλλά μπορείς να ανεβάσεις και προληπτικά."
-                                    if st.session_state.lang=="el" else
-                                    "Optional. If Asklepios needs a photo for a visible symptom, "
-                                    "it will say so — but you can also upload proactively."))
-            render_photo_scan()
-    # Physiotherapy card — surfaces proactively as soon as the conversation
-    # (Physio and psychology cards removed — no dedicated API available.)
-    # Lab analysis — always available once Asklepios has started talking, since
-    # blood/hormonal/urinalysis results help for ANY complaint, not just visual.
-    if any(m["role"]=="assistant" for m in st.session_state.triage_chat):
-        _lf_list = st.session_state.get("lab_findings") or []
-        _has_lab = isinstance(_lf_list, list) and len(_lf_list) > 0
-        _lab_label = (("🧪 Ανέβασε άλλες εξετάσεις (αν χρειάζεται)"
-                       if _has_lab else
-                       "🧪 Ανάλυση εξετάσεων (αιματολογικά, ορμονολογικά, ούρα) — προαιρετικό")
-                      if st.session_state.lang=="el" else
-                      ("🧪 Upload more lab tests (if needed)"
-                       if _has_lab else
-                       "🧪 Lab analysis (blood, hormonal, urinalysis) — optional"))
-        with st.expander(_lab_label, expanded=False):
-            if _has_lab:
-                st.caption("💡 " + (f"{len(_lf_list)} αρχείο/α εξετάσεων έχουν προστεθεί. "
-                                    "Ανέβασε άλλο αν έχεις περισσότερες εξετάσεις."
-                                    if st.session_state.lang=="el" else
-                                    f"{len(_lf_list)} lab file(s) added. "
-                                    "Upload another if you have more tests."))
-            else:
-                st.caption("💡 " + ("Ανέβασε εργαστηριακές εξετάσεις (PDF ή φωτογραφία) "
-                                    "και ο Asklepios θα τις ερμηνεύσει ΜΕΣΑ στο πλαίσιο των συμπτωμάτων σου."
-                                    if st.session_state.lang=="el" else
-                                    "Upload lab tests (PDF or photo) and Asklepios will "
-                                    "interpret them WITHIN the context of your symptoms."))
-            render_lab_analysis()
-    # Confirmation after a photo was added — guide the user to keep answering
-    if st.session_state.get("photo_added"):
-        last_q = next((m["content"] for m in reversed(st.session_state.triage_chat) if m["role"]=="assistant"), "")
-        if st.session_state.lang=="el":
-            st.success("✅ Η ανάλυση της εικόνας προστέθηκε στην εκτίμηση. Συνέχισε απαντώντας στην τελευταία ερώτηση του Asklepios παρακάτω.")
-        else:
-            st.success("✅ The image analysis was added to the assessment. Continue by answering Asklepios's last question below.")
-        if last_q:
-            st.info(("🩺 Τελευταία ερώτηση: " if st.session_state.lang=="el" else "🩺 Last question: ") + last_q)
-    # Same confirmation pattern for lab results — keeps the user on track
-    if st.session_state.get("lab_added"):
-        last_q = next((m["content"] for m in reversed(st.session_state.triage_chat) if m["role"]=="assistant"), "")
-        if st.session_state.lang=="el":
-            st.success("✅ Η ανάλυση των εξετάσεων προστέθηκε στην εκτίμηση. Συνέχισε απαντώντας στον Asklepios.")
-        else:
-            st.success("✅ The lab analysis was added to the assessment. Continue chatting with Asklepios.")
-    ready_phrases=["έχω αρκετά στοιχεία","μπορούμε να δημιουργήσουμε","i have enough information","we can generate","full clinical report","πλήρη αναφορά"]
-    last_kira=next((m["content"].lower() for m in reversed(st.session_state.triage_chat) if m["role"]=="assistant"),"")
-    triage_ready=any(ph in last_kira for ph in ready_phrases)
-    # ── Voice input ───────────────────────────────────────────────────────────
-    # Always shown — Tab 1 (Web Speech API) needs no API key at all.
-    # Tab 2 (Whisper) needs Groq or OpenAI key.
-    # Critical for 60+ demographic: IOBE data shows this group has the highest
-    # unmet healthcare needs and lowest digital comfort.
-    _voice_lbl = t("voice_input_label")
-    with st.expander(_voice_lbl, expanded=False):
-        # Web Speech API — uses st.iframe (HTML string mode)
-        _has_stt = bool(get_groq_key() or get_openai_key())
-        _whisper_tab_lbl = ("🎙️ Whisper AI (Ελληνικά ✓)"
-                            if _has_stt else
-                            "🎙️ Whisper AI (απαιτεί OPENAI_API_KEY)")
-        _wsapi_tab_lbl = ("🌐 Browser (δωρεάν, Chrome/Safari)"
-                          if st.session_state.lang=="el" else
-                          "🌐 Browser (free, Chrome/Safari)")
-        _v_tab1, _v_tab2 = st.tabs([_whisper_tab_lbl, _wsapi_tab_lbl])
-
-        # ── Tab 1: st.audio_input + Whisper ──────────────────────────────────
-        with _v_tab1:
-            if not _has_stt:
-                st.info("💡 " + ("Πρόσθεσε `OPENAI_API_KEY` ή `GROQ_API_KEY` στα Railway env vars για να ενεργοποιήσεις το Whisper."
-                                 if st.session_state.lang=="el" else
-                                 "Add `OPENAI_API_KEY` or `GROQ_API_KEY` to Railway env vars to enable Whisper."))
-            else:
-                st.caption("💡 " + ("Πάτησε το μικρόφωνο, μίλα φυσικά, σταμάτα. Η ηχογράφηση δεν αποθηκεύεται."
-                                    if st.session_state.lang=="el" else
-                                    "Press the microphone, speak naturally, stop. Audio is not stored."))
-                _audio = st.audio_input(
-                    ("Πες τι νιώθεις" if st.session_state.lang=="el" else "Say what you feel"),
-                    key=f"voice_input_widget_{st.session_state.get('_voice_widget_counter', 0)}",
-                    label_visibility="collapsed",
-                )
-                # Track by hash so the same audio isn't transcribed twice across reruns
-                if _audio is not None:
-                    _audio_bytes = _audio.getvalue()
-                    _audio_hash = hashlib.sha256(_audio_bytes).hexdigest()[:16]
-                    if st.session_state.get("_voice_last_hash") != _audio_hash:
-                        with st.spinner("🎙️ " + ("Μεταγραφή με Whisper..." if st.session_state.lang=="el"
-                                                  else "Transcribing with Whisper...")):
-                            text, _ = transcribe_audio(
-                                _audio_bytes, lang=st.session_state.lang,
-                                mime="audio/webm", filename="voice.webm",
-                            )
-                        st.session_state["_voice_last_hash"] = _audio_hash
-                        if text and not text.startswith("⚠️"):
-                            st.session_state["_voice_transcript"] = text
-                            st.rerun()
-                        else:
-                            st.error(text or "—")
-                # Transcript review + confirm (never auto-submit — Whisper can mishear)
-                _pending = st.session_state.get("_voice_transcript")
-                if _pending:
-                    st.success("📝 " + ("Μεταγραφή — διόρθωσε αν χρειαστεί:" if st.session_state.lang=="el"
-                                        else "Transcription — edit if needed:"))
-                    _edited = st.text_area("transcript_edit", value=_pending,
-                                           label_visibility="collapsed", height=80,
-                                           key="voice_edit_area")
-                    _vc1, _vc2 = st.columns([3, 1])
-                    with _vc1:
-                        if st.button(("✓ Αποστολή στον Asklepios" if st.session_state.lang=="el"
-                                      else "✓ Send to Asklepios"),
-                                     type="primary", use_container_width=True, key="voice_send"):
-                            _msg = _edited.strip() or _pending
-                            st.session_state.triage_chat.append({"role":"user","content":_msg})
-                            st.session_state.pop("photo_added", None)
-                            st.session_state.pop("lab_added", None)
-                            st.session_state.pop("_voice_transcript", None)
-                            st.session_state.pop("_voice_last_hash", None)
-                            # Increment counter → new key on next render → fresh widget, no error
-                            st.session_state["_voice_widget_counter"] = st.session_state.get("_voice_widget_counter", 0) + 1
-                            st.session_state["_voice_send_pending"] = True
-                            st.rerun()
-                    with _vc2:
-                        if st.button(("🗑️ Ακύρωση" if st.session_state.lang=="el" else "🗑️ Cancel"),
-                                     use_container_width=True, key="voice_cancel"):
-                            st.session_state.pop("_voice_transcript", None)
-                            st.session_state.pop("_voice_last_hash", None)
-                            # Increment counter → fresh widget so user can record again
-                            st.session_state["_voice_widget_counter"] = st.session_state.get("_voice_widget_counter", 0) + 1
-                            st.rerun()
-
-        # ── Tab 2: Web Speech API — browser-native, no API key, Greek support ─
-        # Same pattern as HAL project. Works on Chrome/Safari.
-        # Result shown below the widget for the user to copy → paste into chat.
-        with _v_tab2:
-            _ws_lang = "el-GR" if st.session_state.lang=="el" else "en-US"
-            _ws_hint = ("Μίλα φυσικά — το κείμενο εμφανίζεται αυτόματα."
-                        if st.session_state.lang=="el" else
-                        "Speak naturally — text appears automatically.")
-            _ws_copy_lbl = "📋 Αντιγραφή" if st.session_state.lang=="el" else "📋 Copy"
-            _ws_not_sup = ("Δεν υποστηρίζεται — χρησιμοποίησε Chrome ή Safari"
-                           if st.session_state.lang=="el" else
-                           "Not supported — use Chrome or Safari")
-            _ws_listening = "🔴 Ακούω..." if st.session_state.lang=="el" else "🔴 Listening..."
-            _ws_idle = ("Πάτησε 🎙️ για ηχογράφηση" if st.session_state.lang=="el"
-                        else "Press 🎙️ to record")
-            _ws_done = ("✅ Αντίγραψε και επικόλλησε στο chat ↓"
-                        if st.session_state.lang=="el" else
-                        "✅ Copy and paste into chat ↓")
-            st.iframe(f"""<!DOCTYPE html><html><head><style>
-body{{margin:0;padding:0;font-family:system-ui,sans-serif;background:transparent}}
-#wrap{{display:flex;align-items:flex-start;gap:10px;background:#F0F4FF;border:1px solid #DDE2F3;border-radius:10px;padding:10px 14px;flex-wrap:wrap}}
-#mic{{background:none;border:2px solid #4F46E5;border-radius:50%;width:38px;height:38px;font-size:18px;cursor:pointer;color:#4F46E5;flex-shrink:0;transition:all .2s}}
-#mic.active{{background:#4F46E5;color:white;box-shadow:0 0 0 4px rgba(99,102,241,.15)}}
-#status{{font-size:12px;color:#6B7280;flex:1;padding-top:10px}}
-#result{{display:none;width:100%;background:white;border:1px solid #DDE2F3;border-radius:8px;padding:8px 12px;font-size:14px;color:#1F2937;line-height:1.5;margin-top:6px;word-break:break-word}}
-#copy{{display:none;background:#4F46E5;color:white;border:none;border-radius:8px;padding:8px 18px;font-weight:700;cursor:pointer;font-size:13px;margin-top:6px}}
-#copy:hover{{background:#4338CA}}
-</style></head><body>
-<div id="wrap">
-  <button id="mic" onclick="toggleVoice()">🎙️</button>
-  <div id="status">{_ws_idle}</div>
-  <div id="result"></div>
-  <button id="copy" onclick="copyText()">{_ws_copy_lbl}</button>
-</div>
-<script>
-var recognition,listening=false,transcript="";
-function toggleVoice(){{
-  if(!("webkitSpeechRecognition"in window||"SpeechRecognition"in window)){{
-    document.getElementById("status").textContent="{_ws_not_sup}";return;
-  }}
-  if(listening){{recognition.stop();return;}}
-  recognition=new(window.SpeechRecognition||window.webkitSpeechRecognition)();
-  recognition.lang="{_ws_lang}";recognition.interimResults=true;recognition.continuous=false;
-  recognition.onstart=function(){{
-    listening=true;
-    document.getElementById("mic").classList.add("active");
-    document.getElementById("status").textContent="{_ws_listening}";
-    document.getElementById("result").style.display="none";
-    document.getElementById("copy").style.display="none";
-  }};
-  recognition.onresult=function(e){{
-    transcript=Array.from(e.results).map(r=>r[0].transcript).join("");
-    document.getElementById("result").textContent=transcript;
-    document.getElementById("result").style.display="block";
-  }};
-  recognition.onend=function(){{
-    listening=false;
-    document.getElementById("mic").classList.remove("active");
-    if(transcript){{
-      document.getElementById("status").textContent="{_ws_done}";
-      document.getElementById("copy").style.display="inline-block";
-    }}else{{
-      document.getElementById("status").textContent="{_ws_idle}";
-    }}
-  }};
-  recognition.onerror=function(e){{
-    listening=false;
-    document.getElementById("mic").classList.remove("active");
-    document.getElementById("status").textContent="Error: "+e.error;
-  }};
-  recognition.start();
-}}
-function copyText(){{
-  if(!transcript)return;
-  navigator.clipboard.writeText(transcript).then(function(){{
-    var b=document.getElementById("copy");
-    b.textContent="✅ OK!";
-    setTimeout(function(){{b.textContent="{_ws_copy_lbl}";}},2000);
-  }});
-}}
-</script></body></html>""", height=100)
-            st.caption("↑ " + ("Αντίγραψε το κείμενο και επικόλλησέ το στο chat παρακάτω."
-                                if st.session_state.lang=="el" else
-                                "Copy the text and paste it into the chat below."))
-
-    # ── Back / Generate-report buttons ───────────────────────────────────────
-    # Rendered BEFORE the "write here" banner + chat_input on purpose: st.chat_input
-    # is fixed/sticky to the bottom of the viewport regardless of where it sits in
-    # the code, so anything coded *after* it still visually appears ABOVE it —
-    # which used to sandwich these buttons between the banner and the actual
-    # input box (confusing on mobile, see user report). Moving them here keeps
-    # the code order == visual order: chat → these buttons → banner → input.
-    col_b,col_r=st.columns([1,2])
-    with col_b:
-        if st.button(t("back")): st.session_state.screen="vitals"; st.rerun()
-    with col_r:
-        enabled=triage_ready or len(st.session_state.triage_chat)>=6
-        if st.button(t("generate_report"),type="primary",use_container_width=True,disabled=not enabled):
-            st.session_state.screen="report"; st.rerun()
-
-    # Report-language selector: ask only the clinically relevant question.
-    # The UI stays in the chosen app language. The report is generated in that
-    # same language by default. If the user wants a Greek copy for a Greek
-    # doctor, they tick this — the report is then generated in Greek regardless
-    # of the UI language (useful for non-Greek-speaking users living in Greece).
-    _lang = st.session_state.lang
-    if _lang != "el":
-        _also_greek = st.checkbox(
-            "📋 Δημιούργησε την αναφορά και στα **Ελληνικά** (για να τη δείξεις σε Έλληνα ιατρό)",
-            value=st.session_state.get("report_also_greek", False),
-            key="report_also_greek_cb",
-        )
-        if _also_greek != st.session_state.get("report_also_greek", False):
-            st.session_state["report_also_greek"] = _also_greek
-    if not enabled:
-        st.caption("Συνεχίστε — ο Asklepios θα σας ειδοποιήσει όταν έχει αρκετά." if _lang=="el" else "Continue — Asklepios will let you know when it has enough.")
+        st.session_state.triage_chat.append({"role":"assistant","content":reply, "ready": _ready_flag})
+        st.session_state.pop("_add_more", None)
+        _autosave_assessment()
+        st.rerun()
 
 # ── PNOE-inspired report helpers ──────────────────────────────────────────────
 # Inspired by the PNOE Metabolic Blueprint report (Frank Shallenberger), which
@@ -8880,6 +9070,7 @@ if (auth_enabled() and is_logged_in()
             st.session_state.medications = _rd["medications"]
         st.session_state["screen"] = "triage"
         st.session_state["_resume_restored"] = True
+        _restore_extras(_rd)
         delete_draft(st.session_state.get("auth_user", ""))
     del st.query_params["resume"]
 
@@ -8911,8 +9102,9 @@ if (auth_enabled() and is_logged_in()
             _mr = st.session_state.profile.get("meds_raw", "")
             st.session_state.medications = [{"name": m.strip(), "freq": "", "notes": ""}
                                             for m in _mr.split(",") if m.strip()] if _mr else []
-        # One-shot: the draft has served its purpose, delete it so it does NOT
-        # resurrect on later re-opens.
+        _restore_extras(_dd)
+        # One-shot: the draft has served its purpose (the autosave re-creates it
+        # from the restored state on this render).
         delete_draft(st.session_state.get("auth_user", ""))
 
 # If we came back from the face scan during an ongoing conversation, drop the
@@ -9005,6 +9197,21 @@ if auth_enabled() and not is_logged_in():
 if CM is not None and is_logged_in() and not st.session_state.get("_cookie_synced"):
     _save_login_cookie(st.session_state.get("auth_user", ""))
     st.session_state["_cookie_synced"] = True
+# ── Offer to continue a saved assessment (once per browser session) ─────────
+if (auth_enabled() and is_logged_in() and not st.session_state.get("_resume_checked")
+        and not st.session_state.get("_from_facescan")
+        and not st.session_state.get("_resume_loaded")
+        and not st.session_state.triage_chat):
+    st.session_state["_resume_checked"] = True
+    _saved = load_draft(st.session_state.get("auth_user", ""))
+    if _saved and _saved.get("v") == 2:
+        _age_days = (time.time() - float(_saved.get("saved_at") or 0)) / 86400
+        _has = bool(_saved.get("triage_chat") or ((_saved.get("dossier") or {}).get("exams")) or _saved.get("report"))
+        if _age_days > RESUME_MAX_DAYS or not _has:
+            delete_draft(st.session_state.get("auth_user", ""))
+        else:
+            st.session_state["_resume_offer"] = _saved
+# (Historical note, superseded by the autosave above for signed-in users:)
 # NOTE: the encrypted draft is NOT saved on every clean render. It is saved only
 # when about to leave for an external page (face scan) via
 # _save_session_for_external_nav(). After the round-trip it is one-shot deleted.
@@ -9039,6 +9246,8 @@ if st.session_state.pop("_resume_restored", False):
     st.info(("↩️ Η σύνδεση διακόπηκε κατά την ανάλυση φωτογραφίας — επαναφέραμε την εκτίμησή σας ακριβώς εκεί που την αφήσατε."
              if lang=="el" else
              "↩️ The connection dropped during photo analysis — your assessment has been restored right where you left off."))
+if st.session_state.get("_resume_offer") and screen in ("home", "intake", "triage", "vitals"):
+    render_resume_offer()
 if   screen=="home":   render_home()
 elif screen=="intake": render_intake()
 elif screen=="vitals": render_vitals()
@@ -9055,6 +9264,9 @@ st.markdown(
     f'<a href="?page=privacy" target="_self">{_priv_lbl}</a></div>',
     unsafe_allow_html=True,
 )
+
+# Keep a signed-in user's assessment safe if they leave the page.
+_autosave_assessment()
 
 # Top nav bar — spacer pushes content below the fixed bar at the top.
 st.markdown('<div class="bottom-nav-spacer"></div>', unsafe_allow_html=True)
