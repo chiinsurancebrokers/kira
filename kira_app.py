@@ -12,7 +12,7 @@ import urllib.request
 import urllib.parse
 from datetime import datetime, timedelta
 import io as _io, base64 as _b64
-import hmac, hashlib, time, unicodedata
+import hmac, hashlib, time, unicodedata, secrets
 import logging as _logging
 import uuid as _uuid
 import re, uuid
@@ -1412,6 +1412,44 @@ def _is_mobile_client():
     return bool(re.search(r"Mobi|Android|iPhone|iPad|iPod", ua))
 
 
+HANDOFF_TTL_S = 15 * 60
+
+
+@st.cache_resource
+def _used_handoff_nonces():
+    return {}
+
+
+def _make_handoff_token(email):
+    """Short-lived, single-use, encrypted sign-in token for the laptop → phone QR."""
+    if not (_ENC_OK and email):
+        return None
+    try:
+        body = json.dumps({"e": email, "n": secrets.token_urlsafe(9)}).encode()
+        return _fernet().encrypt(body).decode()
+    except Exception:
+        return None
+
+
+def _redeem_handoff_token(tok):
+    """Return the email for a valid, unexpired, unused token (and burn it)."""
+    if not (_ENC_OK and tok):
+        return None
+    try:
+        data = json.loads(_fernet().decrypt(str(tok).encode(), ttl=HANDOFF_TTL_S))
+    except Exception:
+        return None
+    used = _used_handoff_nonces()
+    now = time.time()
+    for k in [k for k, t in used.items() if now - t > HANDOFF_TTL_S]:
+        used.pop(k, None)
+    n = data.get("n")
+    if not n or n in used:
+        return None
+    used[n] = now
+    return data.get("e")
+
+
 def _qr_png(url):
     try:
         import qrcode
@@ -1430,6 +1468,17 @@ def render_phone_handoff(target):
     el = st.session_state.get("lang", "el") == "el"
     base = _secret("ASKLEPIOS_URL", "https://asklepiosainurse.up.railway.app").rstrip("/")
     url = f"{base}/?go={target}"
+    _signed_in = auth_enabled() and is_logged_in()
+    if _signed_in:
+        # one sign-in token per screen visit (15 min, single use) — the phone
+        # opens already signed in, no new email code needed
+        _hk = f"_handoff_tok_{target}"
+        _tk = st.session_state.get(_hk)
+        if not _tk or time.time() - _tk[1] > HANDOFF_TTL_S - 120:
+            _tk = (_make_handoff_token(st.session_state.get("auth_user", "")), time.time())
+            st.session_state[_hk] = _tk
+        if _tk[0]:
+            url += "&h=" + urllib.parse.quote(_tk[0])
     # make sure the phone finds the current assessment
     _autosave_assessment(allow_empty=True)
     with st.container(border=True):
@@ -1445,11 +1494,19 @@ def render_phone_handoff(target):
                 f'<div style="font-family:Sora,Inter,sans-serif;font-size:18px;font-weight:700;color:#0A1030;margin:10px 0 4px;">📱 '
                 + ("Συνέχισε στο κινητό" if el else "Continue on your phone") + '</div>'
                 f'<div style="font-size:13.5px;color:#5A6388;line-height:1.55;">'
-                + (("Σκάναρε τον κωδικό με την κάμερα του κινητού και συνδέσου με το ίδιο email. "
-                    "Κάνε τη μέτρηση εκεί (πίσω κάμερα + φλας) και μετά πάτα το κουμπί εδώ για να έρθει το αποτέλεσμα.")
+                + ((("Σκάναρε τον κωδικό με την κάμερα του κινητού — ανοίγει <b>ήδη συνδεδεμένο</b>, χωρίς νέο κωδικό email. "
+                     if _signed_in else
+                     "Σκάναρε τον κωδικό με την κάμερα του κινητού και συνδέσου με το ίδιο email. ")
+                    + "Κάνε τη μέτρηση εκεί (πίσω κάμερα + φλας) και μετά πάτα το κουμπί εδώ για να έρθει το αποτέλεσμα.")
                    if el else
-                   ("Scan the code with your phone camera and sign in with the same email. "
-                    "Measure there (rear camera + flash), then press the button here to bring the result back."))
+                   (("Scan the code with your phone camera — it opens <b>already signed in</b>, no new email code. "
+                     if _signed_in else
+                     "Scan the code with your phone camera and sign in with the same email. ")
+                    + "Measure there (rear camera + flash), then press the button here to bring the result back."))
+                + ('<div style="font-size:11.5px;color:#7A83A8;margin-top:6px;">🔒 '
+                   + ("Ο κωδικός QR ισχύει 15 λεπτά και για μία μόνο σάρωση — μην τον μοιράζεσαι."
+                      if el else "The QR code works once, for 15 minutes — don't share it.")
+                   + '</div>' if _signed_in else '')
                 + '</div>', unsafe_allow_html=True)
             if auth_enabled() and is_logged_in():
                 if st.button(("↻ Έκανα τη μέτρηση στο κινητό — φέρε το αποτέλεσμα" if el
@@ -1485,12 +1542,16 @@ def render_resume_offer():
     bits.append(_ago(dr.get("saved_at")))
     import html as _h
     st.markdown(f"""
-<div style="background:#FFFFFF;border:1.5px solid #C7CEF0;border-radius:22px;padding:18px 20px 8px;margin:0 0 10px;
-  box-shadow:0 18px 40px -26px rgba(79,70,229,.45);">
-  <span class="ask-eyebrow light">{"ΣΥΝΕΧΕΙΑ" if el else "CONTINUE"}</span>
-  <div style="font-family:'Sora','Inter',sans-serif;font-size:19px;font-weight:700;color:#0A1030;letter-spacing:-.02em;margin:10px 0 4px;">
+<div style="background:#FFFFFF;border:2px solid #818CF8;border-radius:22px;padding:20px 22px 12px;margin:0 0 10px;
+  box-shadow:0 24px 50px -24px rgba(79,70,229,.55);">
+  <span class="ask-eyebrow light">{"Η ΕΚΤΙΜΗΣΗ ΣΟΥ ΣΕ ΠΕΡΙΜΕΝΕΙ" if el else "YOUR ASSESSMENT IS WAITING"}</span>
+  <div style="font-family:'Sora','Inter',sans-serif;font-size:20px;font-weight:700;color:#0A1030;letter-spacing:-.02em;margin:10px 0 6px;">
     ↩️ {"Συνέχισε από εκεί που σταμάτησες" if el else "Pick up where you left off"}</div>
-  <div style="font-size:13.5px;color:#5A6388;line-height:1.55;">
+  <div style="font-size:14px;color:#2D3558;line-height:1.6;margin-bottom:8px;">
+    {"Βγήκες από τη σελίδα ή άνοιξες νέα καρτέλα — <b>δεν χρειάζεται να ξεκινήσεις από την αρχή</b>. Η εκτίμησή σου έχει αποθηκευτεί με ασφάλεια (κρυπτογραφημένα). Πάτα <b>«Συνέχεια»</b> και συνεχίζεις ακριβώς από εκεί που έμεινες."
+     if el else
+     "You left the page or opened a new tab — <b>no need to start over</b>. Your assessment was saved securely (encrypted). Press <b>“Continue”</b> to carry on exactly where you left off."}</div>
+  <div style="font-size:12.5px;color:#7A83A8;line-height:1.55;">
     {("«" + _h.escape(_first) + "» · ") if _first else ""}{" · ".join(_h.escape(b) for b in bits if b)}</div>
 </div>""", unsafe_allow_html=True)
     c1, c2 = st.columns([1.4, 1])
@@ -1502,7 +1563,7 @@ def render_resume_offer():
             st.session_state["_last_saved_at"] = dr.get("saved_at")
             st.rerun()
     with c2:
-        if st.button(("Νέα αρχή" if el else "Start fresh"), use_container_width=True, key="resume_no"):
+        if st.button(("Νέα αρχή (σβήνει την παλιά)" if el else "Start fresh (deletes the old one)"), use_container_width=True, key="resume_no"):
             delete_draft(st.session_state.get("auth_user", ""))
             st.session_state.pop("_resume_offer", None)
             st.rerun()
@@ -1569,6 +1630,11 @@ def render_login_gate():
     lang = st.session_state.lang
     if is_logged_in():
         return True
+
+    if st.session_state.pop("_handoff_expired", False):
+        st.info("ℹ️ " + ("Ο κωδικός QR έληξε ή χρησιμοποιήθηκε ήδη. Συνδέσου με το email σου — ή πάτα ξανά τον κωδικό QR στον υπολογιστή για νέο."
+                         if lang == "el" else
+                         "That QR code expired or was already used. Sign in with your email — or show a fresh QR on the computer."))
 
     st.markdown(f'''<div style="background:rgba(99,102,241,0.06);border:1px solid rgba(99,102,241,0.15);border-radius:14px;padding:20px 22px;text-align:center;margin:10px 0">
         <div style="font-size:34px;margin-bottom:6px">🔒</div>
@@ -5273,14 +5339,43 @@ def _set_emergency_from_text(text):
     """Set session emergency flag if the AI's triage reply contains red-flag
     wording. Independent of whether the model actually followed the
     prompt-level escalation instruction — this is the code-level backstop."""
+    if _text_is_emergency(text):
+        st.session_state["triage_emergency"] = True
+
+
+# Conditional "safety-netting" ("if you get chest pain, call 166") is in almost
+# every good reply and in every report's red-flags section. It is advice for
+# the future, not a sign of a present emergency, so those sentences — and the
+# report's RED FLAGS section — are not counted. Direct statements ("call 166
+# now", "this may be a stroke") still trigger the banner.
+_CONDITIONAL_MARKERS = ("αν ", "εαν ", "σε περιπτωση", "οταν ", "if ", "in case", "should you", "should ")
+_REDFLAG_HEADINGS = ("κοκκινες σημαιες", "red flags", "οδηγιες ασφαλειας", "safety net")
+
+def _text_is_emergency(text):
     if not text:
-        return
+        return False
     try:
         norm = _strip_accents(text)
     except Exception:
         norm = (text or "").lower()
-    if any(k in norm for k in _EMERGENCY_KEYWORDS_HUMAN):
-        st.session_state["triage_emergency"] = True
+    # drop the red-flags / safety-net section of a report (heading → next heading)
+    out, skip = [], False
+    for line in norm.splitlines():
+        l = line.strip().lstrip("#*0123456789. ").strip()
+        if any(l.startswith(h) for h in _REDFLAG_HEADINGS):
+            skip = True; continue
+        if skip and line.strip().startswith("#"):
+            skip = False
+        if not skip:
+            out.append(line)
+    norm = "\n".join(out)
+    for sent in re.split(r"(?<=[.!;;?\n])\s+", norm):
+        s2 = " " + sent.strip() + " "
+        if any(m in s2 for m in _CONDITIONAL_MARKERS):
+            continue
+        if any(k in s2 for k in _EMERGENCY_KEYWORDS_HUMAN):
+            return True
+    return False
 
 # Each category maps symptom roots → the vital that helps. "scan"=True only where
 # the camera face-scan can actually produce the value (heart rate → cardiac only).
@@ -6931,27 +7026,34 @@ div[data-testid="stElementContainer"]:has(.vit-marker){ display:none !important;
 
 
 def render_vitals_summary():
-    v=st.session_state.vitals
-    if not v: return
-    status=classify_vitals(v, age=st.session_state.profile.get("age"))
-    LABELS={"hr":("❤️","Heart Rate","bpm"),"bp":("🩸","Blood Pressure","mmHg"),"br":("🌬️","Breathing","/min"),"spo2":("💧","SpO2","%"),"temp":("🌡️","Temp","°C"),"bmi":("⚖️","BMI","kg/m²")}
-    badges=[]
-    if "hr" in v: badges.append(("hr",v["hr"],"bpm",status.get("hr","green")))
-    if "bp_sys" in v and "bp_dia" in v: badges.append(("bp",f"{v['bp_sys']}/{v['bp_dia']}","mmHg",status.get("bp","green")))
-    if "br" in v: badges.append(("br",v["br"],"/min",status.get("br","green")))
-    if "spo2" in v: badges.append(("spo2",v["spo2"],"%",status.get("spo2","green")))
-    if "temp" in v: badges.append(("temp",v["temp"],"°C",status.get("temp","green")))
-    if "bmi" in v: badges.append(("bmi",v["bmi"],"kg/m²",status.get("bmi","green")))
-    if not badges: return
-    cols=st.columns(len(badges))
-    for i,(key,val,unit,col) in enumerate(badges):
-        icon,label,_=LABELS.get(key,("","",""))
-        with cols[i]:
-            bg={"green":"#EDFBF0","yellow":"#FFFBEB","red":"#FEF2F2"}.get(col,"#F4F6FC")
-            brd={"green":"#A3E6B5","yellow":"#FCD34D","red":"#FCA5A5"}.get(col,"#E1E5F4")
-            st.markdown(f'<div style="background:{bg};border:1px solid {brd};border-radius:12px;padding:12px;text-align:center"><div style="font-size:18px">{icon}</div><div style="font-size:20px;font-weight:700">{val}</div><div style="font-size:10px;color:#6B7280">{unit}</div><div style="font-size:11px;color:#374151">{label}</div></div>',unsafe_allow_html=True)
+    """Compact vitals line (coloured status dots) in the app's chip style."""
+    v = st.session_state.vitals
+    if not v:
+        return
+    el = st.session_state.lang == "el"
+    try:
+        status = classify_vitals(dict(v), age=st.session_state.profile.get("age")) or {}
+    except Exception:
+        status = {}
+    dot = {"green": "#10B981", "yellow": "#F59E0B", "red": "#EF4444"}
+    items = []
+    def chip(icon, val, key):
+        c = dot.get(status.get(key, ""), "#98A2C8")
+        items.append(f'<span class="ask-chip" style="font-size:13px;padding:6px 12px;"><span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:{c};margin-right:6px;vertical-align:1px;"></span>{icon} {val}</span>')
+    if v.get("hr"): chip("❤️", f"{v['hr']} bpm", "hr")
+    if v.get("bp_sys") and v.get("bp_dia"): chip("🩺", f"{v['bp_sys']}/{v['bp_dia']} mmHg", "bp")
+    if v.get("spo2"): chip("🫁", f"SpO₂ {v['spo2']}%", "spo2")
+    if v.get("temp"): chip("🌡️", f"{v['temp']}°C", "temp")
+    if v.get("br"): chip("💨", f"{v['br']}/min", "br")
+    if v.get("hrv"): chip("〰️", f"HRV {v['hrv']} ms", "hrv")
+    if v.get("bmi"): chip("⚖️", f"BMI {v['bmi']}", "bmi")
+    if not items:
+        return
+    st.markdown(f'<div style="background:#fff;border:1px solid #E1E5F4;border-radius:18px;padding:12px 14px;margin:0 0 12px;">'
+                f'<div style="font-size:12px;font-weight:700;color:#5A6388;margin:0 2px 8px;">{"ΖΩΤΙΚΑ" if el else "VITALS"}</div>'
+                f'<div class="ask-chips" style="margin:0;">{"".join(items)}</div></div>', unsafe_allow_html=True)
     if st.session_state.vitals_analysis:
-        with st.expander("📋 Ανάλυση ζωτικών" if st.session_state.lang=="el" else "📋 Vitals analysis"):
+        with st.expander("📋 " + ("Τι δείχνουν τα ζωτικά σου" if el else "What your vitals show")):
             st.markdown(st.session_state.vitals_analysis)
 
 def render_photo_scan():
@@ -7291,9 +7393,9 @@ def _render_lab_upload_widget(p, lang, key_prefix=""):
         st.caption(("✅ Αναλύθηκαν: " if lang=="el" else "✅ Analysed: ")
                    + ", ".join(_lf_names))
     elif not lab_files:
-        st.info("👆 " + ("Ανεβάστε PDF ή φωτογραφία για να ξεκινήσει η ανάλυση"
-                         if lang=="el" else
-                         "Upload a PDF or photo to begin analysis"))
+        st.caption("👆 " + ("Ανέβασε PDF ή φωτογραφία — μετά πάτα «Ανάλυση»."
+                            if lang=="el" else
+                            "Upload a PDF or photo — then press 'Analyse'."))
 
 
 # Conversation-scoped state cleared by "Start again" (profile + vitals are kept).
@@ -8692,6 +8794,21 @@ def render_emergency_resources(lang):
 """, unsafe_allow_html=True)
 
 
+def _finish_page():
+    if st.session_state.get("_page_finished"):
+        return
+    st.session_state["_page_finished"] = True
+    _priv_lbl = "🔒 Τα δεδομένα μου & GDPR" if st.session_state.lang == "el" else "🔒 My data & GDPR"
+    st.markdown(
+        f'<div class="ask-footer" dir="{"rtl" if is_rtl() else "ltr"}">{t("hal_footer")}<br>'
+        f'<a href="?page=privacy" target="_self">{_priv_lbl}</a></div>',
+        unsafe_allow_html=True,
+    )
+    _autosave_assessment()   # keep a signed-in user's assessment safe
+    st.markdown('<div class="bottom-nav-spacer"></div>', unsafe_allow_html=True)
+    render_bottom_nav()
+
+
 def render_report():
     render_stepper("report")
     p=st.session_state.profile; lang=st.session_state.lang
@@ -8714,23 +8831,35 @@ def render_report():
         # gated behind its own explicit confirm button so the report doesn't
         # start generating the instant this screen loads.
         if not st.session_state.get("_report_gen_confirmed"):
-            st.markdown(
-                ("#### 📎 Ξέχασες κάποια εξέταση ή φωτογραφία;" if lang=="el"
-                 else "#### 📎 Forgot to upload a test or photo?")
-            )
-            st.caption(
-                "Τελευταία ευκαιρία να την προσθέσεις πριν δημιουργηθεί η τελική αναφορά — "
-                "θα ληφθεί υπόψη μαζί με όλα τα υπόλοιπα."
-                if lang=="el" else
-                "Last chance to add it before the final report is generated — "
-                "it will be taken into account along with everything else."
-            )
-            _render_lab_upload_widget(p, lang, key_prefix="finalstep_")
-            st.markdown("---")
-            if st.button(
-                "✅ " + ("Δημιουργία Τελικής Αναφοράς" if lang=="el" else "Generate Final Report"),
-                type="primary", use_container_width=True, key="confirm_report_gen",
-            ):
+            _el = (lang == "el")
+            _nmsg = sum(1 for m in st.session_state.triage_chat if m["role"] == "user")
+            _nph = len(st.session_state.get("photo_findings") or [])
+            _nlab = len(st.session_state.get("lab_findings") or [])
+            _bits = [f"💬 {_nmsg} " + ("απαντήσεις" if _el else "answers")]
+            if st.session_state.vitals: _bits.append("❤️ " + ("ζωτικά" if _el else "vitals"))
+            if _nph: _bits.append(f"📷 {_nph} " + ("φωτογραφίες" if _el else "photos"))
+            if _nlab: _bits.append(f"🧪 {_nlab} " + ("εξετάσεις" if _el else "lab results"))
+            with st.container(border=True):
+                st.markdown('<div class="ask-card-marker"></div>', unsafe_allow_html=True)
+                st.markdown(
+                    f'<span class="ask-eyebrow light">{"ΒΗΜΑ 4 · ΑΝΑΦΟΡΑ" if _el else "STEP 4 · REPORT"}</span>'
+                    f'<div style="font-family:Sora,Inter,sans-serif;font-size:21px;font-weight:700;color:#0A1030;letter-spacing:-.02em;margin:12px 0 4px;">'
+                    + ("Η αναφορά σου είναι έτοιμη να δημιουργηθεί" if _el else "Your report is ready to be created") + '</div>'
+                    f'<div style="font-size:13.5px;color:#5A6388;line-height:1.55;margin-bottom:10px;">'
+                    + ("Ο Asklepios θα συνδυάσει όλα όσα του είπες σε μια επίσημη αναφορά για τον γιατρό σου, με βιβλιογραφία PubMed. Χρειάζεται περίπου 30–60 δευτερόλεπτα."
+                       if _el else "Asklepios will combine everything you told it into an official report for your doctor, with PubMed references. It takes about 30–60 seconds.")
+                    + '</div>'
+                    f'<div class="ask-chips" style="margin:0 0 4px;">{"".join(f"<span class=ask-chip>{b}</span>" for b in _bits)}</div>',
+                    unsafe_allow_html=True)
+                _go_rep = st.button(
+                    "📄 " + ("Δημιουργία τελικής αναφοράς" if _el else "Create the final report"),
+                    type="primary", use_container_width=True, key="confirm_report_gen")
+            with st.expander("📎 " + ("Ξέχασες κάποια εξέταση ή φωτογραφία; Πρόσθεσέ την πριν (προαιρετικό)" if _el
+                                     else "Forgot a test or photo? Add it first (optional)")):
+                _render_lab_upload_widget(p, lang, key_prefix="finalstep_")
+            if st.button("← " + ("Πίσω στη συζήτηση" if _el else "Back to the chat"), key="report_back_chat"):
+                st.session_state.screen = "triage"; st.rerun()
+            if _go_rep:
                 # Gate the ACTUAL expensive call here, on the click — not on
                 # merely rendering this screen. The old check ran on every
                 # rerun of this branch (landing on the tab, interacting with
@@ -8739,9 +8868,11 @@ def render_report():
                 # button, leaving them stuck on a "wait Xs" screen with no
                 # button to retry — nothing to actually wait out.
                 if not _rate_limit_gate("report_generation"):
+                    _finish_page()
                     st.stop()
                 st.session_state["_report_gen_confirmed"] = True
                 st.rerun()
+            _finish_page()
             st.stop()
         conversation="\n".join(f"{'Patient' if m['role']=='user' else 'Asklepios'}: {m['content']}" for m in st.session_state.triage_chat)
         vitals_text="\n".join(f"- {k}: {v}" for k,v in st.session_state.vitals.items()) if st.session_state.vitals else "Not provided"
@@ -9175,24 +9306,33 @@ Rewrite ONLY the "{_plan_hdr}" section, grounding it in what these specific abst
   font-weight: 700 !important;
   margin: 16px 0 8px !important;
 }}
+.rep-head {{ display:flex; justify-content:space-between; align-items:flex-start; gap:12px;
+  padding-bottom:14px; margin-bottom:14px; border-bottom:1px solid #EEF1FC; }}
+.rep-name {{ font-family:'Sora','Inter',sans-serif; font-size:18px; font-weight:700; color:#0A1030; margin-top:8px; }}
+.rep-date {{ font-family:'JetBrains Mono',monospace; font-size:12px; color:#5A6388; white-space:nowrap; padding-top:2px; }}
 @media (max-width: 640px) {{
   .report-card {{ padding: 20px 18px; }}
   .aller-meds {{ grid-template-columns: 1fr; gap: 10px; }}
   .assessment-section-header {{ padding: 12px 16px; }}
 }}
 </style>
-<div class="report-card">
-  <div class="report-card-title"><span class="rct-icon">📑</span>{TX['patient_info']}</div>
-  {(f'<div class="history-block"><div class="hb-lbl">📋 {TX["history_lbl"]}</div><div>{history}</div></div>') if history_raw else ''}
-  {('<div class="aller-meds">' + ((f'<div class="aller-box"><div class="am-lbl">🔴 {TX["allergies_lbl"]}</div><div class="am-val">{allergies}</div></div>') if allergies_raw else '') + ((f'<div class="meds-box"><div class="am-lbl">💊 {TX["meds_lbl"]}</div><div class="am-val">{meds_html}</div></div>') if meds_list else '') + '</div>') if (allergies_raw or meds_list) else ''}
-  {(f'<div style="font-size:13px;color:#5A6388;">{_pt_line}</div>') if not (history_raw or allergies_raw or meds_list) else ''}
-</div>
-<div class="assessment-section-header">
-  <span class="ash-icon">📋</span>
-  <span class="ash-title">{TX['assessment_title']}</span>
-</div>
 """, unsafe_allow_html=True)
-    st.markdown(st.session_state.report)
+    import html as _hrep
+    _rep_head = _hrep.escape(" · ".join(str(x) for x in [p.get("name"), (f"{p.get('age')} " + ("ετών" if lang=="el" else "yrs")) if p.get("age") else None, p.get("sex")] if x))
+    _rep_card = st.container(border=True)
+    with _rep_card:
+        st.markdown('<div class="ask-card-marker"></div>', unsafe_allow_html=True)
+        st.markdown(f"""
+<div class="rep-head">
+  <div><span class="ask-eyebrow light">{"ΚΛΙΝΙΚΗ ΑΞΙΟΛΟΓΗΣΗ" if lang=="el" else "CLINICAL ASSESSMENT"}</span>
+  <div class="rep-name">{_rep_head or TX['patient_info']}</div></div>
+  <div class="rep-date">{datetime.now().strftime('%d.%m.%Y')}</div>
+</div>
+{(f'<div class="history-block"><div class="hb-lbl">📋 {TX["history_lbl"]}</div><div>{history}</div></div>') if history_raw else ''}
+{('<div class="aller-meds">' + ((f'<div class="aller-box"><div class="am-lbl">🔴 {TX["allergies_lbl"]}</div><div class="am-val">{allergies}</div></div>') if allergies_raw else '') + ((f'<div class="meds-box"><div class="am-lbl">💊 {TX["meds_lbl"]}</div><div class="am-val">{meds_html}</div></div>') if meds_list else '') + '</div>') if (allergies_raw or meds_list) else ''}
+{(f'<div style="font-size:13px;color:#5A6388;margin-bottom:4px;">{("Χωρίς γνωστό ιστορικό, αλλεργίες ή φάρμακα" if lang=="el" else "No known history, allergies or medication")}</div>') if not (history_raw or allergies_raw or meds_list) else ''}
+""", unsafe_allow_html=True)
+        st.markdown(st.session_state.report)
     if st.session_state.get("_report_possibly_incomplete"):
         st.warning(
             "⚠️ Η αναφορά μπορεί να έχει κοπεί πρόωρα (π.χ. λόγω μεγάλου όγκου εξετάσεων) και "
@@ -9517,6 +9657,26 @@ if auth_enabled() and not is_logged_in():
         # Cookie restore = returning user; skip the hero landing for this session.
         st.session_state.setdefault("_hero_seen", True)
 
+# Laptop → phone QR: single-use sign-in token, so the phone opens signed in and
+# continues the SAME assessment (no new email code, no "continue?" question).
+_h_q = st.query_params.get("h")
+if _h_q:
+    try: del st.query_params["h"]
+    except Exception: pass
+    if auth_enabled():
+        _h_em = _redeem_handoff_token(_h_q)
+        if _h_em and st.session_state.get("auth_user") in (None, "", _h_em):
+            st.session_state["auth_user"] = _h_em
+            st.session_state["_hero_seen"] = True
+            st.session_state["_resume_checked"] = True
+            _h_dr = load_draft(_h_em)
+            if _h_dr and _h_dr.get("v") == 2:
+                _apply_saved_assessment(_h_dr)
+                st.session_state["_autosave_sig"] = None
+                st.session_state["_last_saved_at"] = _h_dr.get("saved_at")
+        elif not _h_em:
+            st.session_state["_handoff_expired"] = True
+
 # Restore after an interrupted photo analysis. If a mobile browser suspends the
 # tab mid-analysis (screen lock / app switch during the ~seconds-long spinner),
 # the Streamlit session can be lost and the page reloads into a fresh session —
@@ -9648,6 +9808,25 @@ if st.query_params.get("admin") == "1":
         render_admin_panel()
     st.stop()
 
+# ── Offer to continue a saved assessment (once per browser session) ─────────
+if (auth_enabled() and is_logged_in() and not st.session_state.get("_resume_checked")
+        and not st.session_state.get("_from_facescan")
+        and not st.session_state.get("_resume_loaded")
+        and not st.session_state.triage_chat):
+    st.session_state["_resume_checked"] = True
+    _saved = load_draft(st.session_state.get("auth_user", ""))
+    if _saved and _saved.get("v") == 2:
+        _age_days = (time.time() - float(_saved.get("saved_at") or 0)) / 86400
+        _has = bool(_saved.get("triage_chat") or ((_saved.get("dossier") or {}).get("exams")) or _saved.get("report"))
+        if _age_days > RESUME_MAX_DAYS or not _has:
+            delete_draft(st.session_state.get("auth_user", ""))
+        else:
+            st.session_state["_resume_offer"] = _saved
+            # Skip the landing page: show the "continue" card straight away.
+            st.session_state["_hero_seen"] = True
+            if st.session_state.get("screen") not in ("home", "intake", "triage", "vitals", "longevity", "dossier"):
+                st.session_state.screen = "home"
+
 # ── HERO LANDING — shown once per session to every visitor ───────────────────
 # The hero is shown to EVERY visitor on their first page load of the session.
 # It serves as both the marketing landing AND the login form entry point.
@@ -9670,20 +9849,6 @@ if auth_enabled() and not is_logged_in():
 if CM is not None and is_logged_in() and not st.session_state.get("_cookie_synced"):
     _save_login_cookie(st.session_state.get("auth_user", ""))
     st.session_state["_cookie_synced"] = True
-# ── Offer to continue a saved assessment (once per browser session) ─────────
-if (auth_enabled() and is_logged_in() and not st.session_state.get("_resume_checked")
-        and not st.session_state.get("_from_facescan")
-        and not st.session_state.get("_resume_loaded")
-        and not st.session_state.triage_chat):
-    st.session_state["_resume_checked"] = True
-    _saved = load_draft(st.session_state.get("auth_user", ""))
-    if _saved and _saved.get("v") == 2:
-        _age_days = (time.time() - float(_saved.get("saved_at") or 0)) / 86400
-        _has = bool(_saved.get("triage_chat") or ((_saved.get("dossier") or {}).get("exams")) or _saved.get("report"))
-        if _age_days > RESUME_MAX_DAYS or not _has:
-            delete_draft(st.session_state.get("auth_user", ""))
-        else:
-            st.session_state["_resume_offer"] = _saved
 # (Historical note, superseded by the autosave above for signed-in users:)
 # NOTE: the encrypted draft is NOT saved on every clean render. It is saved only
 # when about to leave for an external page (face scan) via
@@ -9703,6 +9868,7 @@ if _go_q in _HANDOFF_SCREENS and not st.session_state.get("_go_done"):
     try: del st.query_params["go"]
     except Exception: pass
 
+st.session_state["_page_finished"] = False
 screen=st.session_state.screen
 render_topbar()
 # RTL global override — applied once per render for Arabic/Hebrew/Urdu/Lebanese
@@ -9733,27 +9899,16 @@ if st.session_state.pop("_resume_restored", False):
              "↩️ The connection dropped during photo analysis — your assessment has been restored right where you left off."))
 if st.session_state.get("_resume_offer") and screen in ("home", "intake", "triage", "vitals", "longevity", "dossier"):
     render_resume_offer()
-if   screen=="home":   render_home()
-elif screen=="intake": render_intake()
-elif screen=="vitals": render_vitals()
-elif screen=="triage": render_triage()
-elif screen=="report": render_report()
-elif screen=="history": render_history()
-elif screen=="dossier": render_dossier()
-elif screen=="longevity": render_longevity()
-else: render_home()
-
-# HAL 3-style footer disclaimer on every in-app screen
-_priv_lbl = "🔒 Τα δεδομένα μου & GDPR" if st.session_state.lang == "el" else "🔒 My data & GDPR"
-st.markdown(
-    f'<div class="ask-footer" dir="{"rtl" if is_rtl() else "ltr"}">{t("hal_footer")}<br>'
-    f'<a href="?page=privacy" target="_self">{_priv_lbl}</a></div>',
-    unsafe_allow_html=True,
-)
-
-# Keep a signed-in user's assessment safe if they leave the page.
-_autosave_assessment()
-
-# Top nav bar — spacer pushes content below the fixed bar at the top.
-st.markdown('<div class="bottom-nav-spacer"></div>', unsafe_allow_html=True)
-render_bottom_nav()
+try:
+    if   screen=="home":   render_home()
+    elif screen=="intake": render_intake()
+    elif screen=="vitals": render_vitals()
+    elif screen=="triage": render_triage()
+    elif screen=="report": render_report()
+    elif screen=="history": render_history()
+    elif screen=="dossier": render_dossier()
+    elif screen=="longevity": render_longevity()
+    else: render_home()
+finally:
+    # Footer + autosave + top nav even when a screen calls st.stop()
+    _finish_page()
