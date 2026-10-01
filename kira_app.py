@@ -19,6 +19,7 @@ import re, uuid
 import dossier as _dossier
 import longevity as _lg
 import practice_demo as _pdemo
+import ui_i18n as _i18n
 import copy as _copy
 from pulse_component import pulse_component as _pulse_component
 
@@ -765,7 +766,7 @@ div[data-testid="stHorizontalBlock"]:has(.topbar-marker) > div[data-testid="stCo
 }
 div[data-testid="stElementContainer"]:has(.topbar-marker){ display:none !important; }
 [data-testid="stChatMessageContent"]{ min-width: 0; overflow-wrap: anywhere; }
-[data-testid="stHeader"]{ background: transparent !important; }
+[data-testid="stHeader"]{ display: none !important; }  /* it sat on top of our menu and swallowed its clicks */
 .main .block-container, [data-testid="stMainBlockContainer"]{ max-width: 980px; padding-top: 2.2rem !important; }
 
 /* Headings in Sora, like the site */
@@ -5076,7 +5077,7 @@ div[data-testid="stHorizontalBlock"]:has(.bn-marker) button[kind="primary"] p {
                          use_container_width=True,
                          type=("primary" if is_active else "secondary")):
                 st.session_state["_dossier_from"] = None
-                if key not in ("home", "dossier") and not has_profile:
+                if key == "triage" and not has_profile:
                     st.session_state.screen = "intake"
                 else:
                     st.session_state.screen = key
@@ -7382,7 +7383,7 @@ def render_vitals_summary():
                 f'<div class="ask-chips" style="margin:0;">{"".join(items)}</div></div>', unsafe_allow_html=True)
     if st.session_state.vitals_analysis:
         with st.expander("📋 " + ("Τι δείχνουν τα ζωτικά σου" if el else "What your vitals show")):
-            st.markdown(st.session_state.vitals_analysis)
+            _md_raw(st.session_state.vitals_analysis)
 
 def render_photo_scan():
     """Photo health analysis (Florence-2 + Claude Vision). Lives inside the assessment."""
@@ -7559,7 +7560,7 @@ def render_photo_scan():
     if preview:
         analysis = preview["analysis"]
         st.markdown('<div class="card">', unsafe_allow_html=True)
-        st.markdown(analysis)
+        _md_raw(analysis)
         st.markdown('</div>', unsafe_allow_html=True)
 
         urgent_kw = ["urgent","immediate","επείγον","άμεσα","ιατρό αμέσως","emergency","melanoma","cancer","carcinoma","καρκίν"]
@@ -7687,7 +7688,7 @@ def _render_lab_upload_widget(p, lang, key_prefix=""):
                             continue
 
                         st.markdown(f"#### 📄 {lab_file.name}")
-                        st.markdown(analysis)
+                        _md_raw(analysis)
 
                         # Add to findings + inject into triage chat
                         _lf = st.session_state.get("lab_findings")
@@ -7847,7 +7848,7 @@ def render_triage():
         render_case_panel(p)
     if st.session_state.vitals_analysis:
         with st.expander("📋 " + ("Τι δείχνουν τα ζωτικά σου" if st.session_state.lang=="el" else "What your vitals show")):
-            st.markdown(st.session_state.vitals_analysis)
+            _md_raw(st.session_state.vitals_analysis)
     # Live emergency banner — shown immediately once the code-level safety gate
     # (_set_emergency_from_text) has detected a red flag in any assistant reply
     # this session, not only at the end when the final report is generated.
@@ -7910,7 +7911,7 @@ div[data-testid="stVerticalBlock"]:has(> div[data-testid="stElementContainer"] .
                     st.session_state.triage_chat.append({"role":"user","content":msg}); st.session_state.symptom_chips=[]; st.rerun()
     for msg in st.session_state.triage_chat:
         with st.chat_message(msg["role"], avatar="🩺" if msg["role"]=="assistant" else None):
-            st.markdown(msg["content"])
+            _md_raw(msg["content"])
     # Confirmation after a photo was added — guide the user to keep answering
     if st.session_state.get("photo_added"):
         last_q = next((m["content"] for m in reversed(st.session_state.triage_chat) if m["role"]=="assistant"), "")
@@ -7919,7 +7920,8 @@ div[data-testid="stVerticalBlock"]:has(> div[data-testid="stElementContainer"] .
         else:
             st.success("✅ The image analysis was added to the assessment. Continue by answering Asklepios's last question below.")
         if last_q:
-            st.info(("🩺 Τελευταία ερώτηση: " if st.session_state.lang=="el" else "🩺 Last question: ") + last_q)
+            with _no_translate():
+                st.info(("🩺 Τελευταία ερώτηση: " if st.session_state.lang=="el" else "🩺 Last question: ") + last_q)
     # Same confirmation pattern for lab results — keeps the user on track
     if st.session_state.get("lab_added"):
         last_q = next((m["content"] for m in reversed(st.session_state.triage_chat) if m["role"]=="assistant"), "")
@@ -9136,6 +9138,7 @@ def _finish_page():
     _autosave_assessment()   # keep a signed-in user's assessment safe
     st.markdown('<div class="bottom-nav-spacer"></div>', unsafe_allow_html=True)
     render_bottom_nav()
+    _i18n_flush()
 
 
 def render_report():
@@ -9661,7 +9664,7 @@ Rewrite ONLY the "{_plan_hdr}" section, grounding it in what these specific abst
 {('<div class="aller-meds">' + ((f'<div class="aller-box"><div class="am-lbl">🔴 {TX["allergies_lbl"]}</div><div class="am-val">{allergies}</div></div>') if allergies_raw else '') + ((f'<div class="meds-box"><div class="am-lbl">💊 {TX["meds_lbl"]}</div><div class="am-val">{meds_html}</div></div>') if meds_list else '') + '</div>') if (allergies_raw or meds_list) else ''}
 {(f'<div style="font-size:13px;color:#5A6388;margin-bottom:4px;">{("Χωρίς γνωστό ιστορικό, αλλεργίες ή φάρμακα" if lang=="el" else "No known history, allergies or medication")}</div>') if not (history_raw or allergies_raw or meds_list) else ''}
 """, unsafe_allow_html=True)
-        st.markdown(st.session_state.report)
+        _md_raw(st.session_state.report)
     if st.session_state.get("_report_possibly_incomplete"):
         st.warning(
             "⚠️ Η αναφορά μπορεί να έχει κοπεί πρόωρα (π.χ. λόγω μεγάλου όγκου εξετάσεων) και "
@@ -9703,7 +9706,7 @@ Rewrite ONLY the "{_plan_hdr}" section, grounding it in what these specific abst
                 f'<div class="pf-body">{_analysis}</div>'
                 f'</div>'
             )
-        st.markdown(
+        _md_raw(
             f'<style>'
             f'.pf-card{{background:white;border:1px solid #E1E5F4;border-radius:22px;padding:24px 24px 22px;margin:18px 0;font-family:Inter,system-ui,sans-serif;box-shadow:0 2px 10px rgba(99,102,241,0.05)}}'
             f'.pf-title{{font-size:13.5px;font-weight:800;letter-spacing:0.01em;color:#0A1030;border-bottom:1px solid #EEF1FC;padding-bottom:14px;margin-bottom:16px}}'
@@ -9739,7 +9742,7 @@ Rewrite ONLY the "{_plan_hdr}" section, grounding it in what these specific abst
                 f'<div class="lf-body">{_an}</div>'
                 f'</div>'
             )
-        st.markdown(
+        _md_raw(
             f'<style>'
             f'.lf-card{{background:white;border:1px solid #E1E5F4;border-radius:22px;padding:24px 24px 22px;margin:18px 0;font-family:Inter,system-ui,sans-serif;box-shadow:0 2px 10px rgba(99,102,241,0.05)}}'
             f'.lf-title{{font-size:13.5px;font-weight:800;letter-spacing:0.01em;color:#0A1030;border-bottom:1px solid #EEF1FC;padding-bottom:14px;margin-bottom:16px}}'
@@ -9872,7 +9875,7 @@ Rewrite ONLY the "{_plan_hdr}" section, grounding it in what these specific abst
                         st.session_state.report_gpt = gpt4o(prompt=_gpt_prompt, system=kira_system(), max_tokens=900)
                     st.rerun()
             else:
-                st.markdown(st.session_state.report_gpt)
+                _md_raw(st.session_state.report_gpt)
                 # Integration: if the second opinion adds value, the user can fold
                 # it into the main report so it shows up in the on-screen assessment
                 # AND in every downstream export (PDF/HTML/TXT/WhatsApp).
@@ -9975,6 +9978,69 @@ if CM is not None:
         _all_cookies = CM.get_all() or {}
     except Exception:
         _all_cookies = {}
+
+# ── INTERFACE TRANSLATION for languages without hand-written strings ─────────
+# (ui_i18n.py). Greek is native; English is native except stray Greek text;
+# every other language is translated once per string and cached for everyone.
+@st.cache_resource
+def _ui_translator():
+    return _i18n.Translator(
+        get_claude_key,
+        load_blob=lambda lang: get_setting(f"ui_i18n_{lang}"),
+        save_blob=lambda lang, blob: set_setting(f"ui_i18n_{lang}", blob),
+        log=log_event,
+    )
+
+def _i18n_enabled():
+    try:
+        return st.session_state.get("lang", "el") != "el" and not st.session_state.get("_no_tr", 0)
+    except Exception:
+        return False
+
+def _i18n_translate(text):
+    lang = st.session_state.get("lang", "el")
+    out, miss = _ui_translator().tr(lang, text)
+    if miss:
+        st.session_state.setdefault("_tr_miss", set()).update(miss)
+    return out
+
+class _no_translate:
+    """Render AI-written or user-written content as it is."""
+    def __enter__(self):
+        st.session_state["_no_tr"] = st.session_state.get("_no_tr", 0) + 1
+    def __exit__(self, *a):
+        st.session_state["_no_tr"] = max(0, st.session_state.get("_no_tr", 1) - 1)
+
+def _md_raw(*a, **k):
+    with _no_translate():
+        return st.markdown(*a, **k)
+
+def _i18n_flush():
+    """Translate what this page showed in the original language, then re-render."""
+    miss = st.session_state.pop("_tr_miss", None)
+    lang = st.session_state.get("lang", "el")
+    if not miss or lang == "el" or not (get_claude_key() or os.environ.get("ASK_I18N_FAKE")):
+        st.session_state["_tr_reruns"] = 0     # page complete — allow the next one to translate
+        return
+    if st.session_state.get("_tr_reruns", 0) >= 2:      # never loop
+        st.session_state["_tr_reruns"] = 0
+        return
+    _name = (OUTPUT_LANGUAGES.get(lang) or (lang, lang))[1]
+    with _no_translate():
+        st.toast("🌐 …")
+    if _ui_translator().flush(lang, _name, list(miss)):
+        st.session_state["_tr_reruns"] = st.session_state.get("_tr_reruns", 0) + 1
+        st.rerun()
+    st.session_state["_tr_reruns"] = 0
+
+# ?lang=fr opens the app in that language (handy for sharing a link)
+_lang_q = st.query_params.get("lang")
+if _lang_q in OUTPUT_LANGUAGES and not st.session_state.get("_lang_q_done"):
+    st.session_state["_lang_q_done"] = True
+    st.session_state.lang = _lang_q
+
+st.session_state["_no_tr"] = 0
+_i18n.install(st, _i18n_translate, enabled=_i18n_enabled)
 
 # Restore login from the signed cookie (keeps the user signed in across reloads /
 # new tabs — e.g. the tab returning from the external face scan).
@@ -10126,6 +10192,7 @@ if (st.session_state.get("_from_facescan") and st.session_state.vitals
 # session to discover or use.
 if st.query_params.get("page") == "privacy":
     render_privacy_page()
+    _i18n_flush()
     st.stop()
 
 # ── ADMIN ROUTING ────────────────────────────────────────────────────────────
@@ -10163,6 +10230,7 @@ if (auth_enabled() and is_logged_in() and not st.session_state.get("_resume_chec
 # they proceed. The LOGIN GATE below then enforces auth if Supabase is active.
 if not st.session_state.get("_hero_seen"):
     render_login_screen()
+    _i18n_flush()
     st.stop()
 
 # ── LOGIN GATE ────────────────────────────────────────────────────────────────
@@ -10170,6 +10238,7 @@ if not st.session_state.get("_hero_seen"):
 # If auth is not configured (local dev / missing secrets), let through.
 if auth_enabled() and not is_logged_in():
     render_login_screen()
+    _i18n_flush()
     st.stop()
 
 # ── PERSIST login cookie on a CLEAN render pass ───────────────────────────────
@@ -10202,6 +10271,9 @@ st.session_state["_page_finished"] = False
 if (st.session_state.get("practice") or {}).get("current") and not (
         st.session_state.screen == "dossier" and st.session_state.get("_dossier_from") == "practice"):
     _practice_close()
+# The symptom chat needs at least a name — send people to "your details" first.
+if st.session_state.screen == "triage" and not (st.session_state.profile or {}).get("name"):
+    st.session_state.screen = "intake"
 screen=st.session_state.screen
 render_topbar()
 # RTL global override — applied once per render for Arabic/Hebrew/Urdu/Lebanese
