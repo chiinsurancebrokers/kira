@@ -80,6 +80,8 @@ var T = {
   rest_p:"60 δευτερόλεπτα, καθιστός/ή, ήρεμα. Η κάμερα «βλέπει» το αίμα να περνάει από το δάχτυλο — κάθε παλμός αλλάζει ελάχιστα το χρώμα.",
   rest_steps:["Κάθισε 2 λεπτά πριν, χωρίς να μιλάς.","Ακούμπησε <b>ελαφρά</b> την άκρη του δείκτη πάνω στην κάμερα (και στο φλας) — μην πιέζεις.","Στήριξε το χέρι στο τραπέζι και μείνε ακίνητος/η."],
   cam_rear:"📷 Πίσω κάμερα + φλας", cam_front:"🤳 Μπροστινή (η οθόνη φωτίζει)",
+  desk_steps:["Δυνάμωσε στο τέρμα τη φωτεινότητα της οθόνης.","Ακούμπησε <b>ελαφρά</b> την άκρη του δείκτη πάνω στην κάμερα του laptop (πάνω από την οθόνη) — να την καλύπτει όλη.","Στήριξε τον αγκώνα στο τραπέζι και μείνε ακίνητος/η. Η οθόνη θα γίνει λευκή για να φωτίζει το δάχτυλο."],
+  desk_note:"Στο laptop η μέτρηση είναι λιγότερο ακριβής από το κινητό — αν το HRV δεν βγει, χρησιμοποίησε το κινητό.",
   start:"Ξεκίνα τη μέτρηση", need_cam:"Χρειάζεται πρόσβαση στην κάμερα.",
   put_finger:"Βάλε το δάχτυλο στην κάμερα", finger_ok:"✓ Σωστή τοποθέτηση — μην κουνιέσαι", finger_lost:"Το δάχτυλο μετακινήθηκε — ξανά πάνω στην κάμερα",
   secs:"δευτ.", bpm:"παλμοί/λεπτό", analysing:"Ανάλυση…",
@@ -101,6 +103,8 @@ var T = {
   rest_p:"60 seconds, seated and calm. The camera sees blood flowing through your fingertip — every beat changes its colour very slightly.",
   rest_steps:["Sit quietly for 2 minutes first, without talking.","Rest your index fingertip <b>lightly</b> on the camera (and flash) — don't press.","Rest your hand on a table and keep still."],
   cam_rear:"📷 Back camera + flash", cam_front:"🤳 Front (screen as light)",
+  desk_steps:["Turn screen brightness all the way up.","Rest your index fingertip <b>lightly</b> on the laptop camera (above the screen) — cover it completely.","Rest your elbow on the table and keep still. The screen turns white to light your finger."],
+  desk_note:"On a laptop this is less accurate than on a phone — if HRV doesn't come out, use your phone.",
   start:"Start measuring", need_cam:"Camera access is needed.",
   put_finger:"Place your finger on the camera", finger_ok:"✓ Good placement — keep still", finger_lost:"Finger moved — back on the camera",
   secs:"sec", bpm:"beats/min", analysing:"Analysing…",
@@ -122,6 +126,8 @@ var L = function(k){ var lang = (ARGS && ARGS.lang === "en") ? "en" : "el"; retu
 // ── Camera + light ──────────────────────────────────────────────────────────
 var vid = document.getElementById("vid"), grab = document.getElementById("grab"), gctx = grab.getContext("2d", {willReadFrequently:true});
 var stream = null, track = null, camMode = "rear", torchOK = false, wakeLock = null;
+// Laptops/desktops have only the webcam above the screen: no rear camera, no flash.
+var IS_DESKTOP = !(window.matchMedia && window.matchMedia("(pointer:coarse)").matches) && !/Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent);
 function openCamera(mode){
   camMode = mode;
   closeCamera();
@@ -199,6 +205,7 @@ function drawWave(cv, vals){
   ctx.stroke();
 }
 function camSeg(){
+  if (IS_DESKTOP) return '<p class="note">💻 '+L("desk_note")+'</p>';
   return '<div class="seg"><button id="cRear" class="'+(camMode==="rear"?"on":"")+'">'+L("cam_rear")+'</button><button id="cFront" class="'+(camMode==="front"?"on":"")+'">'+L("cam_front")+'</button></div>';
 }
 function bindSeg(render){
@@ -212,7 +219,7 @@ function bindSeg(render){
 // ════════════════════════════════════════════════════════════════════════════
 function restIntro(msg){
   html('<div class="card"><span class="eyebrow">'+L("rest_eb")+'</span><h2>'+L("rest_h")+'</h2><p>'+L("rest_p")+'</p><ol>'+
-    L("rest_steps").map(function(s){return "<li>"+s+"</li>";}).join("")+'</ol>'+camSeg()+
+    L(IS_DESKTOP ? "desk_steps" : "rest_steps").map(function(s){return "<li>"+s+"</li>";}).join("")+'</ol>'+camSeg()+
     (msg?'<p class="status bad" style="text-align:left">'+msg+'</p>':'')+
     '<button class="btn primary" id="go">'+L("start")+'</button></div>');
   bindSeg(function(){ restIntro(msg); });
@@ -382,7 +389,7 @@ function showStep(r){
 }
 
 function init(){
-  camMode = ARGS.camera === "front" ? "front" : "rear";
+  camMode = (IS_DESKTOP || ARGS.camera === "front") ? "front" : "rear";
   if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia){ html('<div class="card"><p class="status bad">'+L("need_cam")+'</p></div>'); return; }
   if (ARGS.mode === "step") stepIntro(); else restIntro();
 }

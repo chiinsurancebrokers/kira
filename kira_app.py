@@ -1323,14 +1323,14 @@ def _assessment_payload():
         "dossier": ({k: v for k, v in d.items() if k not in ("docx", "html")} if d else None),
     }
 
-def _autosave_assessment(force=False):
+def _autosave_assessment(force=False, allow_empty=False):
     """Save the encrypted draft if the assessment changed since the last save."""
     if not (auth_enabled() and is_logged_in()):
         return
     if st.session_state.get("_resume_offer"):
         return  # never overwrite a saved assessment the user hasn't decided about yet
     d = st.session_state.get("dossier") or {}
-    if not (st.session_state.get("triage_chat") or d.get("exams") or st.session_state.get("report")
+    if not allow_empty and not (st.session_state.get("triage_chat") or d.get("exams") or st.session_state.get("report")
             or (st.session_state.get("longevity") or {}).get("rest")):
         return
     payload = _assessment_payload()
@@ -1340,9 +1340,16 @@ def _autosave_assessment(force=False):
         return
     if not force and sig == st.session_state.get("_autosave_sig"):
         return
+    # Another device (phone after a QR hand-off) may have saved newer work:
+    # never overwrite it with this tab's older state.
+    _remote = load_draft(st.session_state.get("auth_user", "")) if not force else None
+    if _remote and _remote.get("v") == 2 and float(_remote.get("saved_at") or 0) > float(st.session_state.get("_last_saved_at") or 0) + 1:
+        st.session_state["_autosave_sig"] = sig
+        return
     payload["saved_at"] = time.time()
     save_draft(st.session_state.get("auth_user", ""), json.loads(json.dumps(payload, default=str)))
     st.session_state["_autosave_sig"] = sig
+    st.session_state["_last_saved_at"] = payload["saved_at"]
 
 def _apply_saved_assessment(dr):
     for k in _AUTOSAVE_KEYS:
@@ -1390,6 +1397,78 @@ def _restore_extras(dr):
         _dd = dict(dr["dossier"]); _dd["docx"] = None; _dd["html"] = None
         st.session_state["dossier"] = _dd
 
+# ── LAPTOP → PHONE HAND-OFF ───────────────────────────────────────────────────
+# Camera measurements work best on a phone (rear camera + flash, step test on a
+# stair). On a laptop we show a QR code: the phone opens the same screen, the
+# user signs in with the same email, and the encrypted draft carries the
+# assessment across; afterwards the laptop pulls the result back in.
+_HANDOFF_SCREENS = ("longevity", "vitals", "dossier", "triage")
+
+def _is_mobile_client():
+    try:
+        ua = st.context.headers.get("User-Agent", "") or ""
+    except Exception:
+        return True
+    return bool(re.search(r"Mobi|Android|iPhone|iPad|iPod", ua))
+
+
+def _qr_png(url):
+    try:
+        import qrcode
+        img = qrcode.make(url, box_size=8, border=2)
+        buf = _io.BytesIO(); img.save(buf, format="PNG")
+        return buf.getvalue()
+    except Exception:
+        return None
+
+
+def render_phone_handoff(target):
+    """Desktop-only card: QR to continue this screen on the phone, plus a
+    button to load the result back from the phone."""
+    if _is_mobile_client():
+        return
+    el = st.session_state.get("lang", "el") == "el"
+    base = _secret("ASKLEPIOS_URL", "https://asklepiosainurse.up.railway.app").rstrip("/")
+    url = f"{base}/?go={target}"
+    # make sure the phone finds the current assessment
+    _autosave_assessment(allow_empty=True)
+    with st.container(border=True):
+        st.markdown('<div class="ask-card-marker"></div>', unsafe_allow_html=True)
+        c1, c2 = st.columns([1, 2.4], vertical_alignment="center")
+        with c1:
+            png = _qr_png(url)
+            if png:
+                st.image(png, width=150)
+        with c2:
+            st.markdown(
+                f'<span class="ask-eyebrow light">{"ΠΙΟ ΑΚΡΙΒΕΣ ΣΤΟ ΚΙΝΗΤΟ" if el else "MORE ACCURATE ON A PHONE"}</span>'
+                f'<div style="font-family:Sora,Inter,sans-serif;font-size:18px;font-weight:700;color:#0A1030;margin:10px 0 4px;">📱 '
+                + ("Συνέχισε στο κινητό" if el else "Continue on your phone") + '</div>'
+                f'<div style="font-size:13.5px;color:#5A6388;line-height:1.55;">'
+                + (("Σκάναρε τον κωδικό με την κάμερα του κινητού και συνδέσου με το ίδιο email. "
+                    "Κάνε τη μέτρηση εκεί (πίσω κάμερα + φλας) και μετά πάτα το κουμπί εδώ για να έρθει το αποτέλεσμα.")
+                   if el else
+                   ("Scan the code with your phone camera and sign in with the same email. "
+                    "Measure there (rear camera + flash), then press the button here to bring the result back."))
+                + '</div>', unsafe_allow_html=True)
+            if auth_enabled() and is_logged_in():
+                if st.button(("↻ Έκανα τη μέτρηση στο κινητό — φέρε το αποτέλεσμα" if el
+                              else "↻ I measured on my phone — load the result"), key=f"handoff_pull_{target}",
+                             use_container_width=True):
+                    _dr = load_draft(st.session_state.get("auth_user", ""))
+                    if _dr and _dr.get("v") == 2:
+                        _apply_saved_assessment(_dr)
+                        st.session_state.screen = target
+                        st.session_state["_autosave_sig"] = None
+                        st.session_state["_last_saved_at"] = _dr.get("saved_at")
+                        st.rerun()
+                    else:
+                        st.info("Δεν βρέθηκε ακόμα αποτέλεσμα από το κινητό." if el else "No result from the phone yet.")
+            else:
+                st.caption("ℹ️ " + ("Για να μεταφερθεί το αποτέλεσμα αυτόματα, συνδέσου με email και στις δύο συσκευές."
+                                   if el else "To carry the result over automatically, sign in with email on both devices."))
+
+
 def render_resume_offer():
     dr = st.session_state.get("_resume_offer")
     if not dr:
@@ -1420,6 +1499,7 @@ def render_resume_offer():
             _apply_saved_assessment(dr)
             st.session_state.pop("_resume_offer", None)
             st.session_state["_autosave_sig"] = None
+            st.session_state["_last_saved_at"] = dr.get("saved_at")
             st.rerun()
     with c2:
         if st.button(("Νέα αρχή" if el else "Start fresh"), use_container_width=True, key="resume_no"):
@@ -6469,6 +6549,8 @@ def render_longevity():
             "3 minutes stepping on a stair, and how fast your pulse drops afterwards. "
             "It is a <b>wellness estimate</b> — not a medical test.") + '</div>', unsafe_allow_html=True)
 
+    render_phone_handoff("longevity")
+
     def _step_h(n, title, done=False):
         st.markdown(f'<div class="ask-sec-h" style="margin:22px 2px 10px;"><span class="ask-num">{n:02d}</span>{title}'
                     f'{" <span style=\"color:#059669;font-size:14px;\">✓</span>" if done else ""}</div>', unsafe_allow_html=True)
@@ -6719,6 +6801,9 @@ div[data-testid="stElementContainer"]:has(.vit-marker){ display:none !important;
 
     # Fingertip-camera pulse (60 s) — fills pulse and HRV below
     _pv = st.session_state.get("_vit_pulse_val")
+    if not _is_mobile_client():
+        with st.expander("📱 " + ("Μέτρηση με το κινητό (πιο ακριβής) — QR" if el else "Measure with your phone (more accurate) — QR")):
+            render_phone_handoff("vitals")
     with st.expander("📱 " + ("Δεν έχω συσκευή — μέτρησε σφυγμούς με το δάχτυλο στην κάμερα (60″)" if el
                              else "No device — measure your pulse with a fingertip on the camera (60″)"), expanded=False):
         _pw = pulse_widget("rest", key=f"vit_pulse_{st.session_state.get('_vit_pulse_n', 0)}", duration=60)
@@ -9558,6 +9643,18 @@ if (auth_enabled() and is_logged_in() and not st.session_state.get("_resume_chec
 # This way the user does NOT accumulate a saved conversation across general
 # re-opens — re-entering the app starts clean.
 
+# Deep link from the laptop QR code (?go=longevity …)
+_go_q = st.query_params.get("go")
+if _go_q in _HANDOFF_SCREENS and not st.session_state.get("_go_done"):
+    st.session_state["_go_done"] = True
+    _need_profile = _go_q in ("vitals", "triage") and not (st.session_state.profile or {}).get("name")
+    if not st.session_state.get("_resume_offer"):
+        st.session_state.screen = "intake" if _need_profile else _go_q
+    else:
+        st.session_state.screen = _go_q if _go_q in ("longevity", "dossier") else "home"
+    try: del st.query_params["go"]
+    except Exception: pass
+
 screen=st.session_state.screen
 render_topbar()
 # RTL global override — applied once per render for Arabic/Hebrew/Urdu/Lebanese
@@ -9586,7 +9683,7 @@ if st.session_state.pop("_resume_restored", False):
     st.info(("↩️ Η σύνδεση διακόπηκε κατά την ανάλυση φωτογραφίας — επαναφέραμε την εκτίμησή σας ακριβώς εκεί που την αφήσατε."
              if lang=="el" else
              "↩️ The connection dropped during photo analysis — your assessment has been restored right where you left off."))
-if st.session_state.get("_resume_offer") and screen in ("home", "intake", "triage", "vitals"):
+if st.session_state.get("_resume_offer") and screen in ("home", "intake", "triage", "vitals", "longevity", "dossier"):
     render_resume_offer()
 if   screen=="home":   render_home()
 elif screen=="intake": render_intake()
