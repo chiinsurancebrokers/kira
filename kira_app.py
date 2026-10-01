@@ -7582,15 +7582,15 @@ div[data-testid="stVerticalBlock"]:has(> div[data-testid="stElementContainer"] .
         # ── Optional additions, one at a time, right under the message box ──
         _tool_opts = {}
         if _suggest_vitals:
-            _tool_opts["vitals"] = ("❤️ Μετρήσεις ·" if _el else "❤️ Vitals ·") + (" προτείνεται" if _el else " suggested")
-        _tool_opts["voice"] = ("🎤 Φωνή" if _el else "🎤 Voice")
+            _tool_opts["vitals"] = ("❤️ Μέτρησε ζωτικά (προτείνεται)" if _el else "❤️ Measure vitals (suggested)")
+        _tool_opts["voice"] = ("🎤 Μίλα αντί να γράψεις" if _el else "🎤 Speak instead of typing")
         if _asst_spoke and _visual_relevant():
-            _tool_opts["photo"] = ("📷 Φωτογραφία" if _el else "📷 Photo")
+            _tool_opts["photo"] = ("📷 Στείλε φωτογραφία" if _el else "📷 Send a photo")
         if _asst_spoke:
-            _tool_opts["lab"] = ("🧪 Μία εξέταση" if _el else "🧪 One lab result")
-        _tool_opts["dossier"] = ("📁 Όλες οι εξετάσεις" if _el else "📁 All my exams")
+            _tool_opts["lab"] = ("🧪 Ανάλυση μίας εξέτασης" if _el else "🧪 Analyse one lab test")
+        _tool_opts["dossier"] = ("📁 Φάκελος όλων των εξετάσεων" if _el else "📁 Dossier of all my exams")
         _tool = st.segmented_control(
-            ("Πρόσθεσε (προαιρετικό)" if _el else "Add (optional)"),
+            ("Επιπλέον επιλογές (προαιρετικά)" if _el else "More options (optional)"),
             options=list(_tool_opts.keys()), format_func=lambda k: _tool_opts[k],
             selection_mode="single", key="triage_tool",
         )
@@ -7709,18 +7709,24 @@ div[data-testid="stVerticalBlock"]:has(> div[data-testid="stElementContainer"] .
             _wsapi_tab_lbl = ("🌐 Browser (δωρεάν, Chrome/Safari)"
                               if st.session_state.lang=="el" else
                               "🌐 Browser (free, Chrome/Safari)")
-            _v_tab1, _v_tab2 = st.tabs([_whisper_tab_lbl, _wsapi_tab_lbl])
+            # One clear panel: voice recording when speech-to-text is configured,
+            # otherwise the browser's own dictation. No technical tab names.
+            _v_tab1 = st.container(border=True)
+            _v2_ph = st.empty()
+            _v_tab2 = _v2_ph.container(border=True)
+            with _v_tab1:
+                st.markdown("**🎤 " + ("Πες την απάντησή σου με φωνή" if st.session_state.lang=="el" else "Say your answer out loud") + "**")
+                st.caption(("Πάτα το 🎙️ μικρόφωνο → μίλα κανονικά → πάτα ξανά για στοπ. "
+                            "Το κείμενο εμφανίζεται για να το ελέγξεις και μετά το στέλνεις στον Asklepios. Η ηχογράφηση δεν αποθηκεύεται.")
+                           if st.session_state.lang=="el" else
+                           ("Tap the 🎙️ microphone → speak normally → tap again to stop. "
+                            "The text appears for you to check, then you send it to Asklepios. The recording is not stored."))
 
             # ── Tab 1: st.audio_input + Whisper ──────────────────────────────────
             with _v_tab1:
                 if not _has_stt:
-                    st.info("💡 " + ("Πρόσθεσε `OPENAI_API_KEY` ή `GROQ_API_KEY` στα Railway env vars για να ενεργοποιήσεις το Whisper."
-                                     if st.session_state.lang=="el" else
-                                     "Add `OPENAI_API_KEY` or `GROQ_API_KEY` to Railway env vars to enable Whisper."))
+                    pass  # browser dictation below
                 else:
-                    st.caption("💡 " + ("Πάτησε το μικρόφωνο, μίλα φυσικά, σταμάτα. Η ηχογράφηση δεν αποθηκεύεται."
-                                        if st.session_state.lang=="el" else
-                                        "Press the microphone, speak naturally, stop. Audio is not stored."))
                     _audio = st.audio_input(
                         ("Πες τι νιώθεις" if st.session_state.lang=="el" else "Say what you feel"),
                         key=f"voice_input_widget_{st.session_state.get('_voice_widget_counter', 0)}",
@@ -7859,6 +7865,8 @@ div[data-testid="stVerticalBlock"]:has(> div[data-testid="stElementContainer"] .
                 st.caption("↑ " + ("Αντίγραψε το κείμενο και επικόλλησέ το στο chat παρακάτω."
                                     if st.session_state.lang=="el" else
                                     "Copy the text and paste it into the chat below."))
+            if _has_stt:
+                _v2_ph.empty()  # browser dictation only when voice recording isn't available
 
         # Progress / what happens next
         if _asst_spoke:
