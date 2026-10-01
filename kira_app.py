@@ -2809,9 +2809,13 @@ def render_privacy_page():
             return
 
     if lang == "el":
-        st.markdown("## 🔒 Τα δεδομένα μου & GDPR")
-        st.markdown(
-            "**Τι κρατάμε και για πόσο:**\n\n"
+        render_doc_header("Τα δεδομένα μου & GDPR", "My data & GDPR", icon="🔒",
+                          sub_el="Τι κρατάμε, για πόσο, και πώς τα σβήνεις", show_date=False)
+        _priv_card = st.container(border=True)
+        _priv_card.markdown('<div class="ask-card-marker"></div>', unsafe_allow_html=True)
+        _priv_card.markdown('<span class="ask-eyebrow light">ΤΙ ΚΡΑΤΑΜΕ ΚΑΙ ΓΙΑ ΠΟΣΟ</span>', unsafe_allow_html=True)
+        _priv_card.markdown(
+            ""
             "- **Φωτογραφίες & αρχεία εξετάσεων**: στέλνονται απευθείας στο Claude (και στο Roboflow "
             "για την προαιρετική προ-ανάλυση Florence-2) για ανάλυση και **ποτέ δεν αποθηκεύονται** "
             "σε δικό μας server ή βάση δεδομένων. Ζουν μόνο στη μνήμη του browser / στο session "
@@ -2830,9 +2834,8 @@ def render_privacy_page():
             "(Anthropic, OpenAI, Roboflow, NCBI/PubMed, RxNav) που χρειάζονται για να γίνει η "
             "ανάλυση που ζήτησες.\n"
         )
-        st.markdown("---")
-        st.markdown("### 🗑️ Διαγραφή των δεδομένων μου τώρα")
-        st.caption(
+        _del_title = "🗑️ Διαγραφή των δεδομένων μου τώρα"
+        _del_text = (
             "Αυτό θα: (1) διαγράψει κάθε αποθηκευμένο πρόχειρο, στοιχεία λογαριασμού και feedback "
             "από τη βάση μας, (2) σβήσει το cookie σύνδεσης, και (3) καθαρίσει όλα τα δεδομένα της "
             "τρέχουσας συνεδρίας (φωτογραφίες, συνομιλία, αναφορά). Η ενέργεια είναι **οριστική**."
@@ -2842,9 +2845,13 @@ def render_privacy_page():
         back_label = "← Πίσω στην εφαρμογή"
         email_label = "Email λογαριασμού (αν έχεις)"
     else:
-        st.markdown("## 🔒 My data & GDPR")
-        st.markdown(
-            "**What we keep, and for how long:**\n\n"
+        render_doc_header("Τα δεδομένα μου & GDPR", "My data & GDPR", icon="🔒",
+                          sub_en="What we keep, for how long, and how to erase it", show_date=False)
+        _priv_card = st.container(border=True)
+        _priv_card.markdown('<div class="ask-card-marker"></div>', unsafe_allow_html=True)
+        _priv_card.markdown('<span class="ask-eyebrow light">WHAT WE KEEP AND FOR HOW LONG</span>', unsafe_allow_html=True)
+        _priv_card.markdown(
+            ""
             "- **Photos & lab files**: sent directly to Claude (and Roboflow for the optional "
             "Florence-2 pre-analysis) for analysis and **never written** to our server or database. "
             "They live only in your browser's memory / session for the duration of your visit and "
@@ -2860,9 +2867,8 @@ def render_privacy_page():
             "- **Nothing is shared** with third parties beyond the AI/analysis providers (Anthropic, "
             "OpenAI, Roboflow, NCBI/PubMed, RxNav) strictly needed to produce the analysis you asked for.\n"
         )
-        st.markdown("---")
-        st.markdown("### 🗑️ Delete my data now")
-        st.caption(
+        _del_title = "🗑️ Delete my data now"
+        _del_text = (
             "This will: (1) delete any saved draft, account record, and feedback from our database, "
             "(2) clear your login cookie, and (3) wipe all current-session data (photos, chat, "
             "report). This action is **permanent**."
@@ -2872,34 +2878,56 @@ def render_privacy_page():
         back_label = "← Back to the app"
         email_label = "Account email (if you have one)"
 
-    if st.session_state.get("_gdpr_done"):
-        st.success(done_msg)
-    else:
-        _email = st.session_state.get("auth_user", "") or st.text_input(email_label, key="_gdpr_email")
-        if st.button("🗑️ " + confirm_label, type="primary"):
-            # 1) Remove anything persisted server-side for this account.
-            if _email:
-                delete_draft(_email)
-                sb = _supabase_client()
-                if sb:
-                    _t0 = time.time()
-                    try:
-                        sb.table("user_logins").delete().eq("email", _email).execute()
-                        sb.table("feedback").delete().eq("user_email", _email).execute()
-                        log_event("gdpr_delete", ok=True, ms=(time.time()-_t0)*1000)
-                    except Exception as e:
-                        log_event("gdpr_delete", ok=False, ms=(time.time()-_t0)*1000, error=str(e))
-            # 2) Clear the signed-in cookie.
-            _clear_login_cookie()
-            # 3) Wipe the entire in-memory session (photos, chat, report, prefs).
-            for k in list(st.session_state.keys()):
-                if k not in ("lang",):  # keep the language toggle for the confirmation screen
-                    st.session_state.pop(k, None)
-            st.session_state["_gdpr_done"] = True
-            st.session_state["screen"] = "home"
-            st.rerun()
+    import re as _re_pv
+    st.markdown("""<style>
+.st-key-gdpr_delete_btn button{ background:#FFFFFF !important; color:#B91C1C !important;
+  border:1.5px solid #FCA5A5 !important; box-shadow:none !important; }
+.st-key-gdpr_delete_btn button p{ color:#B91C1C !important; font-weight:700 !important; }
+.st-key-gdpr_delete_btn button:hover:not(:disabled){ background:#FEF2F2 !important; border-color:#DC2626 !important; }
+</style>""", unsafe_allow_html=True)
+    _del_html = _re_pv.sub(r"\*\*(.+?)\*\*", r"<b>\1</b>", _del_text)
+    with st.container(border=True):
+        st.markdown('<div class="ask-card-marker"></div>', unsafe_allow_html=True)
+        st.markdown(f'<div style="font-family:Sora,Inter,sans-serif;font-size:17px;font-weight:700;color:#0A1030;margin-bottom:6px;">{_del_title}</div>'
+                    f'<div style="font-size:13.5px;color:#5A6388;line-height:1.6;">{_del_html}</div>',
+                    unsafe_allow_html=True)
+        if st.session_state.get("_gdpr_done"):
+            st.success(done_msg)
+        else:
+            # Only a SIGNED-IN user can erase server-side records — otherwise anyone
+            # could type someone else's email and delete their data.
+            _email = st.session_state.get("auth_user", "")
+            if not _email and auth_enabled():
+                st.caption("ℹ️ " + ("Για να σβηστούν και τα στοιχεία λογαριασμού από τη βάση, συνδέσου πρώτα. "
+                                   "Χωρίς σύνδεση σβήνονται μόνο τα δεδομένα αυτής της συνεδρίας."
+                                   if lang == "el" else
+                                   "To erase your account records from our database too, sign in first. "
+                                   "Without signing in, only this session's data is wiped."))
+            _ok = st.checkbox(("Καταλαβαίνω ότι η διαγραφή είναι οριστική" if lang == "el"
+                               else "I understand this is permanent"), key="_gdpr_ack")
+            if st.button("🗑️ " + confirm_label, key="gdpr_delete_btn", disabled=not _ok):
+                # 1) Remove anything persisted server-side for this account.
+                if _email:
+                    delete_draft(_email)
+                    sb = _supabase_client()
+                    if sb:
+                        _t0 = time.time()
+                        try:
+                            sb.table("user_logins").delete().eq("email", _email).execute()
+                            sb.table("feedback").delete().eq("user_email", _email).execute()
+                            log_event("gdpr_delete", ok=True, ms=(time.time()-_t0)*1000)
+                        except Exception as e:
+                            log_event("gdpr_delete", ok=False, ms=(time.time()-_t0)*1000, error=str(e))
+                # 2) Clear the signed-in cookie.
+                _clear_login_cookie()
+                # 3) Wipe the entire in-memory session (photos, chat, report, prefs).
+                for k in list(st.session_state.keys()):
+                    if k not in ("lang",):  # keep the language toggle for the confirmation screen
+                        st.session_state.pop(k, None)
+                st.session_state["_gdpr_done"] = True
+                st.session_state["screen"] = "home"
+                st.rerun()
 
-    st.markdown("---")
     if st.button(back_label):
         st.session_state.pop("_gdpr_done", None)
         try:
@@ -3479,7 +3507,7 @@ T = {
         "pubmed": "Επιστημονικές Αναφορές PubMed",
         "skip_vitals": "Παράλειψη (χωρίς μετρήσεις)",
         "stepper_profile": '1 Στοιχεία',
-        "stepper_vitals": '2 Ζωτικές',
+        "stepper_vitals": '2 Ζωτικά',
         "stepper_symptoms": '3 Συμπτώματα',
         "stepper_report": '4 Αναφορά',
         "please_enter_name": 'Παρακαλώ βάλε το όνομά σου.',
@@ -4950,7 +4978,7 @@ def render_bottom_nav():
 
     tab_for_screen = {
         "home": "home", "intake": "triage", "vitals": "vitals",
-        "triage": "triage", "report": "history", "dossier": "dossier", "longevity": "home",
+        "triage": "triage", "report": "history", "history": "history", "dossier": "dossier", "longevity": "home",
     }
     active_tab = tab_for_screen.get(cur, "home")
 
@@ -5727,11 +5755,11 @@ def _render_symptom_tracker(lang):
     regardless of login state. Privacy: we never see this data.
     """
     # Symptom tracker uses st.iframe (HTML string mode)
-    _title = "📅 Ημερολόγιο Συμπτωμάτων" if lang=="el" else "📅 Symptom Log"
-    _privacy = ("Αποθηκεύεται μόνο στον browser σου — δεν αποστέλλεται πουθενά."
+    _title = "📅 Άνοιξε το ημερολόγιο" if lang=="el" else "📅 Open the log"
+    _privacy = ("μένει μόνο σε αυτή τη συσκευή"
                 if lang=="el" else
-                "Stored only in your browser — never sent anywhere.")
-    with st.expander(f"{_title} — {_privacy}", expanded=False):
+                "stays on this device only")
+    with st.expander(f"{_title} · {_privacy}", expanded=False):
         if lang == "el":
             tx = {
                 "add_title":   "Προσθήκη σημερινού συμπτώματος",
@@ -6133,22 +6161,44 @@ def render_history():
         sub_en="Latest report & symptom log",
         show_date=False,
     )
-    render_dossier_banner("history", variant="strip")
-    if st.session_state.report:
-        with st.container(border=True):
-            st.markdown("##### 📄 " + ("Τελευταία Αναφορά" if lang=="el" else "Latest Report"))
-            _preview = st.session_state.report.strip()
-            if len(_preview) > 280:
-                _preview = _preview[:280].rsplit(" ", 1)[0] + "…"
-            st.markdown(_preview)
-            if st.button("→ " + ("Άνοιγμα πλήρους αναφοράς" if lang=="el" else "Open full report"),
-                         key="hist_open_report", use_container_width=True):
+    el = lang == "el"
+    def _hist_sec(label):
+        st.markdown(f'<div style="font-family:\'JetBrains Mono\',monospace;font-size:11.5px;font-weight:600;letter-spacing:.12em;'
+                    f'color:#4F46E5;margin:18px 4px 10px;">{label}</div>', unsafe_allow_html=True)
+    _hist_sec("ΤΕΛΕΥΤΑΙΑ ΑΝΑΦΟΡΑ" if el else "LATEST REPORT")
+    with st.container(border=True):
+        st.markdown('<div class="ask-card-marker"></div>', unsafe_allow_html=True)
+        if st.session_state.report:
+            import re as _re_h, html as _html_h
+            _preview = _re_h.sub(r"[#*_>`]+", "", st.session_state.report).strip()
+            _preview = _re_h.sub(r"\s+", " ", _preview)
+            if len(_preview) > 260:
+                _preview = _preview[:260].rsplit(" ", 1)[0] + "…"
+            _pn = (st.session_state.profile or {}).get("name") or ""
+            st.markdown(
+                f'<div style="font-family:Sora,Inter,sans-serif;font-size:17px;font-weight:700;color:#0A1030;margin-bottom:6px;">📄 '
+                + _html_h.escape(("Η εκτίμησή σου" if el else "Your assessment") + (f" · {_pn}" if _pn else "")) + '</div>'
+                f'<div style="font-size:13.5px;color:#5A6388;line-height:1.6;">{_html_h.escape(_preview)}</div>',
+                unsafe_allow_html=True)
+            if st.button(("Άνοιγμα πλήρους αναφοράς →" if el else "Open full report →"),
+                         key="hist_open_report", type="primary", use_container_width=True):
                 st.session_state.screen = "report"; st.rerun()
-    else:
-        st.info(("Δεν έχεις ακόμη ολοκληρωμένη αναφορά. Ξεκίνα μια εκτίμηση από το tab «Συμπτώματα»."
-                 if lang=="el" else
-                 "No completed report yet. Start an assessment from the «Symptoms» tab."))
-    st.divider()
+        else:
+            st.markdown(
+                '<div style="text-align:center;padding:10px 6px 4px;">'
+                '<div style="font-size:30px;margin-bottom:6px;">🗂️</div>'
+                '<div style="font-family:Sora,Inter,sans-serif;font-size:17px;font-weight:700;color:#0A1030;">'
+                + ("Δεν υπάρχει ακόμη αναφορά" if el else "No report yet") + '</div>'
+                '<div style="font-size:13.5px;color:#5A6388;line-height:1.6;margin-top:4px;">'
+                + ("Περιέγραψε τα συμπτώματά σου και ο Asklepios θα φτιάξει μια αναφορά για σένα και τον γιατρό σου."
+                   if el else "Describe your symptoms and Asklepios will prepare a report for you and your doctor.")
+                + '</div></div>', unsafe_allow_html=True)
+            if st.button(("💬 Ξεκίνα μια εκτίμηση" if el else "💬 Start an assessment"),
+                         key="hist_start", type="primary", use_container_width=True):
+                st.session_state.screen = "triage" if (st.session_state.profile or {}).get("name") else "intake"
+                st.rerun()
+    render_dossier_banner("history", variant="strip")
+    _hist_sec("ΗΜΕΡΟΛΟΓΙΟ ΣΥΜΠΤΩΜΑΤΩΝ" if el else "SYMPTOM LOG")
     _render_symptom_tracker(lang)
     # ── Articles / Blog ──────────────────────────────────────────────────────
     # Admin-managed content (see render_admin_panel → _admin_articles_tab).
@@ -6158,8 +6208,7 @@ def render_history():
     _articles = [a for a in _admin_list("articles", order_col="published_at")
                  if a.get("active", True) and a.get("lang", "el") == lang]
     if _articles:
-        st.divider()
-        st.markdown("##### 📰 " + t("articles_label"))
+        _hist_sec("📰 " + "".join(c for c in unicodedata.normalize("NFD", t("articles_label").upper()) if unicodedata.category(c) != "Mn"))
         for art in _articles[:10]:
             with st.container(border=True):
                 st.markdown(f"**{art.get('title','—')}**")
@@ -6817,7 +6866,7 @@ def render_intake():
         st.markdown('<div class="ask-card-marker"></div>', unsafe_allow_html=True)
         history=st.text_area(t("history"),value=st.session_state.profile.get("history",""),height=90,placeholder="Π.χ. Υπέρταση, Τ2 Διαβήτης")
         allergies=st.text_input(t("allergies"),value=st.session_state.profile.get("allergies",""),placeholder="Π.χ. Πενικιλλίνη")
-        st.markdown("**"+t("meds")+"**")
+        st.markdown(f'<div style="font-size:14px;color:#0A1030;margin:2px 0 -6px;">{t("meds")}</div>', unsafe_allow_html=True)
         if not st.session_state.med_inputs:
             prev=st.session_state.profile.get("meds_raw","")
             st.session_state.med_inputs=[m.strip() for m in prev.split(",") if m.strip()] or [""]
