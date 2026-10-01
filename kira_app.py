@@ -6430,11 +6430,33 @@ def render_dossier():
         _files = st.file_uploader("exams", type=["pdf", "jpg", "jpeg", "png", "heic", "heif", "webp"],
                                   accept_multiple_files=True, key=f"dos_files_{len(D['done_files'])}",
                                   label_visibility="collapsed")
-        _pending = []
+        # Files picked but not analysed yet are kept here, so switching tabs
+        # (Αρχική, Ζωτικά…) and coming back doesn't lose them. Session memory
+        # only — never written to the database.
+        _stash = st.session_state.setdefault("_dos_pending", {})
         for f in _files or []:
             _fid = hashlib.sha256(f.getvalue()).hexdigest()[:16]
-            if _fid not in D["done_files"]:
-                _pending.append((f, _fid))
+            if _fid not in D["done_files"] and _fid not in _stash:
+                _stash[_fid] = {"name": f.name, "type": f.type or "", "data": f.getvalue()}
+        for _fid in [k for k in _stash if k in D["done_files"]]:
+            _stash.pop(_fid, None)
+
+        class _StashedFile:
+            def __init__(self, d): self.name, self.type, self._d = d["name"], d["type"], d["data"]
+            def getvalue(self): return self._d
+        _pending = [(_StashedFile(d), fid) for fid, d in _stash.items()]
+        if _pending:
+            import html as _h_dp
+            pc1, pc2 = st.columns([4, 1.3], vertical_alignment="center")
+            with pc1:
+                st.markdown('<div style="font-size:13px;color:#2D3558;">📎 '
+                            + ("Σε αναμονή: " if el else "Waiting: ")
+                            + _h_dp.escape(", ".join(f.name for f, _ in _pending)) + '</div>', unsafe_allow_html=True)
+            with pc2:
+                if st.button(("Αφαίρεση" if el else "Remove"), key="dos_pending_clear", use_container_width=True):
+                    st.session_state["_dos_pending"] = {}
+                    D["done_files"].append("_reset_" + uuid.uuid4().hex[:6])  # fresh uploader
+                    st.rerun()
         if _pending:
             _lbl = (f"✨ Ανάλυση {len(_pending)} αρχείου" if len(_pending) == 1 else f"✨ Ανάλυση {len(_pending)} αρχείων") if el \
                 else f"✨ Analyse {len(_pending)} file{'s' if len(_pending) > 1 else ''}"
@@ -6598,6 +6620,7 @@ def render_dossier():
     with c_n:
         if st.button("🗑 " + ("Καθαρισμός φακέλου" if el else "Clear dossier"), key="dos_clear", use_container_width=True):
             st.session_state.pop("dossier", None)
+            st.session_state.pop("_dos_pending", None)
             st.rerun()
     st.caption("🔒 " + ("Τα αρχεία στέλνονται μόνο για ανάγνωση και δεν αποθηκεύονται. Αν είσαι συνδεδεμένος/η, οι τιμές που διαβάστηκαν κρατιούνται κρυπτογραφημένες έως 7 ημέρες για να συνεχίσεις."
                         if el else "Files are sent only to be read and are not stored. When signed in, the extracted values are kept encrypted for up to 7 days so you can continue."))
@@ -6717,15 +6740,15 @@ def render_longevity():
             sex = st.selectbox("Φύλο" if el else "Sex", _sx, index=(1 if str(_cur) in ("Γυναίκα", "Female") else 0), key="lg_sex")
         st.markdown("**" + ("Ισχύει κάτι από αυτά;" if el else "Does any of these apply?") + "**")
         red = [
-            st.checkbox(("Πόνος στο στήθος στην ηρεμία ή στην προσπάθεια" if el else "Chest pain at rest or on effort"), key="lg_r1"),
-            st.checkbox(("Ζαλάδες ή λιποθυμία τους τελευταίους 12 μήνες" if el else "Dizziness or fainting in the past 12 months"), key="lg_r2"),
-            st.checkbox(("Καρδιοπάθεια, ή ο γιατρός είπε άσκηση μόνο με επίβλεψη" if el else "Heart disease, or a doctor said only supervised exercise"), key="lg_r3"),
-            st.checkbox(("Πρόβλημα σε γόνατο/ισχίο/μέση που χειροτερεύει με σκαλιά" if el else "Knee/hip/back problem made worse by stairs"), key="lg_r4"),
-            st.checkbox(("Εγκυμοσύνη" if el else "Pregnancy"), key="lg_r5"),
+            st.checkbox(("Πόνος στο στήθος στην ηρεμία ή στην προσπάθεια" if el else "Chest pain at rest or on effort"), value=bool((S["q"].get("red") or [False]*5)[0]), key="lg_r1"),
+            st.checkbox(("Ζαλάδες ή λιποθυμία τους τελευταίους 12 μήνες" if el else "Dizziness or fainting in the past 12 months"), value=bool((S["q"].get("red") or [False]*5)[1]), key="lg_r2"),
+            st.checkbox(("Καρδιοπάθεια, ή ο γιατρός είπε άσκηση μόνο με επίβλεψη" if el else "Heart disease, or a doctor said only supervised exercise"), value=bool((S["q"].get("red") or [False]*5)[2]), key="lg_r3"),
+            st.checkbox(("Πρόβλημα σε γόνατο/ισχίο/μέση που χειροτερεύει με σκαλιά" if el else "Knee/hip/back problem made worse by stairs"), value=bool((S["q"].get("red") or [False]*5)[3]), key="lg_r4"),
+            st.checkbox(("Εγκυμοσύνη" if el else "Pregnancy"), value=bool((S["q"].get("red") or [False]*5)[4]), key="lg_r5"),
         ]
         beta = st.checkbox(("Παίρνω φάρμακο που ρίχνει τους σφυγμούς (π.χ. β-αναστολέα: Concor, Lopresor…)" if el
-                            else "I take a medicine that lowers heart rate (e.g. a beta-blocker)"), key="lg_beta")
-        S["q"].update({"age": int(age), "sex": sex, "beta_blocker": bool(beta)})
+                            else "I take a medicine that lowers heart rate (e.g. a beta-blocker)"), value=bool(S["q"].get("beta_blocker")), key="lg_beta")
+        S["q"].update({"age": int(age), "sex": sex, "beta_blocker": bool(beta), "red": [bool(x) for x in red]})
         S["safe"] = not any(red)
         if any(red):
             st.warning("⚠️ " + ("Χωρίς step test για σένα — κάνε μόνο τη μέτρηση ηρεμίας και μίλα με τον γιατρό σου πριν αυξήσεις την άσκηση."
@@ -6825,7 +6848,13 @@ def render_intake():
     _caregiver_q = t("intake_for_whom")
     _opt_self  = t("intake_for_me")
     _opt_other = t("intake_for_other")
-    _current = st.session_state.profile.get("for_whom", "self")
+    # Values typed but not yet confirmed with "Next" are kept in a draft, so
+    # leaving via the top menu and coming back doesn't lose them.
+    _dr_i = st.session_state.get("_intake_draft") or {}
+    _d = dict(st.session_state.profile or {})
+    if _dr_i.get("base") == _d:          # ignore the draft if the profile changed elsewhere
+        _d.update(_dr_i.get("vals") or {})
+    _current = _d.get("for_whom", "self")
     with st.container(border=True):
         st.markdown('<div class="ask-card-marker"></div>', unsafe_allow_html=True)
         _choice = st.radio(
@@ -6846,9 +6875,12 @@ def render_intake():
             _name_lbl = t("name")
             _name_ph  = "Χριστόφορος"
         c1,c2,c3=st.columns([2,1,1])
-        with c1: name=st.text_input(_name_lbl,value=st.session_state.profile.get("name",""),placeholder=_name_ph)
-        with c2: age=st.number_input(t("age"),min_value=0,max_value=120,value=st.session_state.profile.get("age",40))
-        with c3: sex=st.selectbox(t("sex"),[t("male"),t("female"),t("other")])
+        with c1: name=st.text_input(_name_lbl,value=_d.get("name",""),placeholder=_name_ph)
+        with c2: age=st.number_input(t("age"),min_value=0,max_value=120,value=int(_d.get("age",40) or 40))
+        _sx_opts=[t("male"),t("female"),t("other")]
+        _sx_cur=str(_d.get("sex") or "")
+        _sx_idx=(1 if _sx_cur in ("Γυναίκα","Female",t("female")) else 2 if _sx_cur in ("Άλλο","Other",t("other")) else 0)
+        with c3: sex=st.selectbox(t("sex"),_sx_opts,index=_sx_idx)
         # ── Pregnancy checkbox ──────────────────────────────────────────────
         # Only shown for female + age 12-55 (reproductive age). Affects drug
         # contraindications + Claude system prompt + recs.
@@ -6856,7 +6888,7 @@ def render_intake():
         _is_female = sex in ("Γυναίκα", "Female")
         if _is_female and 12 <= age <= 55:
             _preg_lbl = "🤰 Είναι έγκυος;" if lang=="el" else "🤰 Is she pregnant?"
-            pregnancy = st.checkbox(_preg_lbl, value=st.session_state.profile.get("pregnancy", False))
+            pregnancy = st.checkbox(_preg_lbl, value=bool(_d.get("pregnancy", False)))
             if pregnancy:
                 st.info("💡 " + ("Σημειώνεται για έλεγχο αντενδείξεων φαρμάκων και συστάσεων."
                                  if lang=="el" else
@@ -6864,8 +6896,8 @@ def render_intake():
 
     with st.container(border=True):
         st.markdown('<div class="ask-card-marker"></div>', unsafe_allow_html=True)
-        history=st.text_area(t("history"),value=st.session_state.profile.get("history",""),height=90,placeholder="Π.χ. Υπέρταση, Τ2 Διαβήτης")
-        allergies=st.text_input(t("allergies"),value=st.session_state.profile.get("allergies",""),placeholder="Π.χ. Πενικιλλίνη")
+        history=st.text_area(t("history"),value=_d.get("history",""),height=90,placeholder="Π.χ. Υπέρταση, Τ2 Διαβήτης")
+        allergies=st.text_input(t("allergies"),value=_d.get("allergies",""),placeholder="Π.χ. Πενικιλλίνη")
         st.markdown(f'<div style="font-size:14px;color:#0A1030;margin:2px 0 -6px;">{t("meds")}</div>', unsafe_allow_html=True)
         if not st.session_state.med_inputs:
             prev=st.session_state.profile.get("meds_raw","")
@@ -6877,6 +6909,10 @@ def render_intake():
                 if st.button("✕",key=f"del_med_{mi}"): st.session_state.med_inputs.pop(mi); st.rerun()
         if st.button("＋ "+("Προσθήκη" if st.session_state.lang=="el" else "Add med")): st.session_state.med_inputs.append(""); st.rerun()
     meds_raw=", ".join(m for m in st.session_state.med_inputs if m.strip())
+    st.session_state["_intake_draft"] = {"base": dict(st.session_state.profile or {}), "vals": {
+        "name": name, "age": age, "sex": sex, "history": history, "allergies": allergies,
+        "meds_raw": meds_raw, "for_whom": "other" if is_caregiver else "self", "pregnancy": bool(pregnancy),
+    }}
     col_b,col_n=st.columns([1,3])
     with col_b:
         if st.button(t("back")): st.session_state.screen="home"; st.rerun()
@@ -6957,6 +6993,11 @@ div[data-testid="stElementContainer"]:has(.vit-marker){ display:none !important;
             _vv["hr"] = int(_pw["hr"])
             if _pw.get("rmssd"): _vv["hrv"] = int(_pw["rmssd"])
             st.session_state.vitals = _vv
+            _dv = st.session_state.get("_vitals_draft") or {}
+            _dvals = dict(_dv.get("vals") or {})
+            _dvals["hr"] = _vv["hr"]
+            if _vv.get("hrv"): _dvals["hrv"] = _vv["hrv"]
+            st.session_state["_vitals_draft"] = {"base": dict(_vv), "vals": _dvals}
             st.session_state["vt_hr"] = int(_pw["hr"])
             if _pw.get("rmssd"): st.session_state["vt_hrv"] = int(_pw["rmssd"])
             st.session_state["_vit_pulse_n"] = st.session_state.get("_vit_pulse_n", 0) + 1
@@ -6965,7 +7006,10 @@ div[data-testid="stElementContainer"]:has(.vit-marker){ display:none !important;
         st.success("✓ " + (f"Μετρήθηκαν με την κάμερα: σφυγμοί {_pv['hr']}" if el else f"Measured with the camera: pulse {_pv['hr']}")
                    + (f" · HRV {_pv['rmssd']} ms" if _pv.get("rmssd") else ""))
 
+    _dr_v = st.session_state.get("_vitals_draft") or {}
     v = st.session_state.vitals or {}
+    if _dr_v.get("base") == v:            # ignore the draft if vitals changed elsewhere
+        v = _dr_v.get("vals") or {}
     def _iv(k):
         try: return int(v.get(k)) or None
         except Exception: return None
@@ -7050,6 +7094,8 @@ div[data-testid="stElementContainer"]:has(.vit-marker){ display:none !important;
         if extra in (st.session_state.vitals or {}):
             vd[extra] = st.session_state.vitals[extra]
 
+    # survives leaving via the top menu
+    st.session_state["_vitals_draft"] = {"base": dict(st.session_state.vitals or {}), "vals": dict(vd)}
     _n = sum(1 for k in ("hr", "spo2", "bp_sys", "bp_dia", "temp", "br", "weight", "height", "hrv") if k in vd)
     _cont = ((f"Συνέχεια με {_n} μέτρηση{'' if _n == 1 else 'ις'} →" if _n else "Συνέχεια χωρίς μετρήσεις →") if el
              else (f"Continue with {_n} value{'' if _n == 1 else 's'} →" if _n else "Continue without vitals →"))
@@ -7455,7 +7501,8 @@ _ASSESSMENT_FLAGS = ("photo_added", "lab_added", "triage_emergency", "_report_ge
                      "_report_possibly_incomplete", "_vitals_nudge_off", "_voice_transcript",
                      "_voice_last_hash", "_physio_refs_cache", "_psych_refs_cache",
                      "_gpt_integrated", "_scan_injected", "_scan_reply_pending",
-                     "_voice_send_pending", "fb_rating", "fb_sent")
+                     "_voice_send_pending", "fb_rating", "fb_sent",
+                     "_intake_draft", "_vitals_draft", "_vit_pulse_val", "_dos_pending")
 
 def _reset_assessment():
     for _k in _ASSESSMENT_KEYS:
