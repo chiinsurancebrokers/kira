@@ -18,6 +18,8 @@ import uuid as _uuid
 import re, uuid
 import dossier as _dossier
 import longevity as _lg
+import practice_demo as _pdemo
+import copy as _copy
 from pulse_component import pulse_component as _pulse_component
 
 # "Stay signed in" via a browser cookie (persists login across reloads / new tabs,
@@ -1313,8 +1315,13 @@ _AUTOSAVE_KEYS = ("profile", "lang", "triage_chat", "medications", "vitals", "vi
                   "photo_findings", "lab_findings", "report", "report_pubmed", "report_gpt",
                   "report_recs", "report_recs_refs")
 
+def _own_dossier():
+    """The signed-in user's own dossier — not a practice-demo patient's."""
+    P = st.session_state.get("practice") or {}
+    return P.get("own") if P.get("current") else st.session_state.get("dossier")
+
 def _assessment_payload():
-    d = st.session_state.get("dossier")
+    d = _own_dossier()
     return {
         "v": 2,
         **{k: st.session_state.get(k) for k in _AUTOSAVE_KEYS},
@@ -1329,7 +1336,7 @@ def _autosave_assessment(force=False, allow_empty=False):
         return
     if st.session_state.get("_resume_offer"):
         return  # never overwrite a saved assessment the user hasn't decided about yet
-    d = st.session_state.get("dossier") or {}
+    d = _own_dossier() or {}
     if not allow_empty and not (st.session_state.get("triage_chat") or d.get("exams") or st.session_state.get("report")
             or (st.session_state.get("longevity") or {}).get("rest")):
         return
@@ -1402,7 +1409,7 @@ def _restore_extras(dr):
 # stair). On a laptop we show a QR code: the phone opens the same screen, the
 # user signs in with the same email, and the encrypted draft carries the
 # assessment across; afterwards the laptop pulls the result back in.
-_HANDOFF_SCREENS = ("longevity", "vitals", "dossier", "triage")
+_HANDOFF_SCREENS = ("longevity", "vitals", "dossier", "triage", "practice")
 
 def _is_mobile_client():
     try:
@@ -2113,6 +2120,14 @@ _FEATURES = {
 
 
 _FEATURES.update({
+    "practice": {
+        "screen": "practice", "light": True,
+        "eyebrow": ("ΓΙΑ ΙΑΤΡΕΙΑ · ΕΠΙΔΕΙΞΗ", "FOR PRACTICES · DEMO"),
+        "title": ("🏥 Φάκελοι ασθενών για το ιατρείο σας", "🏥 Patient dossiers for your practice"),
+        "body": ("Λίστα ασθενών, εξέλιξη τιμών ανά ημερομηνία και έγγραφο με το επιστολόχαρτο του ιατρείου. Δοκιμάστε το με φανταστικούς ασθενείς.",
+                 "A patient list, values over time and documents on your practice letterhead. Try it with made-up patients."),
+        "cta": ("Δοκιμή για ιατρεία →", "Try the practice demo →"),
+    },
     "symptoms": {
         "screen": "triage", "needs_profile": True, "light": True,
         "eyebrow": ("ΕΚΤΙΜΗΣΗ ΣΥΜΠΤΩΜΑΤΩΝ", "SYMPTOM CHECK"),
@@ -4979,6 +4994,7 @@ def render_bottom_nav():
     tab_for_screen = {
         "home": "home", "intake": "triage", "vitals": "vitals",
         "triage": "triage", "report": "history", "history": "history", "dossier": "dossier", "longevity": "home",
+        "practice": "dossier",
     }
     active_tab = tab_for_screen.get(cur, "home")
 
@@ -6122,6 +6138,8 @@ def render_home():
         render_feature_banner("vitals", "home")
     _home_section("ΝΕΕΣ ΥΠΗΡΕΣΙΕΣ" if el else "NEW SERVICES")
     render_new_features("home")
+    _home_section("ΓΙΑ ΙΑΤΡΕΙΑ" if el else "FOR PRACTICES")
+    render_feature_banner("practice", "home")
 
     # ── Intro video (A2E avatar) ─────────────────────────────────────────
     # Pre-generated ONCE offline via a2e_intro_video.py (not at runtime — we
@@ -6332,12 +6350,198 @@ def _rows_from_editor(df, ncols):
     return out
 
 
+# ── PRACTICE DEMO ("Asklepios για ιατρεία") ───────────────────────────────────
+# Session-only: made-up patients from practice_demo.py, nothing is stored in the
+# database. Opening a patient swaps their dossier into st.session_state.dossier
+# (the user's own dossier is parked in practice["own"] and put back on leave).
+def _practice_state():
+    P = st.session_state.get("practice")
+    if not P:
+        P = {"letterhead": _pdemo.demo_letterhead(), "patients": _pdemo.demo_patients(),
+             "current": None, "own": None}
+        st.session_state["practice"] = P
+    return P
+
+
+def _practice_open(pid):
+    P = _practice_state()
+    pat = next((x for x in P["patients"] if x["pid"] == pid), None)
+    if not pat:
+        return
+    if not P.get("current"):
+        P["own"] = st.session_state.get("dossier")
+    P["current"] = pid
+    st.session_state["dossier"] = pat["dossier"]
+    st.session_state["_dossier_from"] = "practice"
+    st.session_state.screen = "dossier"
+
+
+def _practice_close():
+    P = st.session_state.get("practice") or {}
+    if not P.get("current"):
+        return
+    pat = next((x for x in P["patients"] if x["pid"] == P["current"]), None)
+    if pat is not None and st.session_state.get("dossier") is not None:
+        pat["dossier"] = st.session_state["dossier"]
+    if P.get("own") is not None:
+        st.session_state["dossier"] = P["own"]
+    else:
+        st.session_state.pop("dossier", None)
+    P["current"], P["own"] = None, None
+    if st.session_state.get("_dossier_from") == "practice":
+        st.session_state["_dossier_from"] = None
+
+
+def render_practice():
+    import html as _h
+    lang = st.session_state.lang
+    el = (lang == "el")
+    P = _practice_state()
+    render_doc_header("Asklepios για ιατρεία", "Asklepios for practices", icon="🏥",
+                      sub_el="Φάκελοι εξετάσεων ανά ασθενή — έκδοση επίδειξης",
+                      sub_en="Exam dossiers per patient — demo version", show_date=False)
+    st.markdown(
+        '<div style="background:#FFFBEB;border:1px solid #FDE68A;border-radius:16px;padding:12px 16px;margin:0 0 6px;'
+        'font-size:13.5px;color:#78350F;line-height:1.55;">🧪 <b>'
+        + ("Έκδοση επίδειξης.</b> Οι ασθενείς είναι φανταστικοί. Μη βάζετε πραγματικά στοιχεία ασθενών — "
+           "η λίστα κρατιέται μόνο όσο είναι ανοιχτή η καρτέλα."
+           if el else
+           "Demo version.</b> The patients are made up. Don't enter real patient data — "
+           "the list is kept only while this tab is open.")
+        + '</div>', unsafe_allow_html=True)
+
+    def _sec(n, title):
+        st.markdown(f'<div class="ask-sec-h" style="margin:22px 2px 10px;"><span class="ask-num">{n:02d}</span>{title}</div>',
+                    unsafe_allow_html=True)
+    st.markdown("""<style>.ask-sec-h{ display:flex; align-items:baseline; gap:10px; font-family:'Sora','Inter',sans-serif;
+      font-size:19px; font-weight:700; color:#0A1030; letter-spacing:-.015em; }
+      .ask-sec-h .ask-num{ font-family:'JetBrains Mono',monospace; font-size:12.5px; font-weight:600; color:#4F46E5; }
+      .pr-name{ font-family:'Sora','Inter',sans-serif; font-size:16px; font-weight:700; color:#0A1030; }
+      .pr-meta{ font-size:13px; color:#5A6388; margin-top:2px; line-height:1.5; }
+      .pr-chip{ display:inline-block; background:#EEF1FB; color:#4338CA; border-radius:999px; padding:2px 9px;
+        font-size:11.5px; font-weight:600; margin:6px 6px 4px 0; }</style>""", unsafe_allow_html=True)
+
+    # 01 — patients
+    _sec(1, "Ασθενείς" if el else "Patients")
+    c1, c2 = st.columns([3, 1.3], vertical_alignment="bottom")
+    with c1:
+        q = st.text_input(("Αναζήτηση (όνομα ή ΑΜΚΑ)" if el else "Search (name or AMKA)"), key="pr_search",
+                          placeholder=("π.χ. Μαρία" if el else "e.g. Maria"))
+    with c2:
+        if st.button("＋ " + ("Νέος ασθενής" if el else "New patient"), key="pr_new_toggle", use_container_width=True):
+            st.session_state["_pr_new"] = not st.session_state.get("_pr_new")
+            st.rerun()
+    if st.session_state.get("_pr_new"):
+        with st.container(border=True):
+            st.markdown('<div class="ask-card-marker"></div>', unsafe_allow_html=True)
+            with st.form("pr_new_form", border=False):
+                n1, n2, n3, n4 = st.columns([2.2, 0.8, 1, 1.2])
+                with n1: nn = st.text_input("Ονοματεπώνυμο" if el else "Full name")
+                with n2: na = st.text_input("Ηλικία" if el else "Age")
+                with n3: ns = st.selectbox("Φύλο" if el else "Sex", ["Γυναίκα", "Άνδρας"] if el else ["Female", "Male"])
+                with n4: nk = st.text_input("ΑΜΚΑ" if el else "AMKA")
+                if st.form_submit_button(("Δημιουργία φακέλου →" if el else "Create dossier →"), type="primary",
+                                         use_container_width=True):
+                    if not nn.strip():
+                        st.error("Γράψε όνομα." if el else "Enter a name.")
+                    else:
+                        pid = "p-" + uuid.uuid4().hex[:8]
+                        P["patients"].insert(0, {"pid": pid, "dossier": {
+                            "purpose": "", "patient": {"name": nn.strip(), "amka": nk.strip(), "age": na.strip(),
+                                                       "sex": ns, "history": "", "allergies": "", "dx": ""},
+                            "meds": [], "exams": [], "points": [], "symptoms": "",
+                            "done_files": [], "doc_names": {}, "errors": [],
+                            "docx": None, "html": None, "built_at": None}})
+                        st.session_state["_pr_new"] = False
+                        _practice_open(pid)
+                        st.rerun()
+
+    _q = (q or "").strip().lower()
+    shown = [x for x in P["patients"]
+             if not _q or _q in (x["dossier"]["patient"].get("name") or "").lower()
+             or _q in (x["dossier"]["patient"].get("amka") or "").lower()]
+    if not shown:
+        st.caption("Κανένας ασθενής δεν ταιριάζει." if el else "No patient matches.")
+    for x in shown:
+        D = x["dossier"]; pt = D["patient"]
+        _ex = _dossier.merge_exams(D.get("exams") or [])
+        _last = _ex[0].get("date") if _ex else None
+        _tr = _dossier.trend_table(D.get("exams") or [])
+        meta = " · ".join(v for v in [
+            (f"{pt.get('age')} " + ("ετών" if el else "yrs")) if pt.get("age") else None,
+            pt.get("sex") or None, ("ΑΜΚΑ " if el else "AMKA ") + pt["amka"] if pt.get("amka") else None] if v)
+        chips = [f"{len(_ex)} " + ("εξετάσεις" if el else "exams")]
+        if _last: chips.append(("τελευταία " if el else "latest ") + _last)
+        if _tr: chips.append(f"{len(_tr['rows'])} " + ("τιμές σε εξέλιξη" if el else "values over time"))
+        if D.get("docx"): chips.append("📄 " + ("έγγραφο έτοιμο" if el else "document ready"))
+        with st.container(border=True):
+            st.markdown('<div class="ask-card-marker"></div>', unsafe_allow_html=True)
+            r1, r2 = st.columns([3, 1.3], vertical_alignment="center")
+            with r1:
+                st.markdown(
+                    f'<div class="pr-name">{_h.escape(pt.get("name") or "—")}</div>'
+                    f'<div class="pr-meta">{_h.escape(meta)}</div>'
+                    + ("" if not pt.get("dx") else f'<div class="pr-meta">{_h.escape(pt["dx"])}</div>')
+                    + "".join(f'<span class="pr-chip">{_h.escape(c)}</span>' for c in chips),
+                    unsafe_allow_html=True)
+            with r2:
+                if st.button(("Άνοιγμα φακέλου →" if el else "Open dossier →"), key=f"pr_open_{x['pid']}",
+                             type="primary", use_container_width=True):
+                    _practice_open(x["pid"]); st.rerun()
+
+    # 02 — letterhead
+    _sec(2, "Επιστολόχαρτο ιατρείου" if el else "Practice letterhead")
+    with st.container(border=True):
+        st.markdown('<div class="ask-card-marker"></div>', unsafe_allow_html=True)
+        st.caption("Εμφανίζεται στην κορυφή κάθε εγγράφου που φτιάχνετε." if el
+                   else "Shown at the top of every document you build.")
+        lh = P["letterhead"]
+        l1, l2 = st.columns(2)
+        with l1: lh["practice"] = st.text_input("Ιατρείο" if el else "Practice", lh.get("practice", ""), key="pr_lh_practice")
+        with l2: lh["doctor"] = st.text_input("Ιατρός" if el else "Doctor", lh.get("doctor", ""), key="pr_lh_doctor")
+        l3, l4 = st.columns(2)
+        with l3: lh["specialty"] = st.text_input("Ειδικότητα" if el else "Specialty", lh.get("specialty", ""), key="pr_lh_specialty")
+        with l4: lh["phone"] = st.text_input("Τηλέφωνο" if el else "Phone", lh.get("phone", ""), key="pr_lh_phone")
+        lh["address"] = st.text_input("Διεύθυνση" if el else "Address", lh.get("address", ""), key="pr_lh_address")
+
+    # 03 — coming next
+    _sec(3, "Στην πλήρη έκδοση" if el else "In the full version")
+    with st.container(border=True):
+        st.markdown('<div class="ask-card-marker"></div>', unsafe_allow_html=True)
+        st.markdown(
+            '<div style="font-size:13.5px;color:#2D3558;line-height:1.7;">'
+            + ("📲 <b>Ο ασθενής ανεβάζει τις εξετάσεις από το κινητό</b> πριν το ραντεβού, με σύνδεσμο από το ιατρείο.<br>"
+               "👥 <b>Λογαριασμοί για ιατρό και γραμματεία</b> στο ίδιο ιατρείο.<br>"
+               "🔒 <b>Μόνιμη, κρυπτογραφημένη φύλαξη</b> με σύμβαση επεξεργασίας δεδομένων (GDPR)."
+               if el else
+               "📲 <b>Patients upload their exams from their phone</b> before the visit, via a link from the practice.<br>"
+               "👥 <b>Accounts for the doctor and the secretary</b> in the same practice.<br>"
+               "🔒 <b>Permanent, encrypted storage</b> under a data-processing agreement (GDPR).")
+            + '</div>', unsafe_allow_html=True)
+    if st.button(("↺ Επαναφορά επίδειξης" if el else "↺ Reset the demo"), key="pr_reset"):
+        _practice_close()
+        st.session_state.pop("practice", None)
+        st.session_state.pop("_dos_pending", None)
+        st.rerun()
+
+
 def render_dossier():
     import pandas as _pd
     lang = st.session_state.lang
     el = (lang == "el")
     D = _dossier_state()
-    _from_chat = st.session_state.get("_dossier_from") == "triage" and bool(st.session_state.triage_chat)
+    _in_practice = st.session_state.get("_dossier_from") == "practice" and bool((st.session_state.get("practice") or {}).get("current"))
+    _from_chat = (not _in_practice) and st.session_state.get("_dossier_from") == "triage" and bool(st.session_state.triage_chat)
+    if _in_practice:
+        _PR = st.session_state["practice"]
+        b1, b2 = st.columns([1.2, 2], vertical_alignment="center")
+        with b1:
+            if st.button("← " + ("Λίστα ασθενών" if el else "Patient list"), key="dos_back_practice",
+                         use_container_width=True):
+                _practice_close(); st.session_state.screen = "practice"; st.rerun()
+        with b2:
+            st.caption("🏥 " + (_PR["letterhead"].get("practice") or ("Ιατρείο" if el else "Practice"))
+                       + (" · έκδοση επίδειξης" if el else " · demo"))
     if _from_chat:
         b1, b2 = st.columns([1.2, 2], vertical_alignment="center")
         with b1:
@@ -6433,7 +6637,8 @@ def render_dossier():
         # Files picked but not analysed yet are kept here, so switching tabs
         # (Αρχική, Ζωτικά…) and coming back doesn't lose them. Session memory
         # only — never written to the database.
-        _stash = st.session_state.setdefault("_dos_pending", {})
+        _stash = st.session_state.setdefault("_dos_pending", {}).setdefault(
+            D.setdefault("_uid", uuid.uuid4().hex[:10]), {})
         for f in _files or []:
             _fid = hashlib.sha256(f.getvalue()).hexdigest()[:16]
             if _fid not in D["done_files"] and _fid not in _stash:
@@ -6454,7 +6659,7 @@ def render_dossier():
                             + _h_dp.escape(", ".join(f.name for f, _ in _pending)) + '</div>', unsafe_allow_html=True)
             with pc2:
                 if st.button(("Αφαίρεση" if el else "Remove"), key="dos_pending_clear", use_container_width=True):
-                    st.session_state["_dos_pending"] = {}
+                    st.session_state.setdefault("_dos_pending", {})[D["_uid"]] = {}
                     D["done_files"].append("_reset_" + uuid.uuid4().hex[:6])  # fresh uploader
                     st.rerun()
         if _pending:
@@ -6552,7 +6757,7 @@ def render_dossier():
     # Hand the exams to Asklepios (symptom check) — available whenever a
     # conversation exists, so the dossier works both standalone and in-chat.
     _unsent = [e for e in D.get("exams") or [] if e.get("id") not in set(D.get("sent_ids") or [])]
-    if _unsent and st.session_state.triage_chat:
+    if _unsent and st.session_state.triage_chat and not _in_practice:
         if st.button(("💬 Στείλε τις εξετάσεις στον Asklepios και συνέχισε τη συζήτηση"
                       if el else "💬 Send the exams to Asklepios and continue the chat"),
                      type="primary", use_container_width=True, key="dos_to_chat"):
@@ -6561,19 +6766,40 @@ def render_dossier():
     elif D.get("exams") and D.get("sent_ids") and st.session_state.triage_chat:
         st.caption("✅ " + ("Οι εξετάσεις έχουν σταλεί στον Asklepios." if el else "The exams have been sent to Asklepios."))
 
+    # ── Values over time (same parameter on 2+ dates) ────────────────────
+    _trend = _dossier.trend_table(D.get("exams") or [])
+    if _trend:
+        import html as _h_tr
+        with st.container(border=True):
+            st.markdown('<div class="ask-card-marker"></div>', unsafe_allow_html=True)
+            _th = "".join(f"<th>{_h_tr.escape(c)}</th>" for c in [("Παράμετρος" if el else "Parameter")] + _trend["columns"][1:])
+            _tb = "".join("<tr>" + "".join(f"<td>{_h_tr.escape(v)}</td>" for v in r) + "</tr>" for r in _trend["rows"])
+            st.markdown(
+                f'<span class="ask-eyebrow light">{"ΕΞΕΛΙΞΗ ΤΙΜΩΝ" if el else "VALUES OVER TIME"}</span>'
+                f'<div style="font-size:13px;color:#5A6388;margin:8px 0 10px;">'
+                + ("Οι ίδιες παράμετροι σε διαφορετικές ημερομηνίες, όπως είναι γραμμένες — μπαίνει και στο έγγραφο."
+                   if el else "The same parameters on different dates, as printed — also included in the document.")
+                + '</div><div style="overflow-x:auto;"><table class="ask-trend"><thead><tr>' + _th + '</tr></thead><tbody>' + _tb
+                + '</tbody></table></div>'
+                '<style>.ask-trend{width:100%;border-collapse:collapse;font-size:13px;}'
+                '.ask-trend th{background:#EEF1FB;color:#0A1030;text-align:left;padding:7px 10px;border:1px solid #E1E5F4;white-space:nowrap;}'
+                '.ask-trend td{padding:7px 10px;border:1px solid #E1E5F4;color:#2D3558;white-space:nowrap;}'
+                '.ask-trend td:first-child{background:#F8F9FE;font-weight:600;color:#0A1030;}</style>',
+                unsafe_allow_html=True)
+
     # ── 04 Build ──────────────────────────────────────────────────────────
     with st.container(border=True):
         st.markdown('<div class="ask-card-marker"></div>', unsafe_allow_html=True)
         _dossier_step(4, "Δημιουργία εγγράφου" if el else "Build the document",
                       "Word για επεξεργασία, ή σελίδα έτοιμη για εκτύπωση / PDF." if el
                       else "Word to edit, or a page ready to print / save as PDF.")
-        _has_chat = any(m["role"] == "user" for m in st.session_state.triage_chat)
+        _has_chat = (not _in_practice) and any(m["role"] == "user" for m in st.session_state.triage_chat)
         _inc_sym = st.checkbox(("Πρόσθεσε σύνοψη των συμπτωμάτων από τη συζήτηση με τον Asklepios" if el
                                 else "Add a summary of the symptoms from your chat with Asklepios"),
                                value=_has_chat, disabled=not _has_chat, key="dos_inc_sym")
         _inc_pts = st.checkbox(("Πρόσθεσε «Σημεία που ίσως αξίζει να αναφερθούν» (χωρίς ερμηνεία)" if el
                                 else "Add “Points that may be worth mentioning” (no interpretation)"),
-                               value=True, key="dos_inc_pts")
+                               value=not _in_practice, key="dos_inc_pts")
         _can = bool(D["exams"]) or bool(D["meds"])
         if st.button(("📄 Δημιουργία φακέλου" if el else "📄 Build dossier"), type="primary",
                      use_container_width=True, disabled=not _can, key="dos_build"):
@@ -6589,6 +6815,8 @@ def render_dossier():
                         [{k: v for k, v in e.items() if k not in ("id", "files")} for e in D["exams"]],
                         lang, log=log_event) if (_inc_pts and _key and D["exams"]) else [])
                     _payload = {k: D[k] for k in ("purpose", "patient", "meds", "exams", "points", "symptoms")}
+                    if _in_practice:
+                        _payload["letterhead"] = dict(st.session_state["practice"]["letterhead"])
                     D["docx"] = _dossier.build_docx(_payload, lang)
                     D["html"] = _dossier.build_html(_payload, lang)
                     D["built_at"] = datetime.now().strftime("%d%m%Y_%H%M")
@@ -6619,7 +6847,12 @@ def render_dossier():
             st.session_state.screen = "home"; st.rerun()
     with c_n:
         if st.button("🗑 " + ("Καθαρισμός φακέλου" if el else "Clear dossier"), key="dos_clear", use_container_width=True):
-            st.session_state.pop("dossier", None)
+            if _in_practice:   # keep the patient, empty their exams and documents
+                for _k, _v in (("meds", []), ("exams", []), ("points", []), ("symptoms", ""), ("done_files", []),
+                               ("doc_names", {}), ("errors", []), ("docx", None), ("html", None), ("built_at", None)):
+                    D[_k] = _v
+            else:
+                st.session_state.pop("dossier", None)
             st.session_state.pop("_dos_pending", None)
             st.rerun()
     st.caption("🔒 " + ("Τα αρχεία στέλνονται μόνο για ανάγνωση και δεν αποθηκεύονται. Αν είσαι συνδεδεμένος/η, οι τιμές που διαβάστηκαν κρατιούνται κρυπτογραφημένες έως 7 ημέρες για να συνεχίσεις."
@@ -9965,6 +10198,10 @@ if _go_q in _HANDOFF_SCREENS and not st.session_state.get("_go_done"):
     except Exception: pass
 
 st.session_state["_page_finished"] = False
+# A practice-demo patient is only "open" while its dossier is on screen.
+if (st.session_state.get("practice") or {}).get("current") and not (
+        st.session_state.screen == "dossier" and st.session_state.get("_dossier_from") == "practice"):
+    _practice_close()
 screen=st.session_state.screen
 render_topbar()
 # RTL global override — applied once per render for Arabic/Hebrew/Urdu/Lebanese
@@ -10003,6 +10240,7 @@ try:
     elif screen=="report": render_report()
     elif screen=="history": render_history()
     elif screen=="dossier": render_dossier()
+    elif screen=="practice": render_practice()
     elif screen=="longevity": render_longevity()
     else: render_home()
 finally:

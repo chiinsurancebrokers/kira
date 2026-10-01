@@ -62,6 +62,8 @@ L = {
                    "σύσταση — τα πρωτότυπα αρχεία παραμένουν διαθέσιμα εφόσον χρειαστούν."),
         "made_with": "Δημιουργήθηκε με τον Asklepios · AI Νοσηλευτή",
         "prepared": "Ημερομηνία σύνταξης",
+        "trend_h": "Εξέλιξη Τιμών",
+        "trend_note": "Οι ίδιες παράμετροι σε διαφορετικές ημερομηνίες, όπως είναι γραμμένες στις εξετάσεις (νεότερη πρώτη).",
     },
     "en": {
         "title": "Summary of Examination Results",
@@ -87,6 +89,8 @@ L = {
                    "recommendation — the original files remain available if needed."),
         "made_with": "Prepared with Asklepios · AI Nurse",
         "prepared": "Prepared on",
+        "trend_h": "Values Over Time",
+        "trend_note": "The same parameters on different dates, as printed in the exams (newest first).",
     },
 }
 
@@ -300,6 +304,62 @@ def merge_exams(exams: list) -> list:
     return sorted((merged[k] for k in order), key=_k, reverse=True)
 
 
+def _exam_iso(e: dict):
+    iso = e.get("date_iso")
+    if not iso and e.get("date"):
+        try:
+            iso = datetime.strptime(e["date"].replace(".", "/").replace("-", "/"), "%d/%m/%Y").strftime("%Y-%m-%d")
+        except Exception:
+            iso = None
+    return iso
+
+
+def trend_table(exams: list, max_dates: int = 5, max_rows: int = 40):
+    """Parameters that appear in exams on two or more dates, side by side.
+    Values are copied as printed — nothing is converted or compared.
+    Returns {"columns": [...], "rows": [[param, v_newest, ...], ...]} or None."""
+    by_param: dict = {}
+    label: dict = {}
+    order: list = []
+    for e in exams or []:
+        iso = _exam_iso(e)
+        if not iso:
+            continue
+        for sec in e.get("sections") or []:
+            cols = sec.get("columns") or []
+            if len(cols) < 2:
+                continue
+            for r in sec.get("rows") or []:
+                if len(r) < 2 or not str(r[0]).strip() or not str(r[1]).strip():
+                    continue
+                key = re.sub(r"\s+", " ", str(r[0]).strip().lower())
+                if key not in by_param:
+                    by_param[key] = {}
+                    label[key] = str(r[0]).strip()
+                    order.append(key)
+                by_param[key].setdefault(iso, str(r[1]).strip())
+    keep = [k for k in order if len(by_param[k]) >= 2]
+    if not keep:
+        return None
+    dates = sorted({d for k in keep for d in by_param[k]}, reverse=True)[:max_dates]
+
+    def _fmt(iso):
+        try:
+            return datetime.strptime(iso, "%Y-%m-%d").strftime("%d/%m/%Y")
+        except Exception:
+            return iso
+    rows = [[label[k]] + [by_param[k].get(d, "—") for d in dates] for k in keep[:max_rows]]
+    return {"columns": [""] + [_fmt(d) for d in dates], "rows": rows}
+
+
+def _letterhead_lines(lh: dict):
+    lh = lh or {}
+    top = _s(lh.get("practice"))
+    sub = " · ".join(x for x in [_s(lh.get("doctor")), _s(lh.get("specialty"))] if x)
+    contact = " · ".join(x for x in [_s(lh.get("address")), _s(lh.get("phone"))] if x)
+    return top, sub, contact
+
+
 # ── 2. Medication list from a photo (prescription / pill boxes / handwritten) ─
 def extract_meds(api_key: str, file_bytes: bytes, mime: str, name: str, lang: str = "el",
                  heic_convert=None, downscale=None, log=None) -> list:
@@ -460,6 +520,13 @@ def build_docx(dossier: dict, lang: str = "el") -> bytes:
         doc.add_paragraph().paragraph_format.space_after = Pt(2)
         return t
 
+    # Practice letterhead (practice mode)
+    _lt, _ls, _lc = _letterhead_lines(dossier.get("letterhead"))
+    if _lt or _ls:
+        if _lt: para(_lt, bold=True, size=13, color=INDIGO, space_after=0)
+        if _ls: para(_ls, size=10, color=INK, space_after=0)
+        if _lc: para(_lc, size=9, color=MUTED, space_after=10)
+
     # Title + patient table
     title = lb["title"]
     if _s(dossier.get("purpose")):
@@ -485,6 +552,15 @@ def build_docx(dossier: dict, lang: str = "el") -> bytes:
         para(lb["meds_note"], italic=True, color=MUTED)
         table([lb["time"], lb["drug"], lb["dose"]],
               [[m.get("time", ""), m.get("drug", ""), m.get("dose", "")] for m in meds], widths=[3.2, 7.3, 6.5])
+
+    # Values over time
+    _tr = trend_table(dossier.get("exams") or []) if dossier.get("trends", True) else None
+    if _tr:
+        heading(lb["trend_h"])
+        para(lb["trend_note"], italic=True, color=MUTED)
+        _cols = [lb["param"]] + _tr["columns"][1:]
+        _w = 17.0 / len(_cols)
+        table(_cols, _tr["rows"], widths=[max(4.5, _w)] + [(17.0 - max(4.5, _w)) / (len(_cols) - 1)] * (len(_cols) - 1))
 
     # Symptoms (optional)
     if _s(dossier.get("symptoms")):
@@ -562,8 +638,14 @@ def build_html(dossier: dict, lang: str = "el") -> str:
     if _s(pt.get("dx")): prow.append([lb["dx"], pt["dx"]])
 
     title = lb["title"] + (f" — {esc(dossier['purpose'])}" if _s(dossier.get("purpose")) else "")
-    parts = [f'<div class="brand">⚕ Asklepios · <b>{"AI Νοσηλευτής" if lang == "el" else "AI Nurse"}</b></div>',
-             f"<h1>{title}</h1>"]
+    _lt, _ls, _lc = _letterhead_lines(dossier.get("letterhead"))
+    if _lt or _ls:
+        _brand = ('<div class="lh">' + (f'<div class="lh-t">{esc(_lt)}</div>' if _lt else "")
+                  + (f'<div class="lh-s">{esc(_ls)}</div>' if _ls else "")
+                  + (f'<div class="lh-c">{esc(_lc)}</div>' if _lc else "") + '</div>')
+    else:
+        _brand = f'<div class="brand">⚕ Asklepios · <b>{"AI Νοσηλευτής" if lang == "el" else "AI Nurse"}</b></div>'
+    parts = [_brand, f"<h1>{title}</h1>"]
     if prow:
         parts.append(tbl([lb["item"], lb["value"]], prow, "32%"))
     parts.append(f'<p class="note">{esc(lb["per_exam"])}</p>')
@@ -573,6 +655,10 @@ def build_html(dossier: dict, lang: str = "el") -> str:
         parts.append(f"<h2>{esc(lb['meds_h'])}</h2><p class='note'>{esc(lb['meds_note'])}</p>")
         parts.append(tbl([lb["time"], lb["drug"], lb["dose"]],
                          [[m.get("time", ""), m.get("drug", ""), m.get("dose", "")] for m in meds], "20%"))
+    _tr = trend_table(dossier.get("exams") or []) if dossier.get("trends", True) else None
+    if _tr:
+        parts.append(f"<h2>{esc(lb['trend_h'])}</h2><p class='note'>{esc(lb['trend_note'])}</p>")
+        parts.append(tbl([lb["param"]] + _tr["columns"][1:], _tr["rows"], "30%"))
     if _s(dossier.get("symptoms")):
         parts.append(f"<h2>{esc(lb['symptoms_h'])}</h2><p class='note'>{esc(lb['symptoms_note'])}</p>")
         parts.append("".join(f"<p>{esc(l)}</p>" for l in dossier["symptoms"].splitlines() if l.strip()))
@@ -623,6 +709,10 @@ def build_html(dossier: dict, lang: str = "el") -> str:
 *{{box-sizing:border-box}}
 body{{margin:0;background:#F4F6FC;color:#0A1030;font:14px/1.5 Inter,system-ui,sans-serif}}
 .page{{max-width:880px;margin:24px auto;background:#fff;border:1px solid #E1E5F4;border-radius:22px;padding:40px 44px}}
+.lh{{border-bottom:2px solid #4F46E5;padding-bottom:12px;margin-bottom:18px}}
+.lh-t{{font:700 17px Sora,Inter,sans-serif;color:#4338CA}}
+.lh-s{{font-size:13.5px;color:#0A1030;margin-top:2px}}
+.lh-c{{font-size:12px;color:#5A6388;margin-top:2px}}
 .brand{{font:600 12px 'JetBrains Mono',monospace;letter-spacing:.08em;color:#4F46E5;text-transform:uppercase;margin-bottom:10px}}
 h1{{font:700 26px/1.15 Sora,Inter,sans-serif;letter-spacing:-.02em;margin:0 0 18px}}
 h2{{font:700 18px/1.25 Sora,Inter,sans-serif;letter-spacing:-.01em;margin:30px 0 4px;display:flex;gap:10px;align-items:baseline}}
