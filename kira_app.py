@@ -7340,6 +7340,22 @@ def render_case_panel(p):
     _meds = [m.strip() for m in str(p.get("meds_raw") or "").split(",") if m.strip()]
     if _meds:
         chips.append(f'💊 {t("hal_meds")}: {_h.escape(", ".join(_meds[:3]))}{"…" if len(_meds) > 3 else ""}')
+    _v = st.session_state.vitals or {}
+    if _v:
+        try:
+            _stt = classify_vitals(dict(_v), age=p.get("age")) or {}
+        except Exception:
+            _stt = {}
+        _dot = {"green": "#10B981", "yellow": "#F59E0B", "red": "#EF4444"}
+        def _vchip(icon, val, key):
+            c = _dot.get(_stt.get(key, ""), "#98A2C8")
+            return f'<span class="ask-chip"><span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:{c};margin-right:5px;vertical-align:1px;"></span>{icon} {val}</span>'
+        if _v.get("hr"): chips.append(_vchip("❤️", f"{_v['hr']} bpm", "hr"))
+        if _v.get("bp_sys") and _v.get("bp_dia"): chips.append(_vchip("🩺", f"{_v['bp_sys']}/{_v['bp_dia']}", "bp"))
+        if _v.get("spo2"): chips.append(_vchip("🫁", f"SpO₂ {_v['spo2']}%", "spo2"))
+        if _v.get("temp"): chips.append(_vchip("🌡️", f"{_v['temp']}°C", "temp"))
+        if _v.get("br"): chips.append(_vchip("💨", f"{_v['br']}/min", "br"))
+        if _v.get("hrv"): chips.append(_vchip("〰️", f"HRV {_v['hrv']} ms", "hrv"))
     _sym = [m["content"] for m in st.session_state.triage_chat if m["role"] == "user"][:1]
     if _sym:
         _first = _sym[0].strip().replace("\n", " ")
@@ -7398,9 +7414,9 @@ def render_triage():
         st.markdown('<div style="border-top:1px solid #E1E5F4;margin:10px 0 12px;"></div>',
                     unsafe_allow_html=True)
         render_case_panel(p)
-    render_vitals_summary()
-    if not st.session_state.triage_chat:
-        st.markdown(f'<div class="disclaimer">{_html_bold(t("disclaimer_main"))}</div>',unsafe_allow_html=True)
+    if st.session_state.vitals_analysis:
+        with st.expander("📋 " + ("Τι δείχνουν τα ζωτικά σου" if st.session_state.lang=="el" else "What your vitals show")):
+            st.markdown(st.session_state.vitals_analysis)
     # Live emergency banner — shown immediately once the code-level safety gate
     # (_set_emergency_from_text) has detected a red flag in any assistant reply
     # this session, not only at the end when the final report is generated.
@@ -7415,29 +7431,52 @@ def render_triage():
     # Symptom quick-select: only BEFORE the conversation starts, so once chatting
     # the previous Q&A stays visible instead of being buried under the buttons.
     if not st.session_state.triage_chat:
-        st.info(t("triage_explainer"))
+        _el = st.session_state.lang == "el"
         chips, _chips_label = _symptom_chips(st.session_state.profile, st.session_state.lang)
-        _cap = t("triage_quick_select")
-        if _chips_label:
-            _cap += f" ({_chips_label})"
-        st.caption(_cap + ":")
-        # Chips in rows of 4 — aligned and wrapped
-        _PER_ROW = 4
-        for _rs in range(0, len(chips), _PER_ROW):
-            _row = chips[_rs:_rs+_PER_ROW]
-            _cc = st.columns(_PER_ROW)
-            for _j, chip in enumerate(_row):
-                _i = _rs + _j
-                with _cc[_j]:
-                    sel = chip in st.session_state.symptom_chips
-                    if st.button(("✓ " if sel else "")+chip, key=f"chip_{_i}", use_container_width=True):
-                        if chip in st.session_state.symptom_chips: st.session_state.symptom_chips.remove(chip)
-                        else: st.session_state.symptom_chips.append(chip)
-                        st.rerun()
-        if st.session_state.symptom_chips:
-            if st.button("➤ " + t("triage_send_selected"), type="primary"):
-                msg = t("triage_main_symptoms") + ", ".join(st.session_state.symptom_chips)
-                st.session_state.triage_chat.append({"role":"user","content":msg}); st.session_state.symptom_chips=[]; st.rerun()
+        st.markdown("""<style>
+div[data-testid="stVerticalBlock"]:has(> div[data-testid="stElementContainer"] .sym-start-marker) div[data-testid="stHorizontalBlock"]{
+  flex-wrap: wrap !important; gap: 8px !important; }
+div[data-testid="stVerticalBlock"]:has(> div[data-testid="stElementContainer"] .sym-start-marker) div[data-testid="stColumn"]{
+  flex: 1 1 calc(25% - 8px) !important; min-width: calc(25% - 8px) !important; width: auto !important; }
+@media (max-width: 640px){
+  div[data-testid="stVerticalBlock"]:has(> div[data-testid="stElementContainer"] .sym-start-marker) div[data-testid="stColumn"]{
+    flex: 1 1 calc(50% - 8px) !important; min-width: calc(50% - 8px) !important; }
+}
+div[data-testid="stVerticalBlock"]:has(> div[data-testid="stElementContainer"] .sym-start-marker) .stButton button{
+  border-radius: 999px !important; min-height: 40px !important; font-size: 13.5px !important; font-weight: 600 !important; }
+div[data-testid="stVerticalBlock"]:has(> div[data-testid="stElementContainer"] .sym-start-marker) .stButton button[kind="secondary"]{
+  background: #F4F6FC !important; border: 1px solid #DDE2F3 !important; color: #2D3558 !important; }
+</style>""", unsafe_allow_html=True)
+        with st.container(border=True):
+            st.markdown('<div class="ask-card-marker sym-start-marker"></div>', unsafe_allow_html=True)
+            st.markdown(
+                f'<span class="ask-eyebrow light">{"ΒΗΜΑ 3 · ΣΥΜΠΤΩΜΑΤΑ" if _el else "STEP 3 · SYMPTOMS"}</span>'
+                f'<div style="font-family:Sora,Inter,sans-serif;font-size:21px;font-weight:700;color:#0A1030;letter-spacing:-.02em;margin:12px 0 4px;">'
+                + ("Τι σε απασχολεί;" if _el else "What's bothering you?") + '</div>'
+                f'<div style="font-size:13.5px;color:#5A6388;line-height:1.55;margin-bottom:12px;">'
+                + ("Γράψε με δικά σου λόγια στο πλαίσιο παρακάτω, ή διάλεξε ένα ή περισσότερα. Ο Asklepios θα σου κάνει μία ερώτηση κάθε φορά και στο τέλος θα φτιάξει αναφορά για τον γιατρό σου."
+                   if _el else
+                   "Write it in your own words in the box below, or pick one or more. Asklepios will ask one question at a time and then prepare a report for your doctor.")
+                + (f'<br><span style="font-size:12px;color:#7A83A8;">{t("triage_quick_select")}{(" (" + _chips_label + ")") if _chips_label else ""}</span>')
+                + '</div>', unsafe_allow_html=True)
+            _PER_ROW = 4
+            for _rs in range(0, len(chips), _PER_ROW):
+                _row = chips[_rs:_rs+_PER_ROW]
+                _cc = st.columns(_PER_ROW)
+                for _j, chip in enumerate(_row):
+                    _i = _rs + _j
+                    with _cc[_j]:
+                        sel = chip in st.session_state.symptom_chips
+                        if st.button(("✓ " if sel else "") + chip, key=f"chip_{_i}", use_container_width=True,
+                                     type=("primary" if sel else "secondary")):
+                            if chip in st.session_state.symptom_chips: st.session_state.symptom_chips.remove(chip)
+                            else: st.session_state.symptom_chips.append(chip)
+                            st.rerun()
+            if st.session_state.symptom_chips:
+                if st.button("➤ " + ("Ξεκίνα με: " if _el else "Start with: ") + ", ".join(st.session_state.symptom_chips),
+                             type="primary", use_container_width=True, key="chip_send"):
+                    msg = t("triage_main_symptoms") + ", ".join(st.session_state.symptom_chips)
+                    st.session_state.triage_chat.append({"role":"user","content":msg}); st.session_state.symptom_chips=[]; st.rerun()
     for msg in st.session_state.triage_chat:
         with st.chat_message(msg["role"], avatar="🩺" if msg["role"]=="assistant" else None):
             st.markdown(msg["content"])
@@ -9567,6 +9606,7 @@ try:
             if _clean:
                 st.session_state.vitals = _clean
                 st.session_state["_from_facescan"] = True
+                st.session_state["_hero_seen"] = True   # straight back to the assessment, no landing page
                 st.session_state["_fs_banner"] = True
                 st.session_state["_scan_injected"] = False
                 st.session_state.screen = "triage" if st.session_state.profile.get("name") else "intake"
