@@ -3265,6 +3265,65 @@ def psychology_pillar_search(condition_hint, n=3):
         return res
     return pubmed_search(f"{cond_q} AND {_PSYCH_MESH}", n=n)
 
+# ── PUBMED GROUNDING FOR THE 2ND OPINION ─────────────────────────────────────
+def pubmed_evidence_block(refs, max_chars=1100):
+    """Format PubMed refs + abstract text as a prompt block with explicit PMIDs,
+    so a model can cite them and the citations stay verifiable. Abstracts are
+    truncated to keep the prompt small. Returns "" when there are no refs."""
+    if not refs:
+        return ""
+    abstracts = pubmed_fetch_abstracts([a["pmid"] for a in refs])
+    lines = []
+    for a in refs:
+        head = f"[PMID {a['pmid']}] {a['title']} ({a['journal']}, {a['date']})"
+        ab = abstracts.get(a["pmid"])
+        if ab:
+            ab = ab if len(ab) <= max_chars else ab[:max_chars].rsplit(" ", 1)[0] + "…"
+            lines.append(f"{head}\n  ABSTRACT: {ab}")
+        else:
+            lines.append(head + "\n  (no abstract available)")
+    return "\n".join(lines)
+
+# ── PUBMED EVIDENCE FOR THE FITNESS / LONGEVITY CHECK ────────────────────────
+# One high-evidence query (meta-analysis / systematic review / guideline / review)
+# per measured pillar, so the fitness result is backed by literature that is
+# actually retrieved from PubMed rather than only by citations hard-coded in
+# longevity.py. Keys match the pillar ids produced by longevity.analyse().
+_FITNESS_QUERIES = {
+    "vo2": '("cardiorespiratory fitness"[Title/Abstract] OR "VO2max"[Title/Abstract]) AND '
+           '(mortality[Title/Abstract] OR "cardiovascular disease"[Title/Abstract]) AND ' + _PILLAR_PTYPE,
+    "rhr": '"resting heart rate"[Title] AND (mortality[Title/Abstract] OR "cardiovascular"[Title/Abstract]) AND ' + _PILLAR_PTYPE,
+    "hrv": '"heart rate variability"[Title] AND (mortality[Title/Abstract] OR "cardiovascular"[Title/Abstract]) AND ' + _PILLAR_PTYPE,
+    "hrr": '"heart rate recovery"[Title/Abstract] AND (mortality[Title/Abstract] OR prognosis[Title/Abstract]) AND ' + _PILLAR_PTYPE,
+    "training": '("high-intensity interval training"[Title] OR "zone 2"[Title/Abstract] OR "aerobic exercise"[Title]) AND '
+                '("cardiorespiratory fitness"[Title/Abstract] OR "VO2max"[Title/Abstract]) AND ' + _PILLAR_PTYPE,
+    "sleep": '(sleep[Title]) AND ("heart rate variability"[Title/Abstract] OR "cardiovascular"[Title/Abstract]) AND ' + _PILLAR_PTYPE,
+}
+
+def pubmed_fitness_evidence(res, n=2):
+    """PubMed evidence for a longevity.analyse() result. Returns
+    {pillar_id: [refs]} only for the pillars that were actually measured/applied.
+    Best-effort: a pillar whose search fails or returns nothing is just absent."""
+    if not res:
+        return {}
+    ids = {p.get("id") for p in res.get("pillars", [])}
+    wanted = [k for k in ("vo2", "rhr", "hrv", "hrr") if k in ids]
+    if res.get("zones"):
+        wanted.append("training")
+    if any("🛏️" in x for x in res.get("plan", [])):
+        wanted.append("sleep")
+    out = {}
+    with _cf.ThreadPoolExecutor(max_workers=3) as ex:
+        futs = {k: ex.submit(pubmed_search, _FITNESS_QUERIES[k], n) for k in wanted}
+        for k, f in futs.items():
+            try:
+                r = f.result()
+            except Exception:
+                r = []
+            if r:
+                out[k] = r
+    return out
+
 def rxnorm_interactions(names):
     """Returns a dict: {"ok": bool, "message": str, "unresolved": [names]}.
     RxNav only recognises US/English drug nomenclature — Greek brand names
@@ -7048,6 +7107,25 @@ def render_longevity():
     if S.get("result"):
         _step_h(5, "Το αποτέλεσμά σου" if el else "Your result", done=True)
         render_longevity_result(S["result"], lang)
+        # PubMed evidence for each measured pillar (fetched once per result).
+        if "pubmed" not in S["result"]:
+            with st.spinner("🔬 PubMed..."):
+                S["result"]["pubmed"] = pubmed_fitness_evidence(S["result"])
+        _pm = S["result"].get("pubmed") or {}
+        if _pm:
+            _pm_names = {
+                "vo2": ("Αερόβια ικανότητα (VO2max) & θνησιμότητα", "Aerobic capacity (VO2max) & mortality"),
+                "rhr": ("Σφυγμοί ηρεμίας", "Resting heart rate"),
+                "hrv": ("HRV", "HRV"),
+                "hrr": ("Αποκατάσταση σφυγμών", "Heart-rate recovery"),
+                "training": ("Προπόνηση & VO2max", "Training & VO2max"),
+                "sleep": ("Ύπνος & καρδιά", "Sleep & heart"),
+            }
+            with st.expander("🔬 " + ("Τεκμηρίωση PubMed" if el else "PubMed evidence")):
+                for _k, _refs in _pm.items():
+                    st.markdown("**" + _pm_names[_k][0 if el else 1] + "**")
+                    for a in _refs:
+                        st.markdown(f"- [{a['title']}]({a['url']})  \n  *{a['authors']} — {a['journal']}, {a['date']}*")
         st.caption("ℹ️ " + ("Μέθοδοι: VO2max με τη μέθοδο λόγου σφυγμών (Uth 2004), HRmax 211−0,64×ηλικία (HUNT), νόρμες ηλικίας HUNT3, "
                            "πτώση σφυγμών 1′ (Cole 1999). Εκτιμήσεις ευεξίας — όχι διάγνωση."
                            if el else "Methods: heart-rate-ratio VO2max (Uth 2004), HRmax 211−0.64×age (HUNT), HUNT3 age norms, "
@@ -9862,20 +9940,38 @@ Rewrite ONLY the "{_plan_hdr}" section, grounding it in what these specific abst
                              type="secondary", key="gpt_get"):
                     if not _rate_limit_gate("gpt4o_second_opinion"):
                         st.stop()
-                    with st.spinner("GPT-4o reviewing..."):
+                    with st.spinner("🔬 PubMed + GPT-4o..."):
+                        # Both opinions are checked against the same PubMed set
+                        # (the report's condition-scoped references + abstracts).
+                        _pm_block = pubmed_evidence_block(st.session_state.report_pubmed or [])
+                        _pm_part = (
+                            f"PUBMED EVIDENCE (the only literature you may cite):\n{_pm_block}\n\n"
+                            f"For every AGREEMENT, ADDITION or CORRECTION you make, state whether the PubMed "
+                            f"evidence above supports it by citing the PMID (e.g. [PMID 12345678]). If none of "
+                            f"the papers above bears on the point, write \"no PubMed support in the retrieved "
+                            f"set\" — never invent a PMID or a citation. Also say if any of the papers above "
+                            f"contradicts the first assessment.\n\n"
+                        ) if _pm_block else (
+                            "No PubMed references were retrieved for this case: do not cite literature, and say "
+                            "that your review is not PubMed-backed.\n\n"
+                        )
                         _gpt_prompt = (
                             f"Patient: {p.get('name')}, {p.get('age')}yo {p.get('sex','')}\n"
                             f"History: {p.get('history','none')} | Allergies: {p.get('allergies','none')} | Meds: {p.get('meds_raw','none')}\n\n"
                             f"Claude clinical assessment:\n{st.session_state.report}\n\n"
+                            f"{_pm_part}"
                             f"As an independent clinical reviewer: do you AGREE with this assessment? "
                             f"What specific ADDITIONS or CORRECTIONS would you make (differentials missed, "
                             f"treatment refinements, red flags overlooked, drug-interaction concerns)? "
                             f"Be concise — bullet points OK. Respond in {'Greek' if lang=='el' else 'English'}."
                         )
-                        st.session_state.report_gpt = gpt4o(prompt=_gpt_prompt, system=kira_system(), max_tokens=900)
+                        st.session_state.report_gpt = gpt4o(prompt=_gpt_prompt, system=kira_system(), max_tokens=1100)
                     st.rerun()
             else:
                 _md_raw(st.session_state.report_gpt)
+                if st.session_state.report_pubmed:
+                    st.caption(("🔬 Έλεγχος με PubMed: " if lang=="el" else "🔬 Checked against PubMed: ")
+                               + " · ".join(f"[PMID {a['pmid']}]({a['url']})" for a in st.session_state.report_pubmed))
                 # Integration: if the second opinion adds value, the user can fold
                 # it into the main report so it shows up in the on-screen assessment
                 # AND in every downstream export (PDF/HTML/TXT/WhatsApp).
