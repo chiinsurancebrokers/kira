@@ -1313,7 +1313,7 @@ def _save_session_for_external_nav():
 # RESUME_MAX_DAYS or when the user starts again.
 RESUME_MAX_DAYS = 7
 _AUTOSAVE_KEYS = ("profile", "lang", "triage_chat", "medications", "vitals", "vitals_analysis", "longevity",
-                  "photo_findings", "lab_findings", "report", "report_pubmed", "report_gpt",
+                  "photo_findings", "lab_findings", "report", "report_pubmed", "report_gpt", "report_gpt_refs",
                   "report_recs", "report_recs_refs")
 
 def _own_dossier():
@@ -3283,6 +3283,37 @@ def pubmed_evidence_block(refs, max_chars=1100):
         else:
             lines.append(head + "\n  (no abstract available)")
     return "\n".join(lines)
+
+def pubmed_refs_for_opinion(opinion_text, known_refs, max_topics=3, n=2):
+    """Independent PubMed check of a second opinion. GPT-4o turns the opinion's
+    additions/corrections into up to `max_topics` short English PubMed topics;
+    each is searched with the high-evidence publication-type filter. Refs
+    already in `known_refs` are skipped. Best-effort: returns [] on any failure
+    (or when the opinion is missing / an error string)."""
+    if not opinion_text or opinion_text.startswith("GPT-4o unavailable"):
+        return []
+    try:
+        raw = gpt4o(
+            prompt=("From the clinical review below, list up to %d distinct clinical points it ADDS or CORRECTS "
+                    "(missed differential, treatment change, overlooked red flag, drug-interaction concern). "
+                    "For each give a short English PubMed search phrase (2-6 words, MeSH-style). "
+                    "Reply with ONLY a JSON array of strings, no prose.\n\n%s" % (max_topics, opinion_text)),
+            system="You convert clinical text into concise PubMed search phrases.", max_tokens=150)
+        m = re.search(r"\[.*\]", raw or "", re.S)
+        topics = [str(t).strip() for t in json.loads(m.group(0))][:max_topics] if m else []
+    except Exception as e:
+        log_event("pubmed_refs_for_opinion", ok=False, error=str(e))
+        return []
+    seen = {a["pmid"] for a in (known_refs or [])}
+    out = []
+    for tpc in topics:
+        if not tpc:
+            continue
+        for a in pubmed_search(f"({tpc}) AND {_PILLAR_PTYPE}", n=n):
+            if a["pmid"] not in seen:
+                seen.add(a["pmid"])
+                out.append({**a, "topic": tpc})
+    return out
 
 # ── PUBMED EVIDENCE FOR THE FITNESS / LONGEVITY CHECK ────────────────────────
 # One high-evidence query (meta-analysis / systematic review / guideline / review)
@@ -7806,7 +7837,7 @@ def _render_lab_upload_widget(p, lang, key_prefix=""):
 
 
 # Conversation-scoped state cleared by "Start again" (profile + vitals are kept).
-_ASSESSMENT_KEYS = ("triage_chat", "triage_ready", "report", "report_pubmed", "report_gpt",
+_ASSESSMENT_KEYS = ("triage_chat", "triage_ready", "report", "report_pubmed", "report_gpt", "report_gpt_refs",
                     "report_recs", "report_recs_refs", "report_physio_refs", "report_psych_refs",
                     "photo_findings", "lab_findings", "symptom_chips")
 _ASSESSMENT_FLAGS = ("photo_added", "lab_added", "triage_emergency", "_report_gen_confirmed",
@@ -9966,12 +9997,23 @@ Rewrite ONLY the "{_plan_hdr}" section, grounding it in what these specific abst
                             f"Be concise — bullet points OK. Respond in {'Greek' if lang=='el' else 'English'}."
                         )
                         st.session_state.report_gpt = gpt4o(prompt=_gpt_prompt, system=kira_system(), max_tokens=1100)
+                        # Second pass: the second opinion's OWN additions/corrections
+                        # get their own PubMed search (high-evidence types), so claims
+                        # the first reference set doesn't cover are still checked.
+                        st.session_state["report_gpt_refs"] = pubmed_refs_for_opinion(
+                            st.session_state.report_gpt, st.session_state.report_pubmed or [])
                     st.rerun()
             else:
                 _md_raw(st.session_state.report_gpt)
                 if st.session_state.report_pubmed:
                     st.caption(("🔬 Έλεγχος με PubMed: " if lang=="el" else "🔬 Checked against PubMed: ")
                                + " · ".join(f"[PMID {a['pmid']}]({a['url']})" for a in st.session_state.report_pubmed))
+                _gr = st.session_state.get("report_gpt_refs") or []
+                if _gr:
+                    st.markdown("**" + ("🔬 Επιπλέον PubMed για όσα προσθέτει η 2η γνώμη" if lang=="el"
+                                        else "🔬 Extra PubMed evidence for the second opinion's additions") + "**")
+                    for a in _gr:
+                        st.markdown(f"- [{a['title']}]({a['url']})  \n  *{a['authors']} — {a['journal']}, {a['date']}* · `{a.get('topic','')}`")
                 # Integration: if the second opinion adds value, the user can fold
                 # it into the main report so it shows up in the on-screen assessment
                 # AND in every downstream export (PDF/HTML/TXT/WhatsApp).
