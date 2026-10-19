@@ -19,6 +19,7 @@ import re, uuid
 import dossier as _dossier
 import longevity as _lg
 import practice_demo as _pdemo
+import recovery_ui as _rec_ui
 import ui_i18n as _i18n
 import copy as _copy
 from pulse_component import pulse_component as _pulse_component
@@ -2121,6 +2122,16 @@ _FEATURES = {
 
 
 _FEATURES.update({
+    "recovery": {
+        "screen": "recovery",
+        "eyebrow": ("ΝΕΟ · ΑΠΟΚΑΤΑΣΤΑΣΗ ΣΤΟ ΣΠΙΤΙ", "NEW · RECOVERY AT HOME"),
+        "title": ("🏡 Μετά την έξοδο από το νοσοκομείο: παρακολούθηση στο σπίτι", "🏡 After hospital discharge: monitoring at home"),
+        "body": ("Για ασθενείς μετά από TAVI, ΜΕΘ ή σοβαρή νοσηλεία. Καταγράφεις πίεση, σφυγμούς, βάρος και συμπτώματα· ο Asklepios ειδοποιεί πότε να καλέσεις 166/112 ή την ομάδα, και ετοιμάζει αναφορά για τον γιατρό.",
+                 "For patients after TAVI, ICU or a serious admission. Log pressure, pulse, weight and symptoms; Asklepios tells you when to call 166/112 or the care team, and prepares a report for the doctor."),
+        "cta": ("Άνοιγμα παρακολούθησης →", "Open home monitoring →"),
+        "strip": ("Παρακολούθηση στο σπίτι μετά την έξοδο", "Home monitoring after discharge"),
+        "strip_cta": ("Αποκατάσταση →", "Recovery →"),
+    },
     "practice": {
         "screen": "practice", "light": True,
         "eyebrow": ("ΓΙΑ ΙΑΤΡΕΙΑ · ΕΠΙΔΕΙΞΗ", "FOR PRACTICES · DEMO"),
@@ -2213,11 +2224,13 @@ def render_longevity_banner(key, *, variant="full"):
 
 def render_new_features(key):
     """Both new services side by side (stacked on phones)."""
-    c1, c2 = st.columns(2, gap="small", vertical_alignment="top")
+    c1, c2, c3 = st.columns(3, gap="small", vertical_alignment="top")
     with c1:
         render_feature_banner("dossier", key)
     with c2:
         render_feature_banner("longevity", key)
+    with c3:
+        render_feature_banner("recovery", key)
 
 
 def render_login_screen():
@@ -2931,6 +2944,7 @@ def render_privacy_page():
                         try:
                             sb.table("user_logins").delete().eq("email", _email).execute()
                             sb.table("feedback").delete().eq("user_email", _email).execute()
+                            _rec_ui.delete_all_for_user(sb, _email)
                             log_event("gdpr_delete", ok=True, ms=(time.time()-_t0)*1000)
                         except Exception as e:
                             log_event("gdpr_delete", ok=False, ms=(time.time()-_t0)*1000, error=str(e))
@@ -4995,7 +5009,7 @@ def render_bottom_nav():
     tab_for_screen = {
         "home": "home", "intake": "triage", "vitals": "vitals",
         "triage": "triage", "report": "history", "history": "history", "dossier": "dossier", "longevity": "home",
-        "practice": "dossier",
+        "practice": "dossier", "recovery": "home",
     }
     active_tab = tab_for_screen.get(cur, "home")
 
@@ -9125,6 +9139,26 @@ def render_emergency_resources(lang):
 """, unsafe_allow_html=True)
 
 
+def render_recovery():
+    """Post-discharge home monitoring (recovery.py = rules, recovery_ui.py = screen)."""
+    from types import SimpleNamespace as _NS
+    _deps = _NS(
+        lang=st.session_state.lang,
+        email=st.session_state.get("auth_user", "") or "",
+        supabase=_supabase_client,
+        fernet=lambda: _fernet() if _ENC_OK else None,
+        api_key=get_claude_key,
+        log=log_event,
+        rate_gate=_rate_limit_gate,
+        heic=convert_heic_human if HEIC_OK else None,
+        downscale=_downscale_for_vision,
+        header=render_doc_header,
+        profile=lambda: st.session_state.profile,
+        dossier_meds=lambda: (st.session_state.get("dossier") or {}).get("meds", []),
+    )
+    _rec_ui.render(_deps)
+
+
 def _finish_page():
     if st.session_state.get("_page_finished"):
         return
@@ -10314,6 +10348,7 @@ try:
     elif screen=="dossier": render_dossier()
     elif screen=="practice": render_practice()
     elif screen=="longevity": render_longevity()
+    elif screen=="recovery": render_recovery()
     else: render_home()
 finally:
     # Footer + autosave + top nav even when a screen calls st.stop()
