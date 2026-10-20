@@ -5009,7 +5009,7 @@ def render_bottom_nav():
     tab_for_screen = {
         "home": "home", "intake": "triage", "vitals": "vitals",
         "triage": "triage", "report": "history", "history": "history", "dossier": "dossier", "longevity": "home",
-        "practice": "dossier", "recovery": "home",
+        "practice": "dossier", "recovery": "recovery",
     }
     active_tab = tab_for_screen.get(cur, "home")
 
@@ -5019,6 +5019,7 @@ def render_bottom_nav():
         ("triage",  "💬", t("nav_symptoms")),
         ("history", "📋", t("nav_history")),
         ("dossier", "📁", ("Φάκελος" if lang == "el" else "Dossier")),
+        ("recovery", "🏡", ("Ανάρρωση" if lang == "el" else "Recovery")),
     ]
 
     st.markdown("""
@@ -5039,7 +5040,7 @@ div[data-testid="stHorizontalBlock"]:has(.bn-marker) {
   gap: 2px !important;
 }
 div[data-testid="stHorizontalBlock"]:has(.bn-marker) > div[data-testid="stColumn"] {
-  min-width: 0 !important; width: 20% !important; flex: 0 0 20% !important;
+  min-width: 0 !important; width: 16.66% !important; flex: 0 0 16.66% !important;
   display: flex !important; align-items: center !important;
 }
 .bn-marker { display: none; }
