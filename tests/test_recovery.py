@@ -131,6 +131,85 @@ def test_html_escapes():
     es = [E(0, notes="<script>alert(1)</script>")]
     assert "<script>alert" not in R.build_html(plan(), es, "en")
 
+# ── e-mail alerts ─────────────────────────────────────────────────────────────
+def mail_plan(**kw):
+    p = plan(); p["patient"]["name"] = "Test Patient"
+    p["notify"].update({"emails": ["a@example.com"], **kw}); return p
+
+CFG = {"api_key": "k", "from": "Asklepios <x@example.com>", "app_url": "https://app.example", "owner": "me@example.com"}
+
+def fake_sender(box, ok=True):
+    def f(api_key, sender, to, subject, text, html, idem_key="", timeout=15):
+        box.append({"to": to, "subject": subject, "text": text, "html": html, "idem": idem_key})
+        return {"ok": ok, "id": "id1" if ok else None, "error": None if ok else "boom"}
+    return f
+
+def test_parse_emails():
+    g, b = R.parse_emails("a@example.com, B@example.com\nbad@, a@example.com; c@example.com d@example.com")
+    assert g == ["a@example.com", "B@example.com", "c@example.com"] and "bad@" in b and "d@example.com" in b
+    assert R.parse_emails("") == ([], [])
+
+def test_should_notify_levels_and_quiet_window():
+    p = mail_plan()
+    assert not R.should_notify(p, R.WATCH, T0) and R.should_notify(p, R.CALL, T0) and R.should_notify(p, R.EMERGENCY, T0)
+    p2 = mail_plan(min_level=R.EMERGENCY)
+    assert not R.should_notify(p2, R.CALL, T0) and R.should_notify(p2, R.EMERGENCY, T0)
+    p["notify"].update({"last_level": R.CALL, "last_ts": T0.isoformat()})
+    assert not R.should_notify(p, R.CALL, T0 + timedelta(minutes=5))          # duplicate
+    assert R.should_notify(p, R.EMERGENCY, T0 + timedelta(minutes=5))         # escalation
+    assert R.should_notify(p, R.CALL, T0 + timedelta(minutes=16))             # quiet window over
+    assert not R.should_notify(plan(), R.EMERGENCY, T0)                        # no recipients
+
+def test_notify_if_needed_flow():
+    p, box = mail_plan(), []
+    es = [E(0, hr=70, sbp=130, dbp=80)]
+    r = R.notify_if_needed(p, es, CFG, T0, fake_sender(box))
+    assert r["reason"] == "not_needed" and not box
+    es = [E(0, hr=47, sbp=95, dbp=60, symptoms=["presyncope"])]
+    r = R.notify_if_needed(p, es, CFG, T0 + timedelta(minutes=1), fake_sender(box))
+    assert r["sent"] and len(box) == 1 and box[0]["to"] == ["a@example.com"] and box[0]["idem"].startswith(p["id"])
+    assert p["notify"]["last_level"] == R.EMERGENCY
+    r = R.notify_if_needed(p, es, CFG, T0 + timedelta(minutes=2), fake_sender(box))     # duplicate suppressed
+    assert r["reason"] == "not_needed" and len(box) == 1
+    p2 = mail_plan()
+    assert R.notify_if_needed(p2, es, {**CFG, "api_key": ""}, T0, fake_sender(box))["reason"] == "not_configured"
+    assert R.notify_if_needed(plan(), es, CFG, T0, fake_sender(box))["reason"] == "no_recipients"
+    r = R.notify_if_needed(mail_plan(), es, CFG, T0, fake_sender([], ok=False))
+    assert r["reason"] == "error" and not r["sent"]
+
+def test_email_content_detail_modes():
+    p = mail_plan(); es = [E(0, hr=44, sbp=92, dbp=55, symptoms=["presyncope"], notes="<b>x</b>")]
+    al = R.evaluate_entry(p, es[0], [])
+    subj, text, html = R.build_alert_email(p, es[0], al, "en", "https://app.example", "me@example.com")
+    assert "Test Patient" in subj and "166" in text and "Pulse 44" in text and "https://app.example" in text
+    assert "me@example.com" in text and "<b>x</b>" not in html
+    p["notify"]["detail"] = False
+    subj, text, html = R.build_alert_email(p, es[0], al, "en")
+    assert "Test Patient" not in subj + text + html and "44" not in text
+    subj, text, html = R.build_alert_email(p, es[0], [], "el", test=True)
+    assert "ΔΟΚΙΜΗ" in subj
+
+def test_send_resend_mocked():
+    import urllib.request as ur, io, json as js
+    seen = {}
+    class Resp(io.BytesIO):
+        def __enter__(self): return self
+        def __exit__(self, *a): pass
+    def ok(req, timeout=0):
+        seen["h"] = dict(req.header_items()); seen["b"] = js.loads(req.data); return Resp(b'{"id":"abc"}')
+    old = ur.urlopen; ur.urlopen = ok
+    try:
+        r = R.send_resend("key", "A <a@x.com>", ["b@x.com"], "s", "t", "<p>t</p>", idem_key="k1")
+        assert r == {"ok": True, "id": "abc", "error": None}
+        assert seen["h"]["Authorization"] == "Bearer key" and seen["h"]["Idempotency-key"] == "k1" and seen["b"]["to"] == ["b@x.com"]
+        def bad(req, timeout=0): raise OSError("net down")
+        ur.urlopen = bad
+        r = R.send_resend("key", "A <a@x.com>", ["b@x.com"], "s", "t", "h")
+        assert not r["ok"] and "net down" in r["error"]
+    finally:
+        ur.urlopen = old
+    assert R.send_resend("", "a", ["b"], "s", "t", "h")["error"] == "not_configured"
+
 if __name__ == "__main__":
     n = 0
     for k, f in list(globals().items()):
