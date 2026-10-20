@@ -9149,6 +9149,7 @@ def render_recovery():
         supabase=_supabase_client,
         fernet=lambda: _fernet() if _ENC_OK else None,
         api_key=get_claude_key,
+        secret=_secret,
         log=log_event,
         rate_gate=_rate_limit_gate,
         heic=convert_heic_human if HEIC_OK else None,

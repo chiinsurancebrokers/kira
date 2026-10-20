@@ -128,6 +128,12 @@ def delete_all_for_user(sb, email):
         except Exception: pass
 
 
+def _mail_cfg(d):
+    sec = getattr(d, "secret", None) or (lambda k, dflt="": "")
+    return {"api_key": sec("RESEND_API_KEY", ""), "from": sec("RESEND_FROM", ""),
+            "app_url": sec("APP_URL", ""), "owner": d.email or ""}
+
+
 # ── presentation helpers ──────────────────────────────────────────────────────
 CSS = """
 <style>
@@ -261,6 +267,11 @@ def _tab_checkin(d, S, plan, entries):
             _db_save_entry(d, S, plan["id"], e)
             d.log("recovery_checkin", ok=True, level=R.evaluate(plan, S["entries"][plan["id"]])["level"])
             S["flash"] = True
+            nres = R.notify_if_needed(plan, S["entries"][plan["id"]], _mail_cfg(d), log=d.log)
+            if nres["reason"] in ("sent", "error", "not_configured"):
+                S["flash_notify"] = nres
+                if nres["sent"]:
+                    _db_save_plan(d, S, plan)
             for k in R.SYMPTOMS:
                 st.session_state.pop(f"rc_s_{k}", None)
             st.rerun()
@@ -425,6 +436,9 @@ def _tab_plan(d, S, plan, new=False):
         S["flash_msg"] = _t(d, "Το σχέδιο αποθηκεύτηκε.", "Plan saved.")
         st.rerun()
 
+    # family e-mail alerts
+    _notify_section(d, S, plan)
+
     # thresholds
     st.markdown(f"**🎚 {_t(d,'Όρια ειδοποίησης','Alert limits')}**")
     if plan.get("thresholds_source") != "clinician":
@@ -470,6 +484,51 @@ def _tab_plan(d, S, plan, new=False):
             S["plans"] = [p for p in S["plans"] if p["id"] != pid]; S["entries"].pop(pid, None)
             S["active"] = S["plans"][0]["id"] if S["plans"] else None
             st.rerun()
+
+
+def _notify_section(d, S, plan):
+    pid, lang = plan["id"], d.lang
+    n = plan.setdefault("notify", dict(R.NOTIFY_DEFAULT, emails=[]))
+    cfg = _mail_cfg(d)
+    st.markdown(f"**📧 {_t(d,'Ειδοποίηση οικογένειας με email','Family e-mail alerts')}**")
+    if not (cfg["api_key"] and cfg["from"]):
+        st.caption(_t(d, "Η υπηρεσία email δεν έχει ρυθμιστεί στον διακομιστή (RESEND_API_KEY, RESEND_FROM).",
+                      "E-mail service is not configured on the server (RESEND_API_KEY, RESEND_FROM)."))
+    if not d.email:
+        st.caption(_t(d, "Συνδεθείτε για να στέλνονται ειδοποιήσεις.", "Sign in to enable alert e-mails."))
+    with st.form(f"rc_nf_{pid}"):
+        txt = st.text_area(_t(d, f"Email φροντιστών (έως {R.MAX_NOTIFY_EMAILS}, ένα ανά γραμμή)", f"Carer e-mails (up to {R.MAX_NOTIFY_EMAILS}, one per line)"),
+                           "\n".join(n.get("emails", [])), height=80)
+        c = st.columns(2)
+        lvl = c[0].selectbox(_t(d, "Πότε να στέλνεται", "Send when"), [R.CALL, R.EMERGENCY], index=0 if n.get("min_level", R.CALL) == R.CALL else 1,
+                             format_func=lambda v: _t(d, "Επικοινωνία με ομάδα ή επείγον", "Contact team or emergency") if v == R.CALL
+                             else _t(d, "Μόνο επείγον", "Emergency only"))
+        lg = c[1].selectbox(_t(d, "Γλώσσα email", "E-mail language"), ["el", "en"], index=0 if n.get("lang", "el") == "el" else 1,
+                            format_func=lambda v: "Ελληνικά" if v == "el" else "English")
+        det = st.checkbox(_t(d, "Να περιλαμβάνονται οι τιμές και το όνομα (το email δεν είναι ασφαλές κανάλι· αν το αποεπιλέξετε, στέλνεται μόνο «υπάρχει ειδοποίηση»)",
+                             "Include name and readings (e-mail is not a secure channel; if unticked only “there is an alert” is sent)"),
+                          value=n.get("detail", True))
+        ok = st.form_submit_button(_t(d, "Αποθήκευση παραληπτών", "Save recipients"))
+    if ok:
+        good, bad = R.parse_emails(txt)
+        if bad:
+            st.error(_t(d, "Μη έγκυρα ή επιπλέον email: ", "Invalid or extra e-mails: ") + ", ".join(bad))
+        else:
+            n.update({"emails": good, "min_level": lvl, "lang": lg, "detail": det})
+            _db_save_plan(d, S, plan)
+            S["flash_msg"] = _t(d, "Οι παραλήπτες αποθηκεύτηκαν.", "Recipients saved."); st.rerun()
+    if n.get("emails") and cfg["api_key"] and d.email:
+        import time as _time
+        if st.button(_t(d, "✉️ Αποστολή δοκιμαστικού email", "✉️ Send a test e-mail"), key=f"rc_nt_{pid}"):
+            if _time.time() - S.get("_last_test", 0) < 600:
+                st.warning(_t(d, "Περιμένετε λίγα λεπτά πριν από νέα δοκιμή.", "Wait a few minutes before another test."))
+            else:
+                S["_last_test"] = _time.time()
+                e = R.new_entry()
+                subj, text, html = R.build_alert_email(plan, e, [], n.get("lang", "el"), cfg["app_url"], cfg["owner"], test=True)
+                r = R.send_resend(cfg["api_key"], cfg["from"], n["emails"], subj, text, html)
+                d.log("recovery_notify_test", ok=r["ok"], error=r["error"])
+                (st.success(_t(d, "Στάλθηκε.", "Sent.")) if r["ok"] else st.error(_t(d, "Αποτυχία αποστολής.", "Sending failed.")))
 
 
 def _tab_export(d, S, plan, entries):
@@ -519,6 +578,16 @@ def render(deps):
 
     if S.pop("flash", None):
         st.success(_t(d, "Καταγράφηκε. Δείτε το αποτέλεσμα παρακάτω.", "Saved. See the result below."))
+    fn = S.pop("flash_notify", None)
+    if fn:
+        if fn["sent"]:
+            st.info(_t(d, f"📧 Στάλθηκε ειδοποίηση σε: {', '.join(fn['to'])}", f"📧 Alert e-mailed to: {', '.join(fn['to'])}"))
+        elif fn["reason"] == "not_configured":
+            st.warning(_t(d, "📧 Έχουν οριστεί παραλήπτες αλλά η υπηρεσία email δεν έχει ρυθμιστεί στον διακομιστή — δεν στάλθηκε τίποτα. Καλέστε εσείς.",
+                          "📧 Recipients are set but the e-mail service is not configured on the server — nothing was sent. Please phone them yourself."))
+        else:
+            st.error(_t(d, "📧 Η αποστολή email απέτυχε — ενημερώστε τηλεφωνικά τους φροντιστές.",
+                        "📧 Sending the e-mail failed — please phone the carers."))
     _banner(d, S, plan, entries)
     _last_vitals(d, entries)
     if len(plans) > 1:

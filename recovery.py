@@ -166,6 +166,12 @@ CRITICAL_MED_WORDS = (  # missed dose → WATCH (never "double up" advice)
 )
 
 
+NOTIFY_DEFAULT = {"emails": [], "min_level": CALL, "lang": "el", "detail": True,
+                  "last_level": 0, "last_ts": None}
+MAX_NOTIFY_EMAILS = 3
+NOTIFY_QUIET_MIN = 15          # same-or-lower level alerts are not re-sent within this window
+
+
 # ── Data helpers ──────────────────────────────────────────────────────────────
 def new_plan(patient_name="", age=None, sex="", procedure="tavi", discharge_date=None) -> dict:
     proc = PROCEDURES.get(procedure, PROCEDURES["other"])
@@ -187,6 +193,7 @@ def new_plan(patient_name="", age=None, sex="", procedure="tavi", discharge_date
         "followups": [],   # {"label","date","place"}
         "contacts": [],    # {"label","phone"}
         "letter_red_flags": [],
+        "notify": dict(NOTIFY_DEFAULT, emails=[]),
         "created": datetime.now(TZ).isoformat(timespec="seconds"),
     }
 
@@ -724,3 +731,145 @@ th{{background:#eef1fb}}h1{{font-size:20px}}h2{{font-size:15px;margin-top:18px}}
 <h2>{e_(L['log'])}</h2>{tbl([L['when'], L['hr'], L['bp'], L['spo2'], L['temp'], L['wt'], L['sym'], L['notes']], summary_rows(plan, entries, lang))}
 <h2>{e_(L['th'])}</h2><p>{e_(L['th_src_c'] if plan.get('thresholds_source')=='clinician' else L['th_src_d'])}</p>{tbl(['',''], _th_rows(plan, lang))}
 <p class="f">{e_(L['foot'])}</p></html>"""
+
+
+# ── Caregiver e-mail alerts (Resend) ──────────────────────────────────────────
+import re as _re
+import urllib.request as _ur
+
+_EMAIL_RE = _re.compile(r"^[A-Za-z0-9.!#$%&'*+/=?^_`{|}~-]+@[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?(?:\.[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?)+$")
+
+
+def parse_emails(text: str) -> tuple:
+    """-> (valid_list, invalid_list); splits on newline/comma/semicolon/space, dedups, caps at MAX_NOTIFY_EMAILS."""
+    good, bad = [], []
+    for tok in _re.split(r"[\s,;]+", text or ""):
+        tok = tok.strip()
+        if not tok:
+            continue
+        if _EMAIL_RE.match(tok) and len(tok) <= 120:
+            if tok.lower() not in [g.lower() for g in good]:
+                good.append(tok)
+        else:
+            bad.append(tok)
+    if len(good) > MAX_NOTIFY_EMAILS:
+        bad += good[MAX_NOTIFY_EMAILS:]
+        good = good[:MAX_NOTIFY_EMAILS]
+    return good, bad
+
+
+def should_notify(plan: dict, level: int, now: datetime | None = None) -> bool:
+    n = plan.get("notify") or {}
+    if not n.get("emails") or level < n.get("min_level", CALL) or level < CALL:
+        return False
+    now = now or datetime.now(TZ)
+    last_ts, last_level = n.get("last_ts"), n.get("last_level", 0)
+    if last_ts and level <= last_level and (now - _dt(last_ts)) < timedelta(minutes=NOTIFY_QUIET_MIN):
+        return False                      # duplicate of what was just sent
+    return True
+
+
+def _vitals_line(e: dict, lang: str) -> str:
+    bits = []
+    if e.get("hr"): bits.append(f'{"Σφυγμοί" if lang=="el" else "Pulse"} {e["hr"]}')
+    if e.get("sbp"): bits.append(f'{"ΑΠ" if lang=="el" else "BP"} {e["sbp"]}/{e.get("dbp") or "?"}')
+    if e.get("spo2"): bits.append(f'SpO₂ {e["spo2"]}%')
+    if e.get("temp"): bits.append(f'{"Θερμ." if lang=="el" else "Temp"} {e["temp"]}°C')
+    if e.get("weight"): bits.append(f'{e["weight"]} kg')
+    return " · ".join(bits)
+
+
+def build_alert_email(plan: dict, entry: dict, alerts: list, lang: str = "el", app_url: str = "",
+                      owner_email: str = "", test: bool = False) -> tuple:
+    """-> (subject, text, html).  Only alerts >= CALL are listed."""
+    n = plan.get("notify") or {}
+    detail = n.get("detail", True)
+    name = (plan.get("patient") or {}).get("name") or ("ο/η ασθενής" if lang == "el" else "the patient")
+    top = max([a.level for a in alerts] + [CALL])
+    shown = [a for a in alerts if a.level >= CALL] or alerts
+    lbl = LEVEL_LABEL[lang][top]
+    when = _dt(entry["ts"]).astimezone(TZ).strftime("%d/%m %H:%M")
+    if test:
+        subj = ("[ΔΟΚΙΜΗ] Asklepios — ειδοποιήσεις οικογένειας" if lang == "el" else "[TEST] Asklepios — family alerts")
+    elif detail:
+        subj = f"[{lbl}] {name}: {shown[0].title[lang]}" if shown else f"[{lbl}] {name}"
+    else:
+        subj = f"[{lbl}] Asklepios"
+    lines = []
+    if test:
+        lines.append("Αυτό είναι δοκιμαστικό μήνυμα. Αν το βλέπετε, οι ειδοποιήσεις λειτουργούν." if lang == "el"
+                     else "This is a test message. If you can see it, alerts are working.")
+    elif detail:
+        lines += [f"{name} — {when}", _vitals_line(entry, lang)]
+        for a in shown:
+            lines.append(f"• {a.title[lang]}" + (f" — {a.detail[lang]}" if a.detail[lang] else ""))
+        lines += ["", (shown[0].action[lang] if shown else "")]
+    else:
+        lines += [("Υπάρχει νέα ειδοποίηση στην παρακολούθηση. Ανοίξτε την εφαρμογή για λεπτομέρειες." if lang == "el"
+                   else "There is a new alert in home monitoring. Open the app for details."), "",
+                  (("Καλέστε ΤΩΡΑ 166 (ΕΚΑΒ) ή 112." if lang == "el" else "Call 166 (EKAB) or 112 NOW.") if top == EMERGENCY
+                   else ("Επικοινωνήστε σήμερα με την ομάδα που παρακολουθεί τον ασθενή." if lang == "el"
+                         else "Contact the patient's care team today."))]
+    if app_url:
+        lines += ["", (f"Άνοιγμα: {app_url}" if lang == "el" else f"Open: {app_url}")]
+    foot = ("Αυτόματο μήνυμα από τον Asklepios — δεν αποτελεί διάγνωση. Σε επείγον σύμπτωμα καλέστε 166 ή 112. Μην απαντάτε σε αυτό το email."
+            if lang == "el" else
+            "Automated message from Asklepios — not a diagnosis. In an emergency call 166 or 112. Do not reply to this email.")
+    if owner_email:
+        foot += (f" Λαμβάνετε το μήνυμα επειδή ο/η {owner_email} σας πρόσθεσε ως φροντιστή· αν δεν το αναμένατε, αγνοήστε το."
+                 if lang == "el" else
+                 f" You receive this because {owner_email} added you as a carer; if unexpected, ignore it.")
+    text = "\n".join(l for l in lines if l is not None) + "\n\n--\n" + foot
+    col = LEVEL_COLOR[top]
+    e_ = _html.escape
+    body = "".join(f"<p style='margin:6px 0'>{e_(l)}</p>" if l else "<br>" for l in lines)
+    html = (f"<div style='font:15px/1.5 system-ui,sans-serif;max-width:560px;margin:auto'>"
+            f"<div style='background:{col};color:#fff;padding:14px 18px;border-radius:12px 12px 0 0;font-weight:800;font-size:17px'>{e_(lbl)}</div>"
+            f"<div style='border:1px solid #E1E5F4;border-top:0;padding:14px 18px;border-radius:0 0 12px 12px'>{body}</div>"
+            f"<p style='font-size:12px;color:#5A6388'>{e_(foot)}</p></div>")
+    return subj, text, html
+
+
+def send_resend(api_key: str, sender: str, to: list, subject: str, text: str, html: str,
+                idem_key: str = "", timeout: int = 15) -> dict:
+    """POST https://api.resend.com/emails.  Never raises."""
+    if not api_key or not sender or not to:
+        return {"ok": False, "id": None, "error": "not_configured"}
+    body = json.dumps({"from": sender, "to": to, "subject": subject, "text": text, "html": html}).encode()
+    headers = {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json", "User-Agent": "asklepios/1.0"}
+    if idem_key:
+        headers["Idempotency-Key"] = idem_key[:256]
+    try:
+        req = _ur.Request("https://api.resend.com/emails", data=body, headers=headers, method="POST")
+        with _ur.urlopen(req, timeout=timeout) as r:
+            return {"ok": True, "id": json.loads(r.read() or b"{}").get("id"), "error": None}
+    except Exception as ex:  # noqa: BLE001
+        msg = str(ex)
+        try:
+            msg = f"{ex.code}: {ex.read().decode()[:200]}"          # urllib HTTPError
+        except Exception:
+            pass
+        return {"ok": False, "id": None, "error": msg[:240]}
+
+
+def notify_if_needed(plan: dict, entries: list, cfg: dict, now: datetime | None = None,
+                     sender=None, log=None) -> dict:
+    """Call right after a check-in is saved.  cfg = {api_key, from, app_url, owner}.
+    Updates plan['notify'] (last_level/last_ts) when a mail went out.
+    -> {"sent": bool, "reason": str, "to": [..], "error": str|None}"""
+    now = now or datetime.now(TZ)
+    res = evaluate(plan, entries, now)
+    n = plan.setdefault("notify", dict(NOTIFY_DEFAULT, emails=[]))
+    if not n.get("emails"):
+        return {"sent": False, "reason": "no_recipients", "to": [], "error": None}
+    if not should_notify(plan, res["level"], now):
+        return {"sent": False, "reason": "not_needed", "to": [], "error": None}
+    if not (cfg.get("api_key") and cfg.get("from")):
+        return {"sent": False, "reason": "not_configured", "to": n["emails"], "error": None}
+    entry = res["last"]
+    subj, text, html = build_alert_email(plan, entry, res["alerts"], n.get("lang", "el"), cfg.get("app_url", ""), cfg.get("owner", ""))
+    r = (sender or send_resend)(cfg["api_key"], cfg["from"], n["emails"], subj, text, html, idem_key=f'{plan["id"]}-{entry["id"]}')
+    if log: log("recovery_notify", ok=r["ok"], level=res["level"], error=r["error"])
+    if r["ok"]:
+        n["last_level"], n["last_ts"] = res["level"], now.isoformat(timespec="seconds")
+    return {"sent": r["ok"], "reason": "sent" if r["ok"] else "error", "to": n["emails"], "error": r["error"]}
