@@ -23,6 +23,12 @@ import re
 REVIEWED_BY: str = ""   # name of the clinician who signed the texts off; empty = not reviewed
 
 SOURCES = {
+    "kanis2019": {
+        "pmid": "30324412", "doi": "10.1007/s00198-018-4704-5",
+        "cite": "Kanis JA et al. European guidance for the diagnosis and management of osteoporosis in "
+                "postmenopausal women. Osteoporos Int 2019;30:3-44 (ESCEO / IOF).",
+        "scope": "postmenopausal women; calls 'osteopenia' a term for epidemiological description, not a disease",
+    },
     "nogg2024": {
         "pmid": "40921943", "doi": "10.1007/s11657-025-01588-3",
         "cite": "NOGG. The 2024 UK clinical guideline for the prevention and treatment of osteoporosis. Arch Osteoporos.",
@@ -52,18 +58,18 @@ SOURCES = {
 # "osteoporosis" (T-score <= -2.5 or the word in the report) adds the `extra` line first.
 ITEMS = {
     "bone": [
-        {"id": "exercise", "sources": ["jshs2026_exercise", "nogg2024"],
+        {"id": "exercise", "sources": ["jshs2026_exercise", "kanis2019", "nogg2024"],
          "el": ("Άσκηση: σε μελέτες με γυναίκες μετά την εμμηνόπαυση, ο συνδυασμός ασκήσεων (ενδυνάμωση με βάρη "
                 "ή αντιστάσεις μαζί με ισορροπία/γιόγκα/tai chi) και η συνέπεια για ≥1 έτος είχαν τα πιο σταθερά "
                 "οφέλη στην οστική πυκνότητα. Ο γιατρός ή ο φυσικοθεραπευτής σας μπορεί να προσαρμόσει το πρόγραμμα."),
          "en": ("Exercise: in studies of postmenopausal women, combining exercise types (strength or resistance "
                 "work together with balance, yoga or tai chi) and keeping it up for a year or more gave the most "
                 "consistent benefit to bone density. Your doctor or physiotherapist can tailor a programme.")},
-        {"id": "supplements", "sources": ["bmj2026_ca_vitd"],
-         "el": ("Συμπληρώματα ασβεστίου/βιταμίνης D: μια μεγάλη ανασκόπηση 69 μελετών (2026) βρήκε ελάχιστο ή καθόλου "
+        {"id": "supplements", "sources": ["bmj2026_ca_vitd", "kanis2019"],
+         "el": ("Συμπληρώματα ασβεστίου/βιταμίνης D: οι οδηγίες δίνουν προτίμηση στη διατροφή· μια μεγάλη ανασκόπηση 69 μελετών (2026) βρήκε ελάχιστο ή καθόλου "
                 "όφελος στην πρόληψη καταγμάτων σε ενήλικες χωρίς υψηλό κίνδυνο. Μη ξεκινήσετε συμπλήρωμα μόνοι σας· "
                 "ρωτήστε τον γιατρό σας αν χρειάζεται εξέταση επιπέδου βιταμίνης D."),
-         "en": ("Calcium / vitamin D supplements: a large 2026 review of 69 trials found little to no benefit for "
+         "en": ("Calcium / vitamin D supplements: the guidance prefers food sources, and a large 2026 review of 69 trials found little to no benefit for "
                 "preventing fractures in adults who are not at high risk. Do not start supplements on your own; "
                 "ask your doctor whether a vitamin D blood level is worth checking.")},
         {"id": "followup", "sources": ["iscd2019_monitoring", "nogg2024"],
@@ -71,10 +77,22 @@ ITEMS = {
                 "συγκρίνονται σωστά (ιδανικά στο ίδιο μηχάνημα/κέντρο)."),
          "en": ("Repeat scan: when a new DXA is worthwhile is your doctor's decision, so that changes can be "
                 "compared properly (ideally on the same machine / at the same centre).")},
-        # Hidden until a verified source is attached (see sources=[]):
-        {"id": "smoking_alcohol", "sources": [], "el": "", "en": ""},
-        {"id": "falls", "sources": [], "el": "", "en": ""},
-        {"id": "dietary_protein", "sources": [], "el": "", "en": ""},
+        {"id": "diet", "sources": ["kanis2019"],
+         "el": ("Διατροφή: οι οδηγίες συστήνουν επαρκές ασβέστιο κατά προτίμηση από τη διατροφή (π.χ. γαλακτοκομικά) "
+                "και επαρκή πρωτεΐνη. Ο γιατρός ή ο διατροφολόγος σας μπορεί να δει αν η δική σας πρόσληψη επαρκεί."),
+         "en": ("Diet: the guidance recommends enough calcium, preferably from food such as dairy, and enough protein. "
+                "Your doctor or a dietitian can check whether your own intake is adequate.")},
+        {"id": "smoking_alcohol", "sources": ["kanis2019"],
+         "el": ("Κάπνισμα και αλκοόλ: το τρέχον κάπνισμα και η συχνή υψηλή κατανάλωση αλκοόλ (3 ή περισσότερες "
+                "μονάδες την ημέρα) αναφέρονται ως παράγοντες κινδύνου για κατάγματα."),
+         "en": ("Smoking and alcohol: current smoking and regular high alcohol intake (3 or more units a day) are "
+                "listed as risk factors for fractures.")},
+        {"id": "falls", "sources": ["kanis2019"],
+         "el": ("Πτώσεις: σε άτομα με αυξημένο κίνδυνο κατάγματος οι οδηγίες δίνουν βάση στην πρόληψη πτώσεων "
+                "(ασκήσεις ισορροπίας και δύναμης, έλεγχος όρασης, αναθεώρηση φαρμάκων που προκαλούν υπνηλία, ασφαλέστερο σπίτι)."),
+         "en": ("Falls: for people at higher fracture risk the guidance stresses preventing falls (balance and strength "
+                "exercise, vision checks, reviewing drugs that cause drowsiness, a safer home).")},
+        # Hidden until a verified source is attached:
         {"id": "premenopausal_zscore", "sources": [], "el": "", "en": ""},  # clinician note, needs ISCD Official Positions
     ],
 }

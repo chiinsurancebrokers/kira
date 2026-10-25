@@ -30,3 +30,27 @@ smoking and alcohol, falls prevention, dietary protein, and the clinician note t
 
 ## Switches
 `LIFESTYLE_INFO=on` shows the section in the exam summary (default off). `REVIEWED_BY` in `lifestyle_info.py` is empty until a clinician signs the texts off; the report says so.
+
+## What was actually read (2026-10-25) — licence terms and findings
+| Source | Read | Result that changes how we use it |
+|---|---|---|
+| MedlinePlus | terms page | Public domain EXCEPT A.D.A.M. encyclopedia and ASHP drug monographs (copyrighted). Credit "MedlinePlus, National Library of Medicine". No framing under another domain. |
+| NHS website | terms page | OGL v3.0, commercial use allowed. If we ADAPT or translate: use OGL attribution and do NOT credit the NHS as source; we cannot charge users specifically for access to NHS content; logos, third-party images excluded. Linking to a page as a source is fine. |
+| CDC | "Use of agency materials" | Mostly public domain; attribute to CDC, add a no-endorsement disclaimer, do not change the substance, no logos. Contractor/third-party material may be restricted. |
+| WHO | copyright page | CC BY-NC-SA 3.0 IGO: non-commercial only; commercial use needs WHO permission; adaptations need a disclaimer and the same licence. |
+| StatPearls | NCBI Bookshelf | CC BY-NC-ND 4.0: no commercial use AND no adaptation. Cite and link only; never paraphrase into the product. (Earlier note said NC only; corrected.) |
+| NICE | UK Open Content Licence page | Commercial reuse allowed, UK use; self-assessed with a use form; outside the UK needs the international form; CKS, BNF, BNFc not covered. We are in Greece: use the international form before reusing. |
+| Cochrane Library | permissions page | Abstracts/summaries reuse is for Cochrane groups; others go through RightsLink/Wiley. Cite with DOI; do not copy. |
+| PMC open access | tools page | Licence varies per article: check each one before reuse. |
+| AHRQ ESI handbook v4 (2012) | govinfo PDF | The algorithm is copyrighted by the ESI Triage Research Team LLC: usable unchanged in clinical practice, not for adapting. It is a hospital-nurse tool. **Do not embed or adapt.** |
+| Endocrine Society | guidelines page | All rights reserved; licensing page exists. Not read further. |
+| IOF website | page failed to load | Not read. |
+| Kanis 2019 European guidance (ESCEO/IOF) | PDF on esceo.org | Calcium preferably from diet; vitamin D for those at increased risk; protein; weight-bearing exercise; falls prevention; smoking and 3+ alcohol units/day are risk factors; "osteopenia" is for epidemiological description, not a disease. PMID 30324412. Postmenopausal women. Now used in `lifestyle_info.py`. |
+| NHS pages (pregnancy bleeding, suicidal thoughts, poisoning, eye injuries) | read | Now the source URL of rules PREGNANCY-DANGER, SUICIDE, OVERDOSE, EYE-CHEMICAL. |
+
+### Differences between a rule and its source (for the clinician)
+- PREGNANCY-DANGER: any "bleeding" in pregnancy gives EMERGENCY. The NHS page treats light spotting with little pain as "urgent help, contact the maternity unit" and only heavy bleeding, severe pain, dizziness or fainting as 999. The rule over-triages light spotting.
+- EYE-CHEMICAL: the rule says rinse "at least 15 minutes". The NHS eye page says keep rinsing until help arrives and gives no number; the 15-minute figure has no source here.
+- TESTICLE-PAIN: still no verified source (NHS and MedlinePlus pages did not load or were the wrong article).
+- SUICIDE / OVERDOSE / EYE-CHEMICAL / PREGNANCY-DANGER cite UK pages that say 999; our messages say 112/166. Logic matches; numbers are Greek.
+- Not read: MedlinePlus and CDC condition pages for the other rules (they already cite ESC/AHA/ERC/AAP papers).

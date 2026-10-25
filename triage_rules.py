@@ -219,13 +219,13 @@ RULES = [
             r"θελω να πεθανω|θα αυτοκτονησω|να αυτοκτονησω|αυτοκτον|να τελειωσω τη ζωη μου|να σκοτωσω τον εαυτο μου|δεν αξιζει να ζω|καλυτερα να ημουν νεκρος"),
          "You do not have to be alone with this. Please call 112 now or go to the nearest emergency department, and tell someone you trust where you are.",
          "Δεν χρειάζεται να το περάσεις μόνος/η. Κάλεσε τώρα το 112 ή πήγαινε στο πλησιέστερο τμήμα επειγόντων και πες σε κάποιον που εμπιστεύεσαι πού βρίσκεσαι.",
-         POLICY),
+         "https://www.nhs.uk/mental-health/feelings-symptoms-behaviours/behaviours/help-for-suicidal-thoughts/"),
     Rule("OVERDOSE", "EMERGENCY",
          _r(r"overdos|took (too many|a whole|all the)|swallowed (a (lot|bottle)|bleach|pills|tablets|poison|battery)|drank (bleach|poison|antifreeze|cleaner)|poison(ed|ing)|"
             r"υπερδοσ|πηρε (πολλα|ολα τα) (χαπια|δισκια)|καταπι\w* (απορρυπαντικ|χλωρ|χαπια|δισκια|δηλητηρι|μπαταρι)|ηπιε (χλωρ|αντιψυκτικ|δηλητηρι)|δηλητηριασ"),
          "Taking too much medicine or swallowing a poison or chemical needs emergency advice. Call 166 or 112 now and keep the package. Do not make them vomit.",
          "Η λήψη υπερβολικής ποσότητας φαρμάκου ή η κατάποση δηλητηρίου ή χημικού χρειάζεται άμεση συμβουλή. Κάλεσε τώρα 166 ή 112 και κράτα τη συσκευασία. Μην προκαλέσεις εμετό.",
-         POLICY, neg_guard=True),
+         "https://www.nhs.uk/conditions/poisoning/", neg_guard=True),
     # ------------------------------------------------------------------ children / pregnancy / other
     Rule("INFANT-FEVER", "EMERGENCY",
          _r(r"newborn|new born|\b([1-9]|[1-5]\d|60) days?[- ]old|\b[1-9] weeks?[- ]old|\b[1-2] months?[- ]old|νεογεν|\b([1-9]|[1-5]\d|60) (ημερων|ημερα)|\b[1-9] εβδομαδ\w*|\b[1-2] μην\w*",
@@ -239,7 +239,7 @@ RULES = [
             r"αιμορραγι|εντονος πονος|δεν κινειται το μωρο|δεν νιωθω κινησεις|εσπασε ο υδρωπας|εσπασαν τα νερα|σπασμ|εντονος πονοκεφαλος.{0,20}(ορασ|πρηξιμο)"),
          "Bleeding, severe pain, no baby movements, waters breaking or a seizure in pregnancy needs urgent care. Call 166 or 112 or go to the maternity emergency department now.",
          "Αιμορραγία, έντονος πόνος, απουσία κινήσεων του μωρού, ρήξη υμένων ή σπασμός στην εγκυμοσύνη χρειάζεται επείγουσα φροντίδα. Κάλεσε 166 ή 112 ή πήγαινε τώρα στα επείγοντα μαιευτηρίου.",
-         POLICY),
+         "https://www.nhs.uk/pregnancy/related-conditions/common-symptoms/vaginal-bleeding/"),
     Rule("DIABETES-CRISIS", "EMERGENCY",
          _r(r"diabet|sugar|insulin|διαβητ|ζαχαρο|ινσουλιν",
             r"confus|unresponsive|won'?t wake|seizure|fruity breath|deep (fast )?breath|vomit\w* .{0,20}(thirst|drink)|very (thirsty|drowsy)|"
@@ -258,7 +258,7 @@ RULES = [
             r"(eye|ματι|ματια).{0,25}(chemical|bleach|acid|cleaner|χημικ|χλωρ|οξυ|καθαριστικ)"),
          "A chemical in the eye is an emergency. Rinse the eye with clean running water for at least 15 minutes and call 112 or go to an emergency department.",
          "Χημική ουσία στο μάτι είναι επείγον. Ξέπλυνε το μάτι με καθαρό τρεχούμενο νερό για τουλάχιστον 15 λεπτά και κάλεσε 112 ή πήγαινε σε τμήμα επειγόντων.",
-         POLICY),
+         "https://www.nhs.uk/conditions/eye-injuries/"),
 ]
 
 # Clear statements that justify skipping the question cycle and showing a fixed emergency message. Hand-picked;

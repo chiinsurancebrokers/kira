@@ -55,6 +55,7 @@ for k, s in li.SOURCES.items():
 
 # supplements must never be recommended outright
 sup = next(i for i in li.ITEMS["bone"] if i["id"] == "supplements")
+check("kanis source verified", li.SOURCES["kanis2019"]["pmid"] == "30324412")
 check("supplements text defers to doctor", "ρωτήστε" in sup["el"] and "ask your doctor" in sup["en"])
 
 # off by default
