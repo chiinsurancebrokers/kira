@@ -50,7 +50,14 @@ smoking and alcohol, falls prevention, dietary protein, and the clinician note t
 
 ### Differences between a rule and its source (for the clinician)
 - PREGNANCY-DANGER: any "bleeding" in pregnancy gives EMERGENCY. The NHS page treats light spotting with little pain as "urgent help, contact the maternity unit" and only heavy bleeding, severe pain, dizziness or fainting as 999. The rule over-triages light spotting.
-- EYE-CHEMICAL: the rule says rinse "at least 15 minutes". The NHS eye page says keep rinsing until help arrives and gives no number; the 15-minute figure has no source here.
-- TESTICLE-PAIN: still no verified source (NHS and MedlinePlus pages did not load or were the wrong article).
+- EYE-CHEMICAL: now cites MedlinePlus "Eye emergencies" (flush at least 15 minutes, get help right away); the NHS eye page gives no number. Source changed from NHS to MedlinePlus (public domain).
+- TESTICLE-PAIN: now cites MedlinePlus "Testicular torsion" (emergency room, most of the testicle saved if operated within 6 hours). An NHS Essex ICB page also read: torsion needs A&E/999, good salvage within 6 h, risk rises after 12 h, removal usually after 24 h.
 - SUICIDE / OVERDOSE / EYE-CHEMICAL / PREGNANCY-DANGER cite UK pages that say 999; our messages say 112/166. Logic matches; numbers are Greek.
 - Not read: MedlinePlus and CDC condition pages for the other rules (they already cite ESC/AHA/ERC/AAP papers).
+
+### Retry (same day): what loaded this time
+- IOF (osteoporosis.foundation): page loaded but gives only generic advice (bone-healthy diet, exercise, avoid negative lifestyle factors) and no reuse terms (© IOF; contact info@osteoporosis.foundation). Not used as a source; Kanis 2019 stays.
+- CDC stroke and heart attack pages: read. Stroke: face, arm, speech, time; call 911 immediately. Heart attack: chest pain, arm/jaw pain, breathlessness, sweating, call 911. They agree with CHEST-ACS and STROKE-FAST (our numbers are 166/112). CDC is mostly public domain; attribute to CDC and add a no-endorsement line if text is reused.
+- Europe PMC: blocked by robots.txt. PMC article pages: show a reCAPTCHA, so not read.
+- AHRQ ESI page: still did not load (the handbook PDF on govinfo was read earlier).
+- NHS testicular-torsion and testicular-pain pages: did not load.

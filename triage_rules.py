@@ -252,13 +252,13 @@ RULES = [
             r"sudden|suddenly|severe|swollen|high|twist|ξαφνικ|εντονος|πρησμεν|ανεβηκε|στριψ"),
          "Sudden, severe pain or swelling in a testicle can be a twisted testicle, where minutes matter. Go to an emergency department now or call 166 or 112.",
          "Ξαφνικός, έντονος πόνος ή πρήξιμο στον όρχι μπορεί να είναι στρέψη όρχεως, όπου μετράνε τα λεπτά. Πήγαινε τώρα σε τμήμα επειγόντων ή κάλεσε 166 ή 112.",
-         POLICY),
+         "https://medlineplus.gov/ency/article/000517.htm"),
     Rule("EYE-CHEMICAL", "EMERGENCY",
          _r(r"(chemical|bleach|acid|cleaner|oven cleaner|lime|χημικ|χλωρ|οξυ|καθαριστικ).{0,25}(in|into|got in|splash\w*|στο|στα) .{0,10}(eye|ματι|ματια)|"
             r"(eye|ματι|ματια).{0,25}(chemical|bleach|acid|cleaner|χημικ|χλωρ|οξυ|καθαριστικ)"),
          "A chemical in the eye is an emergency. Rinse the eye with clean running water for at least 15 minutes and call 112 or go to an emergency department.",
          "Χημική ουσία στο μάτι είναι επείγον. Ξέπλυνε το μάτι με καθαρό τρεχούμενο νερό για τουλάχιστον 15 λεπτά και κάλεσε 112 ή πήγαινε σε τμήμα επειγόντων.",
-         "https://www.nhs.uk/conditions/eye-injuries/"),
+         "https://medlineplus.gov/ency/article/000054.htm"),
 ]
 
 # Clear statements that justify skipping the question cycle and showing a fixed emergency message. Hand-picked;
