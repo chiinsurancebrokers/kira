@@ -430,6 +430,23 @@ JSON only: {{"points": [{{"title": string, "text": string}}]}}"""
         return []
 
 
+_FOOT_LIFE = {
+    "el": "Εξαίρεση: η ενότητα «Γενικές πληροφορίες» περιέχει γενικό ενημερωτικό υλικό με πηγές, όχι προσωπική σύσταση.",
+    "en": "Exception: the “General information” section holds general, sourced reading material, not a personal recommendation.",
+}
+
+
+def _lifestyle(dossier: dict, lang: str):
+    """Fixed, sourced lifestyle text for findings in the exams (see lifestyle_info.py). None when off."""
+    try:
+        import lifestyle_info as li
+        if not li.enabled():
+            return None
+        return li.build(dossier.get("exams") or [], lang)
+    except Exception:  # noqa: BLE001 - never break the report
+        return None
+
+
 def summarize_symptoms(api_key: str, conversation: list, lang: str = "el", log=None) -> str:
     """Neutral summary of what the PATIENT said (not what Asklepios suggested)."""
     target = "Greek" if lang == "el" else "English"
@@ -607,7 +624,22 @@ def build_docx(dossier: dict, lang: str = "el") -> bytes:
                 para(p["title"], bold=True, space_before=4, space_after=2)
             para(p["text"])
 
-    para(lb["footer"], italic=True, color=MUTED, space_before=14, size=9.5)
+    # General lifestyle information (fixed, sourced texts; off unless LIFESTYLE_INFO=on)
+    life = _lifestyle(dossier, lang)
+    if life:
+        heading(f"{n + 1 + (1 if pts else 0)}. {life['heading']}")
+        para(life["note"], italic=True, color=MUTED)
+        para(life["scope"], italic=True, color=MUTED)
+        para(life["review"], bold=True)
+        for b in life["blocks"]:
+            para(b["title"], bold=True, space_before=4, space_after=2)
+            for x in b["lines"]:
+                para("• " + x)
+            para(f"{life['src_label']}: " + "; ".join(f"doi:{s['doi']} (PMID {s['pmid']})" for s in b["sources"]),
+                 italic=True, color=MUTED, size=9)
+
+    para(lb["footer"] + (" " + _FOOT_LIFE[lang if lang == "el" else "en"] if life else ""),
+         italic=True, color=MUTED, space_before=14, size=9.5)
     para(f"{lb['made_with']} · {lb['prepared']}: {datetime.now().strftime('%d/%m/%Y')}",
          color=MUTED, size=8.5)
 
@@ -697,7 +729,12 @@ def build_html(dossier: dict, lang: str = "el") -> str:
             parts.append(f"<h3>{esc(p.get('title'))}</h3><p>{esc(p.get('text'))}</p>")
         parts.append("</section>")
 
-    parts.append(f'<p class="footer">{esc(lb["footer"])}</p>')
+    life = _lifestyle(dossier, lang)
+    if life:
+        import lifestyle_info as _li
+        parts.append(_li.render_html(life, n + 1 + (1 if pts else 0)))
+
+    parts.append(f'<p class="footer">{esc(lb["footer"] + (" " + _FOOT_LIFE[lang if lang == "el" else "en"] if life else ""))}</p>')
     parts.append(f'<p class="made">{esc(lb["made_with"])} · {esc(lb["prepared"])}: {datetime.now().strftime("%d/%m/%Y")}</p>')
 
     btn = "Εκτύπωση / Αποθήκευση ως PDF" if lang == "el" else "Print / Save as PDF"

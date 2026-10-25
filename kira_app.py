@@ -8361,6 +8361,19 @@ div[data-testid="stVerticalBlock"]:has(> div[data-testid="stElementContainer"] .
             # Echo the just-sent message while Asklepios is answering
             with st.chat_message("user"):
                 st.markdown(user_input)
+        # ── Safety floor on what the USER wrote (triage_rules.py): can only raise urgency; clear emergencies get a
+        # fixed 166/112 message without calling the AI, once per rule set. Kill switch: env TRIAGE_FLOOR=off.
+        import triage_rules as _tr
+        _lang_tr = st.session_state.lang
+        _floor = _tr.evaluate([m["content"] for m in st.session_state.triage_chat if m.get("role") == "user"])
+        _fkey = _tr.rule_key(_floor)
+        if _fkey and _fkey not in {m.get("bypass") for m in st.session_state.triage_chat if m.get("bypass")}:
+            log_event("safety_bypass", rules=_fkey)
+            st.session_state["triage_emergency"] = True
+            st.session_state.triage_chat.append({"role": "assistant", "content": _tr.act_now_reply(_floor, _lang_tr),
+                                                 "ready": False, "bypass": _fkey})
+            _autosave_assessment()
+            st.rerun()
         with st.spinner("Asklepios " + ("γράφει…" if st.session_state.lang=="el" else "is typing…")):
             pp=p.get
             _flags = []
@@ -8379,7 +8392,24 @@ div[data-testid="stVerticalBlock"]:has(> div[data-testid="stElementContainer"] .
             profile_ctx=f"Patient: {pp('name')}, {pp('age')}yo {pp('sex')}, {_flags_str}Hx: {pp('history','none')}, Allergies: {pp('allergies','none')}, Meds: {pp('meds_raw','none')}"
             vitals_ctx="Vitals: "+", ".join(f"{k}={val}" for k,val in st.session_state.vitals.items()) if st.session_state.vitals else "Vitals: not provided"
             system_ctx=kira_system()+f"\n\n{profile_ctx}\n{vitals_ctx}"
+            _ab = _tr.alert_block(_floor)
+            if _ab:
+                system_ctx += "\n\n" + _ab
             reply=claude([{"role":m["role"],"content":m["content"]} for m in st.session_state.triage_chat],system=system_ctx,max_tokens=1500)
+            if _tr.is_ai_error(reply):
+                # Never show a raw error or an all-clear: urgent by default, the rule floor when higher.
+                log_event("safety_disagreement", ok=False, kind="ai_failed", level=_floor.level or "none",
+                          rules=",".join(h.id for h in _floor.hits))
+                reply = _tr.fallback_reply(_floor, _lang_tr)
+            elif _floor.hits:
+                _low = _strip_accents(reply or "")
+                if not any(k in _low for k in ("γιατρ", "doctor", "166", "112", "εκαβ", "ekab", "επειγον", "urgent", "emergency")):
+                    log_event("safety_disagreement", ok=False, kind="rules_raised_ai", level=_floor.level,
+                              rules=",".join(h.id for h in _floor.hits))
+                    _top = max(_floor.hits, key=lambda h: _tr.RANK[h.level])
+                    reply = (reply or "").rstrip() + "\n\n⚠️ " + (_top.el if _lang_tr == "el" else _top.en)
+            if _floor.level == "EMERGENCY":
+                st.session_state["triage_emergency"] = True
             # Machine-readable "I have enough" marker (see system prompt) — stripped
             # from what the user sees, stored as a flag on the message instead.
             _ready_flag = bool(reply) and ("[[READY]]" in reply)
