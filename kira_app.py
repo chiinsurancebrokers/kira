@@ -1177,6 +1177,21 @@ def _supabase_client():
     except Exception:
         return None
 
+def _admin_client():
+    """Server-side client for tables that have no public write access (user_logins,
+    partners, articles, campaigns). Needs SUPABASE_SERVICE_ROLE_KEY in the server env;
+    never falls back to the anon key, so a missing key fails closed instead of
+    silently writing with the public key."""
+    url = _secret("SUPABASE_URL", "")
+    key = _secret("SUPABASE_SERVICE_ROLE_KEY", "")
+    if not url or not key:
+        return None
+    try:
+        from supabase import create_client
+        return create_client(url, key)
+    except Exception:
+        return None
+
 def auth_enabled():
     return _supabase_client() is not None
 
@@ -1658,7 +1673,7 @@ def render_login_gate():
         """Upsert into user_logins for analytics. No medical data stored."""
         _t0 = time.time()
         try:
-            sb = _supabase_client()
+            sb = _admin_client()
             if not sb: return
             from datetime import datetime as _dt
             sb.table("user_logins").upsert({
@@ -2644,7 +2659,7 @@ def _admin_partners_tab():
             else:
                 st.warning("Το όνομα είναι απαραίτητο.")
 
-    partners = _admin_list("partners")
+    partners = _admin_list("partners", admin=True)
     if not partners:
         st.info("Δεν υπάρχουν partners ακόμα.")
     for row in partners:
@@ -2700,7 +2715,7 @@ def _admin_articles_tab():
             else:
                 st.warning("Τίτλος και σύνοψη είναι απαραίτητα.")
 
-    articles = _admin_list("articles", order_col="published_at")
+    articles = _admin_list("articles", order_col="published_at", admin=True)
     if not articles:
         st.info("Δεν υπάρχουν άρθρα ακόμα.")
     for row in articles:
@@ -2757,7 +2772,7 @@ def _admin_campaigns_tab():
             else:
                 st.warning("Ο τίτλος είναι απαραίτητος.")
 
-    campaigns = _admin_list("campaigns", order_col="starts_on")
+    campaigns = _admin_list("campaigns", order_col="starts_on", admin=True)
     if not campaigns:
         st.info("Δεν υπάρχουν campaigns ακόμα.")
     _today = datetime.now().date().isoformat()
@@ -3039,12 +3054,12 @@ def set_setting(key, value):
         log_event("supabase_write", ok=False, ms=(time.time()-_t0)*1000, error=str(e), table="app_settings")
         return False
 
-def _admin_list(table, order_col="created_at", ascending=False):
+def _admin_list(table, order_col="created_at", ascending=False, admin=False):
     """Generic 'fetch all rows' for the admin-managed tables. Returns []
     on any failure instead of raising — admin pages should degrade to an
     empty list (with an inline error already shown by the caller) rather
     than crash the whole panel."""
-    sb = _supabase_client()
+    sb = _admin_client() if admin else _supabase_client()
     if not sb:
         return []
     _t0 = time.time()
@@ -3058,7 +3073,7 @@ def _admin_list(table, order_col="created_at", ascending=False):
         return []
 
 def _admin_insert(table, row):
-    sb = _supabase_client()
+    sb = _admin_client()
     if not sb:
         return False
     _t0 = time.time()
@@ -3071,7 +3086,7 @@ def _admin_insert(table, row):
         return False
 
 def _admin_update(table, row_id, patch):
-    sb = _supabase_client()
+    sb = _admin_client()
     if not sb:
         return False
     _t0 = time.time()
@@ -3084,7 +3099,7 @@ def _admin_update(table, row_id, patch):
         return False
 
 def _admin_delete(table, row_id):
-    sb = _supabase_client()
+    sb = _admin_client()
     if not sb:
         return False
     _t0 = time.time()
