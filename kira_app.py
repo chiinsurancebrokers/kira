@@ -1179,13 +1179,14 @@ def _supabase_client():
 
 def _admin_client():
     """Server-side client for tables that have no public write access (user_logins,
-    partners, articles, campaigns). Needs SUPABASE_SERVICE_ROLE_KEY in the server env;
-    never falls back to the anon key, so a missing key fails closed instead of
-    silently writing with the public key."""
+    partners, articles, campaigns). Uses SUPABASE_SERVICE_ROLE_KEY when set. Until the
+    key is set it falls back to the anon client, so behaviour is unchanged while RLS is
+    still off; once the RLS migration is applied the anon fallback is refused by the
+    database (fails closed), so set the key before or together with that migration."""
     url = _secret("SUPABASE_URL", "")
     key = _secret("SUPABASE_SERVICE_ROLE_KEY", "")
     if not url or not key:
-        return None
+        return _supabase_client()
     try:
         from supabase import create_client
         return create_client(url, key)
