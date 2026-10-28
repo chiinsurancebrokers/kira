@@ -2561,7 +2561,8 @@ div[data-testid="stHorizontalBlock"]:has(.ask-split-left) > div[data-testid="stC
     _priv_label = "🔒 Τα δεδομένα μου & GDPR" if st.session_state.lang == "el" else "🔒 My data & GDPR"
     st.markdown(
         f'<div class="ask-footer" dir="{_dir}">{t("hal_footer")}<br>'
-        f'<a href="?page=privacy" target="_self">{_priv_label}</a></div>',
+        f'<a href="?page=privacy" target="_self">{_priv_label}</a> · '
+        f'<a href="?page=terms" target="_self">{"Όροι χρήσης" if st.session_state.lang == "el" else "Terms"}</a></div>',
         unsafe_allow_html=True,
     )
 
@@ -2817,6 +2818,64 @@ def render_admin_panel():
     st.divider()
     if st.button("🔒 Κλείδωμα / Έξοδος"):
         st.session_state["_admin_unlocked"] = False
+        st.rerun()
+
+
+# ── TERMS OF USE (/?page=terms) ────────────────────────────────────────────────
+# DRAFT from what the app really does. Needs review by a lawyer (and a regulatory check on the
+# medical-device / EU AI Act position) before any paid launch. Operator identity from env:
+# OPERATOR_NAME, OPERATOR_ADDRESS, OPERATOR_VAT, SUPPORT_EMAIL.
+def render_terms_page():
+    lang = st.session_state.get("lang", "el")
+    c1, c2 = st.columns([6, 1])
+    with c2:
+        if st.button("🇬🇧 EN" if lang == "el" else "🇬🇷 ΕΛ", key="terms_lang"):
+            st.session_state.lang = "en" if lang == "el" else "el"
+            st.rerun()
+            return
+    op = _secret("OPERATOR_NAME", "") or "[OPERATOR_NAME]"
+    addr = _secret("OPERATOR_ADDRESS", "") or "[OPERATOR_ADDRESS]"
+    vat = _secret("OPERATOR_VAT", "") or "[OPERATOR_VAT]"
+    mail = _secret("SUPPORT_EMAIL", "") or "[SUPPORT_EMAIL]"
+    if lang == "el":
+        st.markdown("## 📄 Όροι Χρήσης — Asklepios")
+        st.caption("Τελευταία ενημέρωση: 28/10/2026")
+        st.markdown(
+            f"**Πάροχος:** {op} · {addr} · ΑΦΜ {vat} · {mail}\n\n"
+            "**1. Σκοπός.** Ο Asklepios είναι εργαλείο **ενημέρωσης και προετοιμασίας επίσκεψης**: σε βοηθά να οργανώσεις συμπτώματα, εξετάσεις και ερωτήσεις ώστε να μιλήσεις αποτελεσματικότερα με τον γιατρό σου.\n\n"
+            "**2. Δεν είναι ιατρική υπηρεσία.** **Δεν κάνει διάγνωση, δεν συνταγογραφεί, δεν προτείνει θεραπεία και δεν αντικαθιστά γιατρό ή επείγουσα φροντίδα.** "
+            "Οι απαντήσεις παράγονται από τεχνητή νοημοσύνη, μπορεί να είναι ανακριβείς ή ελλιπείς και οι κανόνες ασφαλείας δεν έχουν ακόμη ελεγχθεί κλινικά.\n\n"
+            "**3. Επείγοντα.** Σε επείγουσα ανάγκη κάλεσε **166 (ΕΚΑΒ) ή 112** αμέσως, μην περιμένεις την εφαρμογή. Ένα «μη επείγον» αποτέλεσμα δεν αποκλείει σοβαρή κατάσταση.\n\n"
+            "**4. Δική σου ευθύνη.** Δίνεις ακριβή στοιχεία και αποφασίζεις εσύ αν και πότε θα απευθυνθείς σε επαγγελματία υγείας. Δεν καθυστερείς φροντίδα εξαιτίας της εφαρμογής.\n\n"
+            "**5. Πληροφορίες.** Το περιεχόμενο (π.χ. οδηγίες τρόπου ζωής) είναι γενικό, με αναφορά πηγών, και δεν προσαρμόζεται σε εσένα προσωπικά.\n\n"
+            "**6. Δεδομένα.** Βλ. «Τα δεδομένα μου & GDPR» (?page=privacy), όπου μπορείς να διαγράψεις τα δεδομένα σου. Δεδομένα υγείας: ανέβασε μόνο όσα θέλεις να αναλυθούν· τα αρχεία δεν αποθηκεύονται.\n\n"
+            "**7. Αποδεκτή χρήση.** Όχι κατάχρηση, αυτοματοποιημένη χρήση σε μεγάλη κλίμακα ή παράκαμψη ορίων.\n\n"
+            "**8. Διαθεσιμότητα.** Η υπηρεσία παρέχεται «ως έχει», μπορεί να διακοπεί ή να αλλάξει και εξαρτάται από τρίτους παρόχους (π.χ. AI).\n\n"
+            "**9. Περιορισμός ευθύνης.** Στο μέτρο που επιτρέπει ο νόμος, δεν ευθυνόμαστε για έμμεσες ζημίες ή για αποφάσεις που λήφθηκαν βάσει της εφαρμογής. Δεν περιορίζεται ευθύνη που ο νόμος δεν επιτρέπει να περιοριστεί ούτε τα δικαιώματά σου ως καταναλωτή.\n\n"
+            "**10. Εφαρμοστέο δίκαιο.** Ελληνικό δίκαιο, με διατήρηση των δικαιωμάτων σου ως καταναλωτή.\n"
+        )
+        back_label = "← Πίσω στην εφαρμογή"
+    else:
+        st.markdown("## 📄 Terms of Use — Asklepios")
+        st.caption("Last updated: 28 Oct 2026")
+        st.markdown(
+            f"**Provider:** {op} · {addr} · VAT {vat} · {mail}\n\n"
+            "**1. Purpose.** Asklepios is an **information and visit-preparation tool**: it helps you organise symptoms, test results and questions so you can talk to your doctor more effectively.\n\n"
+            "**2. Not a medical service.** It **does not diagnose, prescribe, recommend treatment or replace a doctor or emergency care.** "
+            "Answers come from artificial intelligence, can be inaccurate or incomplete, and the safety rules have not yet been clinically reviewed.\n\n"
+            "**3. Emergencies.** In an emergency call **166 (EKAB) or 112** immediately; do not wait for the app. A “not urgent” result does not rule out a serious condition.\n\n"
+            "**4. Your responsibility.** You provide accurate information and decide whether and when to contact a health professional. Do not delay care because of the app.\n\n"
+            "**5. Information.** Content (e.g. lifestyle guidance) is general, cites its sources and is not tailored to you personally.\n\n"
+            "**6. Data.** See “My data & GDPR” (?page=privacy), where you can delete your data. Health data: upload only what you want analysed; files are not stored.\n\n"
+            "**7. Acceptable use.** No abuse, large-scale automated use or circumventing limits.\n\n"
+            "**8. Availability.** Provided “as is”; may be interrupted or changed and depends on third-party providers (e.g. AI).\n\n"
+            "**9. Limitation of liability.** To the extent the law allows, we are not liable for indirect loss or for decisions made based on the app. Liability that cannot lawfully be limited, and your consumer rights, are unaffected.\n\n"
+            "**10. Governing law.** Greek law, preserving your consumer rights.\n"
+        )
+        back_label = "← Back to the app"
+    st.markdown("---")
+    if st.button(back_label, key="terms_back"):
+        st.query_params.clear()
         st.rerun()
 
 
@@ -3602,7 +3661,7 @@ T = {
         "hero_p3t": '16 γλώσσες',
         "hero_p3s": 'Ελληνικά, Αγγλικά, Χίντι, Αραβικά κ.ά.',
         "hero_p3b": 'Για όλους',
-        "hero_disc": 'Δεν αντικαθιστά τον <strong>ιατρό</strong>. Επείγον: <strong>166</strong> ή <strong>112</strong>. Δεν αποθηκεύουμε ιατρικά δεδομένα. 🔒 GDPR',
+        "hero_disc": 'Δεν αντικαθιστά τον <strong>ιατρό</strong>. Επείγον: <strong>166</strong> ή <strong>112</strong>. Τα αρχεία δεν αποθηκεύονται· ό,τι κρατιέται είναι κρυπτογραφημένο και σβήνεται όποτε θες. 🔒 GDPR',
         "hero_how": 'Πώς λειτουργεί',
         "hero_cta": '✦ Ξεκίνα αξιολόγηση & αναφορά',
         "hero_login_title": 'Ξεκίνα — δωρεάν, χωρίς password',
@@ -3731,7 +3790,7 @@ T = {
         "hero_p3t": '16 languages',
         "hero_p3s": 'Greek, English, Hindi, Arabic, Hebrew & more',
         "hero_p3b": 'For everyone',
-        "hero_disc": 'Does not replace your <strong>doctor</strong>. Emergency: <strong>112</strong>. We store no medical data. 🔒 GDPR',
+        "hero_disc": 'Does not replace your <strong>doctor</strong>. Emergency: <strong>112</strong>. Files are not stored; anything kept is encrypted and you can erase it any time. 🔒 GDPR',
         "hero_how": 'How it works',
         "hero_cta": '✦ Start assessment & report',
         "hero_login_title": 'Get started — free, no password',
@@ -4233,7 +4292,7 @@ T = {
         "hero_p3t": '16 езика',
         "hero_p3s": 'Гръцки, Английски, Арабски, Хинди и др.',
         "hero_p3b": 'За всички',
-        "hero_disc": 'Не замества лекаря. Спешни: <strong>166</strong> или <strong>112</strong>. Не съхраняваме медицински данни. 🔒 GDPR',
+        "hero_disc": 'Не замества лекаря. Спешни: <strong>166</strong> или <strong>112</strong>. Файловете не се съхраняват; каквото се пази е криптирано и можеш да го изтриеш по всяко време. 🔒 GDPR',
         "hero_how": 'Как работи',
         "hero_cta": '✦ Започни оценка и доклад',
         "hero_login_title": 'Започни — безплатно, без парола',
@@ -4323,7 +4382,7 @@ T = {
         "hero_p3t": '16 limbi',
         "hero_p3s": 'Română, Greacă, Arabă, Hindi și altele',
         "hero_p3b": 'Pentru toți',
-        "hero_disc": 'Nu înlocuiește medicul. Urgențe: <strong>166</strong> sau <strong>112</strong>. Nu stocăm date medicale. 🔒 GDPR',
+        "hero_disc": 'Nu înlocuiește medicul. Urgențe: <strong>166</strong> sau <strong>112</strong>. Fișierele nu se stochează; ce se păstrează e criptat și poți șterge oricând. 🔒 GDPR',
         "hero_how": 'Cum funcționează',
         "hero_cta": '✦ Începe evaluarea și raportul',
         "hero_login_title": 'Începe — gratuit, fără parolă',
@@ -4413,7 +4472,7 @@ T = {
         "hero_p3t": '16 gjuhë',
         "hero_p3s": 'Shqip, Greqisht, Arabisht, Hindishte dhe të tjera',
         "hero_p3b": 'Për të gjithë',
-        "hero_disc": 'Nuk zëvendëson mjekun. Urgjencë: <strong>166</strong> ose <strong>112</strong>. Nuk ruajmë të dhëna mjekësore. 🔒 GDPR',
+        "hero_disc": 'Nuk zëvendëson mjekun. Urgjencë: <strong>166</strong> ose <strong>112</strong>. Skedarët nuk ruhen; çfarë ruhet është i enkriptuar dhe mund ta fshish kurdo. 🔒 GDPR',
         "hero_how": 'Si funksionon',
         "hero_cta": '✦ Fillo vlerësimin dhe raportin',
         "hero_login_title": 'Fillo — falas, pa fjalëkalim',
@@ -4503,7 +4562,7 @@ T = {
         "hero_p3t": '16 языков',
         "hero_p3s": 'Русский, Греческий, Арабский, Хинди и др.',
         "hero_p3b": 'Для всех',
-        "hero_disc": 'Не заменяет врача. Экстренно: <strong>166</strong> или <strong>112</strong>. Медданные не хранятся. 🔒 GDPR',
+        "hero_disc": 'Не заменяет врача. Экстренно: <strong>166</strong> или <strong>112</strong>. Файлы не хранятся; то, что сохраняется, зашифровано, и вы можете удалить это в любой момент. 🔒 GDPR',
         "hero_how": 'Как это работает',
         "hero_cta": '✦ Начать оценку и отчёт',
         "hero_login_title": 'Начать — бесплатно, без пароля',
@@ -10272,6 +10331,11 @@ if (st.session_state.get("_from_facescan") and st.session_state.vitals
 # Reached via /?page=privacy. Deliberately checked BEFORE the hero/login gate
 # below — a right-to-erasure request shouldn't itself require an active
 # session to discover or use.
+if st.query_params.get("page") == "terms":
+    render_terms_page()
+    _i18n_flush()
+    st.stop()
+
 if st.query_params.get("page") == "privacy":
     render_privacy_page()
     _i18n_flush()
