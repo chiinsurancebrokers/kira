@@ -3178,16 +3178,11 @@ def pubmed_search(query, n=3):
         # NOTE: eutils' esearch defaults to sorting by most-recent-publication-
         # date when no `sort` param is given — NOT by relevance, even though
         # that's what the pubmed.ncbi.nlm.nih.gov website shows by default.
-        # We use "most+cited" rather than "relevance": relevance only scores
-        # keyword-match strength in title/abstract/MeSH, so it can still rank
-        # a niche case report above a well-established, heavily-cited review
-        # just because the case report's text happens to match more closely.
-        # Citation count is a much closer proxy for "this is strong, well-
-        # validated literature" — combined with the existing _PILLAR_PTYPE
-        # filter (Practice Guideline/Systematic Review/Meta-Analysis/Review),
-        # this surfaces the most-cited paper *within* the high-evidence-type
-        # subset, rather than just the most recent or most keyword-matched one.
-        p = urllib.parse.urlencode({"db":"pubmed","term":query,"retmax":n,"retmode":"json","sort":"most+cited","api_key":get_ncbi_key()})
+        # "most+cited" is NOT a valid esearch sort value (valid: relevance,
+        # pub_date, Author, JournalName), so it was silently ignored and the
+        # default most-recent-first order returned unrelated brand-new papers.
+        # Use "relevance"; high-evidence quality comes from _PILLAR_PTYPE.
+        p = urllib.parse.urlencode({"db":"pubmed","term":query,"retmax":n,"retmode":"json","sort":"relevance","api_key":get_ncbi_key()})
         with urllib.request.urlopen(f"https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi?{p}", timeout=8) as r:
             ids = json.loads(r.read()).get("esearchresult",{}).get("idlist",[])
         if not ids:
@@ -9352,6 +9347,12 @@ def render_report():
         vitals_analysis=st.session_state.vitals_analysis or "Not available"
         last_user=next((m["content"] for m in reversed(st.session_state.triage_chat) if m["role"]=="user"),"")
         search_query=last_user[:80]+" diagnosis management" if last_user else "symptom assessment management"
+        # PubMed cannot match Greek: the non-Latin words are dropped and the
+        # generic English filler ("diagnosis management") matches thousands of
+        # unrelated papers. Skip this first-pass search for non-Latin text; the
+        # condition-scoped bibliography_search() below supplies the references.
+        if last_user and sum(c.isascii() and c.isalpha() for c in last_user) < 0.6 * max(1, sum(c.isalpha() for c in last_user)):
+            search_query = ""
 
         # ── Loading banner overlay (full-viewport, animated) ─────────────────
         # The report header pushes the inline spinner below the fold — users
@@ -9432,7 +9433,7 @@ def render_report():
 """, unsafe_allow_html=True)
 
         with st.spinner("🔬 PubMed..." if lang=="el" else "🔬 Searching PubMed..."):
-            refs=pubmed_search(search_query,n=3); st.session_state.report_pubmed=refs
+            refs=pubmed_search(search_query,n=3) if search_query else []; st.session_state.report_pubmed=refs
         # Pull abstract text for these refs (best-effort — a PMID with no
         # abstract or a failed fetch just falls back to title-only, same as
         # before). This grounds the report in what the papers actually say
@@ -9586,8 +9587,9 @@ Language: {"Greek" if lang=="el" else "English"}. Be direct. End with a one-line
                         # its own free-text bibliography, see report_prompt above).
                         _futs["bibliography"] = _ex.submit(bibliography_search, _condition, 3)
                         _all_refs = {p: f.result() for p,f in _futs.items()}
-                if _all_refs.get("bibliography"):
-                    st.session_state.report_pubmed = _all_refs["bibliography"]
+                # Always overwrite with the condition-scoped result, even if empty:
+                # showing no references is better than unrelated ones.
+                st.session_state.report_pubmed = _all_refs.get("bibliography") or []
                 st.session_state.report_recs_refs = {p: _all_refs[p] for p in ("exercise","nutrition","lifestyle")}
                 st.session_state.report_physio_refs = _all_refs.get("physio", [])
                 st.session_state.report_psych_refs  = _all_refs.get("psychology", [])
