@@ -17,6 +17,7 @@ import logging as _logging
 import uuid as _uuid
 import re, uuid
 import dossier as _dossier
+import kb_med as _kb_med   # retrieval (RAG) over the curated clinical guidance: tagged facts in the prompt, cited sources in the reply
 import longevity as _lg
 import practice_demo as _pdemo
 import recovery_ui as _rec_ui
@@ -8465,6 +8466,15 @@ div[data-testid="stVerticalBlock"]:has(> div[data-testid="stElementContainer"] .
             _ab = _tr.alert_block(_floor)
             if _ab:
                 system_ctx += "\n\n" + _ab
+            _kbh = []
+            try:
+                _kbt, _kbh = _kb_med.retrieve([m["content"] for m in st.session_state.triage_chat if m.get("role") == "user"],
+                                              [h.id for h in _floor.hits])
+                if _kbt:
+                    system_ctx += "\n\n" + _kbt
+                    log_event("kb_retrieve", ok=True, ids=_kb_med.ids(_kbh))      # chunk ids only, never user text
+            except Exception:
+                _kbh = []
             reply=claude([{"role":m["role"],"content":m["content"]} for m in st.session_state.triage_chat],system=system_ctx,max_tokens=1500)
             if _tr.is_ai_error(reply):
                 # Never show a raw error or an all-clear: urgent by default, the rule floor when higher.
@@ -8485,6 +8495,7 @@ div[data-testid="stVerticalBlock"]:has(> div[data-testid="stElementContainer"] .
             _ready_flag = bool(reply) and ("[[READY]]" in reply)
             reply = (reply or "").replace("[[READY]]", "").rstrip()
             if reply and reply.strip() and reply.strip()[-1] not in ".!?»);;:…*_)💙": reply=reply.rstrip()+" ..."
+            reply = _kb_med.cite(reply, _kbh, _lang_tr)       # drop [S#] tags; list only the sources the nurse really cited
             # Code-level safety backstop — independent of whether the model
             # actually followed the prompt-level "red flags → 166/112" rule.
             _set_emergency_from_text(reply)
