@@ -9,6 +9,7 @@ jobs:
         with: {python-version: "3.12"}
       - run: python3 -I tests/test_triage_rules.py
       - run: python3 -I tests/test_lifestyle_info.py
+      - run: python3 -I tests/test_kb_med.py
   e2e:
     runs-on: ubuntu-latest
     steps:

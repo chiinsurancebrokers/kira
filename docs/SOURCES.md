@@ -61,3 +61,7 @@ smoking and alcohol, falls prevention, dietary protein, and the clinician note t
 - Europe PMC: blocked by robots.txt. PMC article pages: show a reCAPTCHA, so not read.
 - AHRQ ESI page: still did not load (the handbook PDF on govinfo was read earlier).
 - NHS testicular-torsion and testicular-pain pages: did not load.
+
+## Retrieval (RAG) for the nurse chat (`kb.py`, `kb_med.py`, `tests/test_kb_med.py`)
+Corpus = the guidance sentence of each `triage_rules.RULES` entry (with its PubMed, NHS or MedlinePlus page) + the `lifestyle_info.ITEMS` texts that carry a verified source. Retrieval is deterministic and offline (accent-folded BM25 + Greek-to-English glossary, `min_terms` 2, `min_cover` 0.25). `_kb_med.retrieve()` puts the chunks in the chat prompt tagged `[S1]..`; the nurse cites a tag after a sentence that relies on it; `cite()` strips the tags and lists only the sources really cited. Rules that already fired as alerts are skipped. Log event `kb_retrieve` = chunk ids only. Kill switch env `KB_RAG=off`.
+Small on purpose (22 rules + 6 texts). To grow it: add `Chunk`s with a URL and a licence check from the table above (MedlinePlus and CDC are the easiest; WHO/NICE/StatPearls need the licence read first), then add a labelled case to `tests/test_kb_med.py`. `kb.py` is copied unchanged from the kiraaipet repo: change it there first.
